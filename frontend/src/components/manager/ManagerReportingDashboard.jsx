@@ -1,0 +1,1199 @@
+// src/components/manager/ManagerReportingDashboard.jsx
+import React, { useState, useEffect, useMemo } from "react";
+import { useDebounce } from "../../hooks/useDebounce";
+import {
+  TrendingUp,
+  IndianRupee,
+  ShoppingBag,
+  Users,
+  Download,
+  Calendar,
+  Sparkles,
+  ChevronDown,
+  RefreshCw,
+  AlertCircle,
+  Filter,
+  CheckCircle2,
+  PieChart as PieIcon,
+  BarChart3,
+  Search,
+  FileSpreadsheet,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import managerService from "../../api/managerService";
+
+const BRAND_COLORS = [
+  "#10b981",
+  "#3b82f6",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+];
+const STATUS_COLORS = {
+  delivered: "#10b981",
+  completed: "#10b981",
+  preparing: "#3b82f6",
+  confirmed: "#6366f1",
+  "ready-for-pickup": "#8b5cf6",
+  dispatched: "#f59e0b",
+  rejected: "#ef4444",
+  cancelled: "#ef4444",
+  pending: "#6b7280",
+};
+
+export default function ManagerReportingDashboard({ triggerToast }) {
+  const [activeFilter, setActiveFilter] = useState("all"); // 'all', 'today', 'yesterday', 'last7days', 'thismonth', 'custom'
+  const [customRange, setCustomRange] = useState({
+    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0],
+    endDate: new Date().toISOString().split("T")[0],
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isFallback, setIsFallback] = useState(false);
+  const [statsData, setStatsData] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const fetchStats = async (filterToUse = activeFilter) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await managerService.getDashboardStats(
+        filterToUse,
+        customRange,
+      );
+      if (res && res.data) {
+        setStatsData(res.data);
+        setIsFallback(Boolean(res.isFallback));
+      } else {
+        throw new Error("No reporting data returned from server");
+      }
+    } catch (err) {
+      console.error("Failed to load dashboard stats:", err);
+      setError(err.message || "Failed to load dashboard statistics");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats(activeFilter);
+  }, [activeFilter]);
+
+  const handleCustomRangeSubmit = (e) => {
+    e.preventDefault();
+    if (activeFilter === "custom") {
+      fetchStats("custom");
+    } else {
+      setActiveFilter("custom");
+    }
+  };
+
+  // Derive CSV export data using backend API or local generator
+  const handleExportCSV = async () => {
+    try {
+      if (!statsData) return;
+
+      // 1. Try Backend CSV Export API (GET /api/v1/dashboard/export?reportType=comprehensive&filter=...&format=csv)
+      const exportRes = await managerService.exportDashboardCSV({
+        reportType: "comprehensive",
+        filter: activeFilter === "all" ? "last30days" : activeFilter,
+        format: "csv",
+        startDate: customRange.startDate,
+        endDate: customRange.endDate,
+      });
+
+      if (exportRes && exportRes.success && !exportRes.isFallback) {
+        if (triggerToast) {
+          triggerToast(
+            "Comprehensive CSV Report downloaded via Backend API!",
+            "success",
+          );
+        }
+        return;
+      }
+
+      // 2. Comprehensive Client-side CSV Generator with all Manager BI Sections
+      const escapeCsv = (str) => `"${String(str || "").replace(/"/g, '""')}"`;
+      const lines = [];
+
+      // SECTION 1: REPORT METADATA & HEADER
+      lines.push(
+        "================================================================================",
+      );
+      lines.push(
+        "QUIKABITE KITCHEN MANAGEMENT - EXECUTIVE BI & PERFORMANCE REPORT",
+      );
+      lines.push(
+        "================================================================================",
+      );
+      lines.push(
+        `"Report Filter Scope:",${escapeCsv(activeFilter.toUpperCase())}`,
+      );
+      lines.push(
+        `"Generated Date & Time:",${escapeCsv(new Date().toLocaleString())}`,
+      );
+      lines.push(
+        `"Data Source:",${escapeCsv(isFallback ? "Local System Analytics" : "Live Manager Analytics API")}`,
+      );
+      if (
+        activeFilter === "custom" &&
+        customRange.startDate &&
+        customRange.endDate
+      ) {
+        lines.push(
+          `"Custom Date Range:",${escapeCsv(`${customRange.startDate} to ${customRange.endDate}`)}`,
+        );
+      }
+      lines.push("");
+
+      // SECTION 2: EXECUTIVE KPI SUMMARY
+      lines.push(
+        "--------------------------------------------------------------------------------",
+      );
+      lines.push("1. EXECUTIVE KPI SUMMARY");
+      lines.push(
+        "--------------------------------------------------------------------------------",
+      );
+      lines.push("Metric Name,Value");
+      lines.push(
+        `"Total Sales / Gross Revenue (₹)",${escapeCsv(kpis.totalRevenue)}`,
+      );
+      lines.push(`"Total Orders Count",${escapeCsv(kpis.totalOrders)}`);
+      lines.push(
+        `"Average Order Value (AOV) (₹)",${escapeCsv(kpis.avgOrderValue)}`,
+      );
+      lines.push(
+        `"Completed / Delivered Orders",${escapeCsv(kpis.completedOrders)}`,
+      );
+      lines.push(`"Active / Pending Orders",${escapeCsv(kpis.activeOrders)}`);
+      lines.push(
+        `"Order Fulfillment Rate (%)",${escapeCsv(kpis.totalOrders > 0 ? Math.round((kpis.completedOrders / kpis.totalOrders) * 100) + "%" : "100%")}`,
+      );
+      lines.push("");
+
+      // SECTION 3: TOP SELLING DISHES LEADERBOARD
+      lines.push(
+        "--------------------------------------------------------------------------------",
+      );
+      lines.push("2. TOP SELLING DISHES LEADERBOARD");
+      lines.push(
+        "--------------------------------------------------------------------------------",
+      );
+      lines.push("Rank,Dish Name,Quantity Sold,Revenue Generated (₹)");
+      if (chartDatasets.topItems.length === 0) {
+        lines.push(
+          `"N/A","No item sales data available for this timeframe","0","0.00"`,
+        );
+      } else {
+        chartDatasets.topItems.forEach((item, idx) => {
+          lines.push(
+            `"#${idx + 1}",${escapeCsv(item.name)},${item.count},${Number(item.revenue || 0).toFixed(2)}`,
+          );
+        });
+      }
+      lines.push("");
+
+      // SECTION 4: CATEGORY / BRAND BREAKDOWN
+      lines.push(
+        "--------------------------------------------------------------------------------",
+      );
+      lines.push("3. CATEGORY & CUISINE PERFORMANCE BREAKDOWN");
+      lines.push(
+        "--------------------------------------------------------------------------------",
+      );
+      lines.push("Category / Brand Name,Revenue Generated (₹)");
+      if (chartDatasets.brandData.length === 0) {
+        lines.push(`"N/A","No category data available"`);
+      } else {
+        chartDatasets.brandData.forEach((b) => {
+          lines.push(`${escapeCsv(b.name)},${Number(b.value || 0).toFixed(2)}`);
+        });
+      }
+      lines.push("");
+
+      // SECTION 5: HIGHEST SPENDING CUSTOMERS
+      if (chartDatasets.topCustomers.length > 0) {
+        lines.push(
+          "--------------------------------------------------------------------------------",
+        );
+        lines.push("4. TOP SPENDING CUSTOMERS LEADERBOARD");
+        lines.push(
+          "--------------------------------------------------------------------------------",
+        );
+        lines.push("Customer Name,Email,Total Orders,Total Amount Spent (₹)");
+        chartDatasets.topCustomers.forEach((cust) => {
+          lines.push(
+            `${escapeCsv(cust.customerName || "Customer")},${escapeCsv(cust.email || "N/A")},${cust.totalOrders || 1},${Number(cust.totalAmountSpent || 0).toFixed(2)}`,
+          );
+        });
+        lines.push("");
+      }
+
+      // SECTION 6: ORDER STATUS ANALYTICS
+      if (chartDatasets.statusData.length > 0) {
+        lines.push(
+          "--------------------------------------------------------------------------------",
+        );
+        lines.push("5. ORDER STATUS ANALYTICS BREAKDOWN");
+        lines.push(
+          "--------------------------------------------------------------------------------",
+        );
+        lines.push("Order Status,Order Count");
+        chartDatasets.statusData.forEach((st) => {
+          lines.push(`${escapeCsv(st.name.toUpperCase())},${st.value}`);
+        });
+        lines.push("");
+      }
+
+      // SECTION 7: DETAILED ORDERS BREAKDOWN TABLE
+      lines.push(
+        "--------------------------------------------------------------------------------",
+      );
+      lines.push("6. DETAILED ORDERS BREAKDOWN LIST");
+      lines.push(
+        "--------------------------------------------------------------------------------",
+      );
+      lines.push(
+        "Order ID,Customer Name,Date / Timestamp,Restaurant / Kitchen,Status,Items & Quantity Summary,Total Amount (₹)",
+      );
+      const orders =
+        filteredOrders.length > 0 ? filteredOrders : statsData.orders || [];
+      if (orders.length === 0) {
+        lines.push(`"N/A","No orders recorded","N/A","N/A","N/A","N/A","0.00"`);
+      } else {
+        orders.forEach((o) => {
+          const id = o.id || o._id || "N/A";
+          const customer = o.customerName || o.customer || "Guest Customer";
+          const date =
+            o.date ||
+            (o.createdAt ? new Date(o.createdAt).toLocaleString() : "Recent");
+          const brand =
+            o.restaurantName || o.brand || "QuikaBite Partner Kitchen";
+          const status = String(o.status || "completed").toUpperCase();
+          const amount = Number(
+            o.total || o.totalAmount || o.price || 0,
+          ).toFixed(2);
+          const itemSummary = Array.isArray(o.items)
+            ? o.items
+                .map((i) => `${i.qty || i.quantity || 1}x ${i.name || i.title}`)
+                .join("; ")
+            : o.item || "Order Items";
+
+          lines.push(
+            [
+              escapeCsv(id),
+              escapeCsv(customer),
+              escapeCsv(date),
+              escapeCsv(brand),
+              escapeCsv(status),
+              escapeCsv(itemSummary),
+              amount,
+            ].join(","),
+          );
+        });
+      }
+
+      lines.push("");
+      lines.push(
+        "================================================================================",
+      );
+      lines.push("END OF REPORT - QUIKABITE MANAGER DASHBOARD");
+      lines.push(
+        "================================================================================",
+      );
+
+      const csvString = lines.join("\n");
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `QuikaBite_Manager_Executive_Report_${activeFilter}_${new Date().toISOString().split("T")[0]}.csv`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      if (triggerToast) {
+        triggerToast("Detailed Executive CSV report downloaded!", "success");
+      }
+    } catch (err) {
+      console.error("CSV Export error:", err);
+      if (triggerToast) triggerToast("Failed to generate CSV export", "error");
+    }
+  };
+
+  // Process visual chart datasets from live API or fallback
+  const chartDatasets = useMemo(() => {
+    if (!statsData) {
+      return {
+        trendData: [],
+        statusData: [],
+        brandData: [],
+        topItems: [],
+        topCustomers: [],
+      };
+    }
+
+    // 1. Top Items
+    let topItems = [];
+    const rawItems =
+      statsData.topSellingItems ||
+      statsData.topPerformingMenu ||
+      statsData.topItems;
+    if (Array.isArray(rawItems) && rawItems.length > 0) {
+      topItems = rawItems.map((item) => ({
+        name: item.menuName || item.name || "Menu Item",
+        count: item.quantitySold || item.count || 1,
+        revenue: Number(item.revenueGenerated || item.revenue || 0),
+      }));
+    }
+
+    // 2. Category / Brand Breakdown
+    let brandData = [];
+    if (
+      Array.isArray(statsData.topCategories) &&
+      statsData.topCategories.length > 0
+    ) {
+      brandData = statsData.topCategories.map((cat) => ({
+        name: cat.category || cat.name || "Category",
+        value: Number(cat.revenue || cat.orders || cat.value || 0),
+      }));
+    } else if (Array.isArray(statsData.categoryBreakdown)) {
+      brandData = statsData.categoryBreakdown;
+    }
+
+    // 3. Order Status Analytics
+    let statusData = [];
+    if (
+      statsData.orderStatusAnalytics &&
+      typeof statsData.orderStatusAnalytics === "object"
+    ) {
+      statusData = Object.entries(statsData.orderStatusAnalytics)
+        .filter(([_, count]) => count > 0)
+        .map(([name, value]) => ({ name, value }));
+    }
+
+    // 4. Sales Trend
+    let trendData = [];
+    if (
+      Array.isArray(statsData.dailySales) &&
+      statsData.dailySales.length > 0
+    ) {
+      trendData = statsData.dailySales.map((d) => ({
+        date: d.date || d.day || "Day",
+        revenue: Number(d.revenue || d.totalSales || 0),
+        orders: Number(d.orders || d.totalOrders || 0),
+      }));
+    } else if (
+      Array.isArray(statsData.weeklyRevenue) &&
+      statsData.weeklyRevenue.length > 0
+    ) {
+      trendData = statsData.weeklyRevenue.map((w) => ({
+        date: w.week || w.date || "Week",
+        revenue: Number(w.revenue || 0),
+        orders: Number(w.orders || 0),
+      }));
+    }
+
+    // Aggregate from orders array if available
+    if (Array.isArray(statsData.orders) && statsData.orders.length > 0) {
+      if (topItems.length === 0 && statsData.topItems) {
+        topItems = statsData.topItems;
+      }
+
+      if (trendData.length === 0) {
+        const dateAgg = {};
+        const statusAgg = {};
+        const brandAgg = {};
+
+        statsData.orders.forEach((o) => {
+          const rawDate = o.createdAt || o.date || o.timestamp || Date.now();
+          const formattedDate = new Date(rawDate).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
+          if (!dateAgg[formattedDate]) {
+            dateAgg[formattedDate] = {
+              date: formattedDate,
+              revenue: 0,
+              orders: 0,
+            };
+          }
+          const val = Number(o.total || o.totalAmount || o.price || 0);
+          dateAgg[formattedDate].revenue += val;
+          dateAgg[formattedDate].orders += 1;
+
+          const st = String(o.status || "completed").toLowerCase();
+          statusAgg[st] = (statusAgg[st] || 0) + 1;
+
+          const brand = o.restaurantName || o.brand || "Main Kitchen";
+          brandAgg[brand] = (brandAgg[brand] || 0) + val;
+        });
+
+        trendData = Object.values(dateAgg);
+        if (statusData.length === 0) {
+          statusData = Object.entries(statusAgg).map(([name, value]) => ({
+            name,
+            value,
+          }));
+        }
+        if (brandData.length === 0) {
+          brandData = Object.entries(brandAgg).map(([name, value]) => ({
+            name,
+            value: Number(value.toFixed(2)),
+          }));
+        }
+      }
+    }
+
+    // Default trend point if dataset is still empty
+    if (trendData.length === 0) {
+      const rev = Number(
+        statsData.kpis?.totalRevenue ||
+          statsData.totalRevenue ||
+          brandData.reduce((s, b) => s + b.value, 0) ||
+          topItems.reduce((s, i) => s + i.revenue, 0) ||
+          0,
+      );
+      trendData = [
+        {
+          date: "Period Total",
+          revenue: rev,
+          orders: statsData.kpis?.totalOrders || statsData.totalOrders || 0,
+        },
+      ];
+    }
+
+    // Highest spending customers list
+    const topCustomers = Array.isArray(statsData.highestSpendingCustomers)
+      ? statsData.highestSpendingCustomers
+      : [];
+
+    return {
+      trendData,
+      statusData,
+      brandData,
+      topItems,
+      topCustomers,
+    };
+  }, [statsData]);
+
+  // Filtered order list for table display
+  const filteredOrders = useMemo(() => {
+    if (!statsData) return [];
+
+    let ordersList = Array.isArray(statsData.orders) ? statsData.orders : [];
+
+    // Synthesize display rows if API returned top spending customers instead of explicit raw orders array
+    if (
+      ordersList.length === 0 &&
+      Array.isArray(statsData.highestSpendingCustomers) &&
+      statsData.highestSpendingCustomers.length > 0
+    ) {
+      ordersList = statsData.highestSpendingCustomers.map((cust, idx) => ({
+        id: `API-CUST-${idx + 1}`,
+        customerName: cust.customerName || "Customer",
+        date: "Recent Activity",
+        status: "delivered",
+        total: cust.totalAmountSpent || 0,
+        restaurantName: "QuikaBite Partner Kitchen",
+      }));
+    }
+
+    return ordersList.filter((o) => {
+      const matchesSearch =
+        debouncedSearchQuery.trim() === "" ||
+        String(o.id || o._id || "")
+          .toLowerCase()
+          .includes(debouncedSearchQuery.toLowerCase()) ||
+        String(o.customerName || o.customer || "")
+          .toLowerCase()
+          .includes(debouncedSearchQuery.toLowerCase()) ||
+        String(o.restaurantName || o.brand || "")
+          .toLowerCase()
+          .includes(debouncedSearchQuery.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        String(o.status).toLowerCase() === statusFilter.toLowerCase();
+      return matchesSearch && matchesStatus;
+    });
+  }, [statsData, debouncedSearchQuery, statusFilter]);
+
+  const kpis = useMemo(() => {
+    if (!statsData) {
+      return {
+        totalRevenue: "₹0.00",
+        totalOrders: 0,
+        avgOrderValue: "₹0.00",
+        completedOrders: 0,
+        activeOrders: 0,
+      };
+    }
+
+    const rawKpis = statsData.kpis || {};
+
+    // Calculate category or top items revenue sum if API's kpis.totalRevenue evaluates to 0
+    const topCategoriesRevenue = Array.isArray(statsData.topCategories)
+      ? statsData.topCategories.reduce(
+          (sum, c) => sum + Number(c.revenue || 0),
+          0,
+        )
+      : 0;
+
+    const topItemsRevenue = Array.isArray(statsData.topSellingItems)
+      ? statsData.topSellingItems.reduce(
+          (sum, i) => sum + Number(i.revenueGenerated || i.revenue || 0),
+          0,
+        )
+      : Array.isArray(statsData.topPerformingMenu)
+        ? statsData.topPerformingMenu.reduce(
+            (sum, i) => sum + Number(i.revenue || 0),
+            0,
+          )
+        : 0;
+
+    const topCustomersSpending = Array.isArray(
+      statsData.highestSpendingCustomers,
+    )
+      ? statsData.highestSpendingCustomers.reduce(
+          (sum, cust) => sum + Number(cust.totalAmountSpent || 0),
+          0,
+        )
+      : 0;
+
+    const rawRevenue = Number(
+      rawKpis.totalRevenue ||
+        statsData.totalRevenue ||
+        topCategoriesRevenue ||
+        topItemsRevenue ||
+        topCustomersSpending ||
+        0,
+    );
+
+    const totalOrders = Number(
+      rawKpis.totalOrders ??
+        statsData.totalOrders ??
+        (Array.isArray(statsData.orders) ? statsData.orders.length : 0),
+    );
+
+    const avgOrderValue = Number(
+      rawKpis.averageOrderValue ??
+        statsData.averageOrderValue ??
+        (totalOrders > 0 ? rawRevenue / totalOrders : 0),
+    );
+
+    const completedOrders = Number(
+      rawKpis.totalDeliveredOrders ??
+        statsData.orderStatusAnalytics?.delivered ??
+        statsData.completedOrders ??
+        0,
+    );
+
+    const statusObj = statsData.orderStatusAnalytics || {};
+    const activeOrders = Number(
+      rawKpis.pendingPreparingOrders ??
+        Number(statusObj.pending || 0) +
+          Number(statusObj.preparing || 0) +
+          Number(statusObj.confirmed || 0) +
+          Number(statusObj.ready || 0) +
+          Number(statusObj.outForDelivery || 0) ??
+        statsData.activeOrders ??
+        0,
+    );
+
+    return {
+      totalRevenue: rawRevenue.toLocaleString("en-IN", {
+        style: "currency",
+        currency: "INR",
+      }),
+      totalOrders,
+      avgOrderValue: avgOrderValue.toLocaleString("en-IN", {
+        style: "currency",
+        currency: "INR",
+      }),
+      completedOrders,
+      activeOrders,
+    };
+  }, [statsData]);
+
+  return (
+    <div
+      className="space-y-6 text-neutral-100"
+      id="manager-reporting-dashboard"
+    >
+      {/* Header Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-neutral-900/90 border border-neutral-800 p-6 rounded-3xl backdrop-blur-xl shadow-2xl">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+              Manager Performance & Reporting
+            </h1>
+            <span
+              className={`px-3 py-1 text-xs font-semibold rounded-full border ${
+                isFallback
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+              } flex items-center gap-1.5`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${isFallback ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`}
+              />
+              {isFallback ? "Local Fallback Data" : "Live API Connected"}
+            </span>
+          </div>
+          <p className="text-sm text-neutral-400">
+            Real-time analytics, revenue trends, and filterable reporting
+            endpoints for store management.
+          </p>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => fetchStats(activeFilter)}
+            disabled={loading}
+            className="p-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl transition-all border border-neutral-700/60 disabled:opacity-50"
+            title="Refresh Reporting Data"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${loading ? "animate-spin text-emerald-400" : ""}`}
+            />
+          </button>
+
+          <button
+            onClick={handleExportCSV}
+            disabled={loading || !statsData}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-emerald-950/40 border border-emerald-500/40 active:scale-95 disabled:opacity-50"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export CSV Report
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Selector Pills */}
+      <div className="bg-neutral-900/70 border border-neutral-800/80 p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+          <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5 mr-2">
+            <Filter className="w-3.5 h-3.5 text-emerald-400" /> Filter:
+          </span>
+          {[
+            { id: "all", label: "All Time", api: "ManagerReportDashboard" },
+            { id: "today", label: "Today", api: "ManagerReportToday" },
+            {
+              id: "yesterday",
+              label: "Yesterday",
+              api: "ManagerReportYesterday",
+            },
+            {
+              id: "last7days",
+              label: "Last 7 Days",
+              api: "ManagerReportLast7Days",
+            },
+            {
+              id: "thismonth",
+              label: "This Month",
+              api: "ManagerReportThisMonth",
+            },
+            { id: "custom", label: "Custom Range", api: "ManagerReportCustom" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveFilter(item.id)}
+              className={`px-3.5 py-1.5 text-xs font-medium rounded-xl whitespace-nowrap transition-all border ${
+                activeFilter === item.id
+                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-950/30"
+                  : "bg-neutral-800/60 border-neutral-700/40 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom Range Picker */}
+        {activeFilter === "custom" && (
+          <form
+            onSubmit={handleCustomRangeSubmit}
+            className="flex items-center gap-2"
+          >
+            <input
+              type="date"
+              value={customRange.startDate}
+              onChange={(e) =>
+                setCustomRange((prev) => ({
+                  ...prev,
+                  startDate: e.target.value,
+                }))
+              }
+              className="bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-emerald-500"
+            />
+            <span className="text-neutral-500 text-xs">to</span>
+            <input
+              type="date"
+              value={customRange.endDate}
+              onChange={(e) =>
+                setCustomRange((prev) => ({ ...prev, endDate: e.target.value }))
+              }
+              className="bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-emerald-500"
+            />
+            <button
+              type="submit"
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-xl transition-all"
+            >
+              Apply
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* Loading Skeleton */}
+      {loading && !statsData && (
+        <div className="p-12 text-center bg-neutral-900/60 border border-neutral-800 rounded-3xl">
+          <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin mx-auto mb-3" />
+          <p className="text-neutral-300 text-sm font-medium">
+            Fetching dashboard statistics...
+          </p>
+        </div>
+      )}
+
+      {/* Error state if no stats data available */}
+      {error && !loading && !statsData && (
+        <div className="p-8 bg-rose-500/10 border border-rose-500/30 rounded-3xl text-center">
+          <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-rose-300 mb-1">
+            Failed to Connect to Reporting API
+          </h3>
+          <p className="text-sm text-neutral-400 mb-4">{error}</p>
+          <button
+            onClick={() => fetchStats(activeFilter)}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-xl transition-all"
+          >
+            Retry API Connection
+          </button>
+        </div>
+      )}
+
+      {/* Dashboard Main Content */}
+      {statsData && (
+        <>
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Total Revenue */}
+            <div className="p-5 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-3xl relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                  Total Sales
+                </span>
+                <div className="p-2.5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-400">
+                  <IndianRupee className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white tracking-tight">
+                {kpis.totalRevenue}
+              </div>
+              <p className="text-xs text-neutral-400 mt-2 flex items-center gap-1">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                Gross revenue across filter timeframe
+              </p>
+            </div>
+
+            {/* Total Orders */}
+            <div className="p-5 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-3xl relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                  Total Orders
+                </span>
+                <div className="p-2.5 bg-cyan-500/10 rounded-2xl border border-cyan-500/20 text-cyan-400">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white tracking-tight">
+                {kpis.totalOrders}
+              </div>
+              <p className="text-xs text-neutral-400 mt-2 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
+                {kpis.completedOrders} completed, {kpis.activeOrders} active
+              </p>
+            </div>
+
+            {/* Avg Order Value */}
+            <div className="p-5 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-3xl relative overflow-hidden group hover:border-amber-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                  Avg Order Value
+                </span>
+                <div className="p-2.5 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-amber-400">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white tracking-tight">
+                {kpis.avgOrderValue}
+              </div>
+              <p className="text-xs text-neutral-400 mt-2 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                Average basket size per customer
+              </p>
+            </div>
+
+            {/* Active Customers / Brands */}
+            <div className="p-5 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-3xl relative overflow-hidden group hover:border-purple-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                  Order Fulfilled
+                </span>
+                <div className="p-2.5 bg-purple-500/10 rounded-2xl border border-purple-500/20 text-purple-400">
+                  <Users className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white tracking-tight">
+                {kpis.totalOrders > 0
+                  ? Math.round((kpis.completedOrders / kpis.totalOrders) * 100)
+                  : 100}
+                %
+              </div>
+              <p className="text-xs text-neutral-400 mt-2 flex items-center gap-1">
+                Fulfilled order ratio
+              </p>
+            </div>
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Revenue & Volume Area Chart */}
+            <div className="lg:col-span-2 bg-neutral-900/80 border border-neutral-800 p-6 rounded-3xl backdrop-blur-xl shadow-xl">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-400" /> Revenue
+                    & Order Growth Trend
+                  </h3>
+                  <p className="text-xs text-neutral-400">
+                    Daily sales trajectory
+                  </p>
+                </div>
+              </div>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={chartDatasets.trendData}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="colorRevenue"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#10b981"
+                          stopOpacity={0.4}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#10b981"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#262626" />
+                    <XAxis dataKey="date" stroke="#737373" fontSize={11} />
+                    <YAxis stroke="#737373" fontSize={11} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#171717",
+                        borderColor: "#404040",
+                        borderRadius: "12px",
+                        color: "#fff",
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#10b981"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorRevenue)"
+                      name="Revenue (₹)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Category / Brand Sales Pie */}
+            <div className="bg-neutral-900/80 border border-neutral-800 p-6 rounded-3xl backdrop-blur-xl shadow-xl flex flex-col justify-between">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
+                  <PieIcon className="w-4 h-4 text-cyan-400" /> Category
+                  Breakdown
+                </h3>
+                <p className="text-xs text-neutral-400 mb-4">
+                  Revenue distribution by cuisine/brand
+                </p>
+              </div>
+              <div className="h-56 w-full flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartDatasets.brandData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {chartDatasets.brandData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={BRAND_COLORS[index % BRAND_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#171717",
+                        borderColor: "#404040",
+                        borderRadius: "12px",
+                        color: "#fff",
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-4">
+                {chartDatasets.brandData.map((b, idx) => (
+                  <div
+                    key={b.name}
+                    className="flex items-center gap-1.5 text-xs text-neutral-300 bg-neutral-800/70 px-2.5 py-1 rounded-lg"
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{
+                        backgroundColor:
+                          BRAND_COLORS[idx % BRAND_COLORS.length],
+                      }}
+                    />
+                    <span className="truncate max-w-[100px]">{b.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Top Items & Top Customers & Detailed Orders */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Top Items & Top Customers List */}
+            <div className="space-y-6">
+              {/* Top Selling Dishes */}
+              <div className="bg-neutral-900/80 border border-neutral-800 p-6 rounded-3xl backdrop-blur-xl">
+                <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" /> Top Selling
+                  Dishes
+                </h3>
+                <div className="space-y-3">
+                  {chartDatasets.topItems.length === 0 ? (
+                    <p className="text-xs text-neutral-500 py-4 text-center">
+                      No dish performance data for this period
+                    </p>
+                  ) : (
+                    chartDatasets.topItems.map((item, idx) => (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between p-3 bg-neutral-800/50 border border-neutral-700/40 rounded-2xl"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-400 font-bold text-xs flex items-center justify-center">
+                            #{idx + 1}
+                          </span>
+                          <div>
+                            <div className="text-xs font-semibold text-neutral-200">
+                              {item.name}
+                            </div>
+                            <div className="text-[10px] text-neutral-400">
+                              {item.count} orders sold
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs font-bold text-emerald-400">
+                          ₹{Number(item.revenue || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Highest Spending Customers */}
+              {chartDatasets.topCustomers.length > 0 && (
+                <div className="bg-neutral-900/80 border border-neutral-800 p-6 rounded-3xl backdrop-blur-xl">
+                  <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-emerald-400" /> Top Spending
+                    Customers
+                  </h3>
+                  <div className="space-y-3">
+                    {chartDatasets.topCustomers.map((cust, idx) => (
+                      <div
+                        key={cust.customerName || idx}
+                        className="flex items-center justify-between p-3 bg-neutral-800/50 border border-neutral-700/40 rounded-2xl"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs flex items-center justify-center border border-emerald-500/30">
+                            {(cust.customerName || "C").charAt(0)}
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold text-neutral-200">
+                              {cust.customerName || "Customer"}
+                            </div>
+                            <div className="text-[10px] text-neutral-400">
+                              {cust.email || `${cust.totalOrders || 1} orders`}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs font-bold text-emerald-400">
+                          ₹{Number(cust.totalAmountSpent || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Detailed Orders Summary Table */}
+            <div className="lg:col-span-2 bg-neutral-900/80 border border-neutral-800 p-6 rounded-3xl backdrop-blur-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 text-purple-400" /> Period
+                  Order Summary
+                </h3>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search order ID or customer..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-neutral-800/80 border border-neutral-700/80 text-xs text-neutral-200 rounded-xl pl-8 pr-3 py-1.5 focus:outline-none focus:border-purple-500 w-48"
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-neutral-800/80 border border-neutral-700/80 text-xs text-neutral-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="preparing">Preparing</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto max-h-80 overflow-y-auto scrollbar-none">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-neutral-800/60 text-neutral-400 uppercase tracking-wider sticky top-0">
+                    <tr>
+                      <th className="p-3 rounded-l-xl">Order ID</th>
+                      <th className="p-3">Customer</th>
+                      <th className="p-3">Date</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3 rounded-r-xl text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-800">
+                    {filteredOrders.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="p-6 text-center text-neutral-500"
+                        >
+                          No matching orders found for active filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredOrders.map((o) => {
+                        const statusKey = String(
+                          o.status || "completed",
+                        ).toLowerCase();
+                        const color = STATUS_COLORS[statusKey] || "#10b981";
+                        return (
+                          <tr
+                            key={o.id || o._id}
+                            className="hover:bg-neutral-800/40 transition-colors"
+                          >
+                            <td className="p-3 font-mono font-medium text-neutral-300">
+                              #{String(o.id || o._id).slice(-8)}
+                            </td>
+                            <td className="p-3 font-medium text-neutral-200">
+                              {o.customerName || o.customer || "Guest Customer"}
+                            </td>
+                            <td className="p-3 text-neutral-400">
+                              {o.date ||
+                                (o.createdAt
+                                  ? new Date(o.createdAt).toLocaleDateString()
+                                  : "Today")}
+                            </td>
+                            <td className="p-3">
+                              <span
+                                className="px-2.5 py-0.5 text-[10px] font-semibold rounded-full capitalize"
+                                style={{
+                                  backgroundColor: `${color}20`,
+                                  color: color,
+                                  border: `1px solid ${color}40`,
+                                }}
+                              >
+                                {statusKey}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right font-bold text-emerald-400">
+                              ₹
+                              {Number(
+                                o.total || o.totalAmount || o.price || 0,
+                              ).toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
