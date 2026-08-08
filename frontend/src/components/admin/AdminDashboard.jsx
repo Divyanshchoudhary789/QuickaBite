@@ -60,14 +60,14 @@ export default function AdminDashboard({
   setMarketingSubTab,
 }) {
   const [localActiveSubTab, setLocalActiveSubTab] = useState(() => {
-    return localStorage.getItem("quikabite_admin_subtab") || "overview";
+    return localStorage.getItem("Quikabite_admin_subtab") || "overview";
   });
   const activeSubTab = adminSubTab || localActiveSubTab;
   const setActiveSubTab = setAdminSubTab || setLocalActiveSubTab;
 
   useEffect(() => {
     if (localActiveSubTab) {
-      localStorage.setItem("quikabite_admin_subtab", localActiveSubTab);
+      localStorage.setItem("Quikabite_admin_subtab", localActiveSubTab);
     }
   }, [localActiveSubTab]);
 
@@ -326,56 +326,56 @@ export default function AdminDashboard({
       Array.isArray(initialNorm.operatingHours) &&
         initialNorm.operatingHours.length > 0
         ? initialNorm.operatingHours.map((oh) => ({
-            day: oh.day,
-            openTime: oh.openTime,
-            closeTime: oh.closeTime,
-            isClosed: !!oh.isClosed,
-            _id: oh._id,
-          }))
+          day: oh.day,
+          openTime: oh.openTime,
+          closeTime: oh.closeTime,
+          isClosed: !!oh.isClosed,
+          _id: oh._id,
+        }))
         : [
-            {
-              day: "Mon",
-              openTime: "09:00",
-              closeTime: "23:00",
-              isClosed: false,
-            },
-            {
-              day: "Tue",
-              openTime: "09:00",
-              closeTime: "23:00",
-              isClosed: false,
-            },
-            {
-              day: "Wed",
-              openTime: "09:00",
-              closeTime: "23:00",
-              isClosed: false,
-            },
-            {
-              day: "Thu",
-              openTime: "09:00",
-              closeTime: "23:00",
-              isClosed: false,
-            },
-            {
-              day: "Fri",
-              openTime: "09:00",
-              closeTime: "23:00",
-              isClosed: false,
-            },
-            {
-              day: "Sat",
-              openTime: "09:00",
-              closeTime: "23:00",
-              isClosed: false,
-            },
-            {
-              day: "Sun",
-              openTime: "09:00",
-              closeTime: "23:00",
-              isClosed: false,
-            },
-          ],
+          {
+            day: "Mon",
+            openTime: "09:00",
+            closeTime: "23:00",
+            isClosed: false,
+          },
+          {
+            day: "Tue",
+            openTime: "09:00",
+            closeTime: "23:00",
+            isClosed: false,
+          },
+          {
+            day: "Wed",
+            openTime: "09:00",
+            closeTime: "23:00",
+            isClosed: false,
+          },
+          {
+            day: "Thu",
+            openTime: "09:00",
+            closeTime: "23:00",
+            isClosed: false,
+          },
+          {
+            day: "Fri",
+            openTime: "09:00",
+            closeTime: "23:00",
+            isClosed: false,
+          },
+          {
+            day: "Sat",
+            openTime: "09:00",
+            closeTime: "23:00",
+            isClosed: false,
+          },
+          {
+            day: "Sun",
+            openTime: "09:00",
+            closeTime: "23:00",
+            isClosed: false,
+          },
+        ],
     );
     setShowAddResModal(true);
 
@@ -414,14 +414,14 @@ export default function AdminDashboard({
           setNewResOperatingHours(
             Array.isArray(norm.operatingHours) && norm.operatingHours.length > 0
               ? norm.operatingHours.map((oh) => ({
-                  day: oh.day,
-                  openTime: oh.openTime,
-                  closeTime: oh.closeTime,
-                  isClosed: !!oh.isClosed,
-                  _id: oh._id,
-                }))
+                day: oh.day,
+                openTime: oh.openTime,
+                closeTime: oh.closeTime,
+                isClosed: !!oh.isClosed,
+                _id: oh._id,
+              }))
               : Array.isArray(initialNorm.operatingHours) &&
-                  initialNorm.operatingHours.length > 0
+                initialNorm.operatingHours.length > 0
                 ? initialNorm.operatingHours
                 : [],
           );
@@ -920,8 +920,8 @@ export default function AdminDashboard({
           typeof createdDish.image === "string"
             ? createdDish.image
             : createdDish.image?.secure_url ||
-              createdDish.image?.url ||
-              newDishImage;
+            createdDish.image?.url ||
+            newDishImage;
         newDish = {
           id: createdDish._id || createdDish.id || `dish-${Date.now()}`,
           _id: createdDish._id || createdDish.id,
@@ -947,7 +947,7 @@ export default function AdminDashboard({
         console.error("Failed to add dish recipe via API:", err);
         triggerToast(
           "Failed to add dish recipe to server: " +
-            (err.response?.data?.message || err.message),
+          (err.response?.data?.message || err.message),
         );
         return;
       }
@@ -998,14 +998,42 @@ export default function AdminDashboard({
     saveRestaurantsToStorage(updated);
     triggerToast(`Dish "${dishName}" deleted from menu.`);
   };
-  const handleUpdateRestaurantOffer = (e) => {
+  const handleUpdateRestaurantOffer = async (e) => {
     e.preventDefault();
     if (!selectedResIdForOffer || !newOfferText) {
       triggerToast("Select a kitchen and enter offer text.");
       return;
     }
+    const targetRes = restaurantsList?.find((r) => String(r.id) === String(selectedResIdForOffer) || String(r._id) === String(selectedResIdForOffer));
+    const resName = targetRes?.name || "Kitchen";
+    const cleanCode = (resName.replace(/[^a-zA-Z]/g, "").slice(0, 5) + "OFF").toUpperCase();
+
+    const couponPayload = {
+      code: cleanCode,
+      campaignCategory: "RESTAURANT",
+      bannerTitle: `${resName} - ${newOfferText}`,
+      discountLabel: newOfferText,
+      discountType: newOfferText.includes("%") ? "percentage" : "flat",
+      discountValue: parseFloat(newOfferText.replace(/\D/g, "")) || 20,
+      maximumDiscount: 100,
+      minimumOrderAmount: 150,
+      policyText: `Special promotion for ${resName}: ${newOfferText}`,
+      usageLimit: 100,
+      usageLimitPerUser: 1,
+      validFrom: new Date().toISOString(),
+      validTill: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      isActive: true,
+      restaurant: selectedResIdForOffer,
+    };
+
+    try {
+      await adminService.createCoupon(couponPayload);
+    } catch (err) {
+      console.warn("Notice: Failed to push restaurant coupon to /v1/coupons:", err?.message || err);
+    }
+
     const updated = restaurantsList.map((r) => {
-      if (r.id === selectedResIdForOffer) {
+      if (String(r.id) === String(selectedResIdForOffer) || String(r._id) === String(selectedResIdForOffer)) {
         return { ...r, discount: newOfferText };
       }
       return r;
@@ -1013,39 +1041,50 @@ export default function AdminDashboard({
     setRestaurantsList(updated);
     saveRestaurantsToStorage(updated);
     triggerToast(
-      `Updated offer badge for "${restaurantsList.find((r) => r.id === selectedResIdForOffer)?.name}" to "${newOfferText}"`,
+      `Updated offer badge & published promo coupon for "${resName}" to "${newOfferText}"`,
     );
     setNewOfferText("");
   };
-  const handleAddCouponSubmit = (e) => {
+  const handleAddCouponSubmit = async (e) => {
     e.preventDefault();
     if (!newCouponCode || !newCouponTitle || !newCouponDiscount) {
       triggerToast("Please fill out all required fields.");
       return;
     }
-    const newCoupon = {
-      id: `coupon-${Date.now()}`,
-      category: newCouponCategory,
-      title: newCouponTitle,
-      discount: newCouponDiscount,
+
+    const couponPayload = {
       code: newCouponCode.toUpperCase().replace(/\s+/g, ""),
-      expiry: "Valid till end of month",
-      desc: newCouponDesc,
-      minOrder: Number(newCouponMinOrder) || 0,
-      iconName: newCouponCategory === "bank" ? "credit-card" : "ticket",
-      accentColor: "text-orange-600 bg-orange-50 border-orange-200",
-      colorTheme: "orange",
+      campaignCategory: newCouponCategory === "bank" ? "BANK" : newCouponCategory === "festival" ? "FESTIVAL" : "STANDARD",
+      bannerTitle: newCouponTitle,
+      discountLabel: newCouponDiscount,
+      discountType: newCouponDiscount.includes("%") ? "percentage" : "flat",
+      discountValue: parseFloat(newCouponDiscount.replace(/\D/g, "")) || 50,
+      maximumDiscount: 100,
+      minimumOrderAmount: Number(newCouponMinOrder) || 200,
+      policyText: newCouponDesc || `Valid on orders above ₹${newCouponMinOrder || 200}`,
+      usageLimit: 100,
+      usageLimitPerUser: 1,
+      validFrom: new Date().toISOString(),
+      validTill: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      isActive: true,
     };
-    const updated = [newCoupon, ...couponsList];
-    setCouponsList(updated);
-    saveOffersToStorage(updated);
-    triggerToast(`Promo Code "${newCouponCode.toUpperCase()}" published live!`);
-    setNewCouponCode("");
-    setNewCouponTitle("");
-    setNewCouponDiscount("");
-    setNewCouponDesc("");
-    setNewCouponMinOrder("");
-    setShowAddCouponModal(false);
+
+    try {
+      const created = await adminService.createCoupon(couponPayload);
+      const updated = [created, ...couponsList];
+      setCouponsList(updated);
+      saveOffersToStorage(updated);
+      triggerToast(`Promo Code "${newCouponCode.toUpperCase()}" published live via api/v1/coupons!`);
+      setNewCouponCode("");
+      setNewCouponTitle("");
+      setNewCouponDiscount("");
+      setNewCouponDesc("");
+      setNewCouponMinOrder("");
+      setShowAddCouponModal(false);
+    } catch (err) {
+      console.error("Failed to create coupon:", err);
+      triggerToast(err.response?.data?.message || "Failed to publish promo code.");
+    }
   };
   const handleDeleteCoupon = (id, code) => {
     const updated = couponsList.filter((c) => c.id !== id);
@@ -1112,7 +1151,7 @@ export default function AdminDashboard({
               </span>
               <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
                 <ChefHat className="h-8 w-8 text-brand-orange animate-bounce" />
-                <span>QuikaBite Kitchen Control</span>
+                <span>QuickaBite Kitchen Control</span>
               </h1>
               <p className="text-neutral-400 text-xs font-semibold">
                 Coordinate brand menus, process direct recipes, monitor live
@@ -1151,7 +1190,7 @@ export default function AdminDashboard({
                 label: `Rider Dispatch Logistics (${orders.length})`,
                 icon: Clock,
               },
-              { id: "brands", label: "Virtual Brand Labs", icon: Award },
+              // { id: "brands", label: "Virtual Brand Labs", icon: Award },
               {
                 id: "restaurants",
                 label: "Menu Management",
@@ -1160,7 +1199,6 @@ export default function AdminDashboard({
               { id: "users", label: "Users Directory", icon: Users },
               { id: "drivers", label: "Riders Directory", icon: Bike },
               { id: "banners", label: "Promo Banners", icon: Image },
-              { id: "notifications", label: "Push Center", icon: Bell },
             ].map((tab) => {
               const Icon = tab.icon;
               const isSelected = activeSubTab === tab.id;
@@ -1326,389 +1364,387 @@ export default function AdminDashboard({
               </div>
             )}
 
-                  <form
-                    onSubmit={handleAddRestaurantSubmit}
-                    className="flex flex-col h-full overflow-hidden"
+            <form
+              onSubmit={handleAddRestaurantSubmit}
+              className="flex flex-col h-full overflow-hidden"
+            >
+              <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-2 pb-2">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                    Kitchen Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newResName}
+                    onChange={(e) => setNewResName(e.target.value)}
+                    placeholder="e.g. ZAM ZAM Jaipur"
+                    className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                    Cuisine tags (comma separated) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newResCuisines}
+                    onChange={(e) => setNewResCuisines(e.target.value)}
+                    placeholder="Mandi, Arabic, Biryani, Grill"
+                    className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      Cooking Lead Time *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newResTime}
+                      onChange={(e) => setNewResTime(e.target.value)}
+                      placeholder="25-30 mins"
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      Fee (₹)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      disabled={newResIsFreeDelivery}
+                      value={newResIsFreeDelivery ? "0" : newResFee}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const cleanVal = val.replace(/\D/g, "");
+                        if (cleanVal.length <= 3) {
+                          setNewResFee(cleanVal);
+                          if (Number(cleanVal) > 0) {
+                            setNewResIsFreeDelivery(false);
+                          } else {
+                            setNewResIsFreeDelivery(true);
+                          }
+                        }
+                      }}
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 p-1">
+                  <input
+                    type="checkbox"
+                    id="isFreeDeliveryOutlet"
+                    checked={newResIsFreeDelivery}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setNewResIsFreeDelivery(checked);
+                      if (checked) {
+                        setNewResFee("0");
+                      }
+                    }}
+                    className="h-4 w-4 text-brand-orange focus:ring-brand-orange border-neutral-300 rounded cursor-pointer"
+                  />
+                  <label
+                    htmlFor="isFreeDeliveryOutlet"
+                    className="text-xs font-bold text-neutral-700 cursor-pointer select-none"
                   >
-                    <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-2 pb-2">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Kitchen Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={newResName}
-                          onChange={(e) => setNewResName(e.target.value)}
-                          placeholder="e.g. ZAM ZAM Jaipur"
-                          className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                        />
-                      </div>
+                    Free Delivery Outlet
+                  </label>
+                </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Cuisine tags (comma separated) *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={newResCuisines}
-                          onChange={(e) => setNewResCuisines(e.target.value)}
-                          placeholder="Mandi, Arabic, Biryani, Grill"
-                          className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                        />
-                      </div>
+                <div className="space-y-1 bg-orange-50/50 p-2.5 rounded-xl border border-orange-100/50">
+                  <label className="text-[8px] font-black uppercase tracking-wider text-orange-600 block">
+                    Google Maps URL (Auto-Coordinates Extractor)
+                  </label>
+                  <input
+                    type="url"
+                    value={newResMapsUrl}
+                    onChange={(e) => handleMapsUrlChange(e.target.value)}
+                    placeholder="Paste maps link e.g. https://google.com/maps..."
+                    className="w-full bg-white border border-neutral-150 rounded-lg p-2 text-xs font-semibold outline-none focus:border-brand-orange"
+                  />
+                  <p className="text-[8px] text-neutral-400 font-semibold mt-0.5 leading-normal">
+                    * Note: Shortened links (e.g. share.google/...,
+                    maps.app.goo.gl/...) do not contain coordinates text.
+                    Please open them in a browser first, wait for the
+                    redirect, and paste the resolved long URL from the
+                    address bar.
+                  </p>
+                </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Cooking Lead Time *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={newResTime}
-                            onChange={(e) => setNewResTime(e.target.value)}
-                            placeholder="25-30 mins"
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Fee (₹)
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            disabled={newResIsFreeDelivery}
-                            value={newResIsFreeDelivery ? "0" : newResFee}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              const cleanVal = val.replace(/\D/g, "");
-                              if (cleanVal.length <= 3) {
-                                setNewResFee(cleanVal);
-                                if (Number(cleanVal) > 0) {
-                                  setNewResIsFreeDelivery(false);
-                                } else {
-                                  setNewResIsFreeDelivery(true);
-                                }
-                              }
-                            }}
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange disabled:opacity-50"
-                          />
-                        </div>
-                      </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      Latitude *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0000001"
+                      required
+                      value={newResLatitude}
+                      onChange={(e) =>
+                        setNewResLatitude(Number(e.target.value))
+                      }
+                      placeholder="e.g. 26.8851"
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      Longitude *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0000001"
+                      required
+                      value={newResLongitude}
+                      onChange={(e) =>
+                        setNewResLongitude(Number(e.target.value))
+                      }
+                      placeholder="e.g. 75.6560"
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                    />
+                  </div>
+                </div>
 
-                      <div className="flex items-center gap-2.5 p-1">
-                        <input
-                          type="checkbox"
-                          id="isFreeDeliveryOutlet"
-                          checked={newResIsFreeDelivery}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setNewResIsFreeDelivery(checked);
-                            if (checked) {
-                              setNewResFee("0");
-                            }
-                          }}
-                          className="h-4 w-4 text-brand-orange focus:ring-brand-orange border-neutral-300 rounded cursor-pointer"
-                        />
-                        <label
-                          htmlFor="isFreeDeliveryOutlet"
-                          className="text-xs font-bold text-neutral-700 cursor-pointer select-none"
-                        >
-                          Free Delivery Outlet
-                        </label>
-                      </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      City *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newResCity}
+                      onChange={(e) => setNewResCity(e.target.value)}
+                      placeholder="e.g. Jaipur"
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      Landmark
+                    </label>
+                    <input
+                      type="text"
+                      value={newResLandmark}
+                      onChange={(e) => setNewResLandmark(e.target.value)}
+                      placeholder="e.g. Near metro station"
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                    />
+                  </div>
+                </div>
 
-                      <div className="space-y-1 bg-orange-50/50 p-2.5 rounded-xl border border-orange-100/50">
-                        <label className="text-[8px] font-black uppercase tracking-wider text-orange-600 block">
-                          Google Maps URL (Auto-Coordinates Extractor)
-                        </label>
-                        <input
-                          type="url"
-                          value={newResMapsUrl}
-                          onChange={(e) => handleMapsUrlChange(e.target.value)}
-                          placeholder="Paste maps link e.g. https://google.com/maps..."
-                          className="w-full bg-white border border-neutral-150 rounded-lg p-2 text-xs font-semibold outline-none focus:border-brand-orange"
-                        />
-                        <p className="text-[8px] text-neutral-400 font-semibold mt-0.5 leading-normal">
-                          * Note: Shortened links (e.g. share.google/...,
-                          maps.app.goo.gl/...) do not contain coordinates text.
-                          Please open them in a browser first, wait for the
-                          redirect, and paste the resolved long URL from the
-                          address bar.
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      Contact Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={newResContact}
+                      onChange={(e) => setNewResContact(e.target.value)}
+                      placeholder="e.g. +91 9876543210"
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      Radius (km) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={newResRadius}
+                      onChange={(e) =>
+                        setNewResRadius(Number(e.target.value))
+                      }
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                    Outlet Address (India Locale) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newResAddress}
+                    onChange={(e) => setNewResAddress(e.target.value)}
+                    placeholder="e.g. Mansarovar, Jaipur"
+                    className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                  />
+                </div>
+
+                {/* Restaurant Image File Uploader (Single File Drag & Drop + Preview) */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block">
+                    Restaurant Cover Image *
+                  </label>
+
+                  {!newResImage ? (
+                    <div
+                      onDragEnter={handleResDrag}
+                      onDragOver={handleResDrag}
+                      onDragLeave={handleResDrag}
+                      onDrop={handleResDrop}
+                      className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 ${resDragActive
+                        ? "border-brand-orange bg-orange-50/40 text-brand-orange scale-[0.99]"
+                        : "border-neutral-200 bg-neutral-50/50 hover:bg-neutral-50 hover:border-orange-200 text-neutral-400"
+                        }`}
+                    >
+                      <input
+                        type="file"
+                        id="restaurant-photo-uploader"
+                        accept="image/*"
+                        onChange={handleResPhotoUpload}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="restaurant-photo-uploader"
+                        className="cursor-pointer flex flex-col items-center w-full"
+                      >
+                        <Upload className="h-5 w-5 text-neutral-400 mb-1 group-hover:text-brand-orange transition" />
+                        <p className="text-[10px] font-bold text-neutral-600">
+                          Drag & drop restaurant image or{" "}
+                          <span className="text-brand-orange underline">
+                            browse files
+                          </span>
                         </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Latitude *
-                          </label>
-                          <input
-                            type="number"
-                            step="0.0000001"
-                            required
-                            value={newResLatitude}
-                            onChange={(e) =>
-                              setNewResLatitude(Number(e.target.value))
-                            }
-                            placeholder="e.g. 26.8851"
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Longitude *
-                          </label>
-                          <input
-                            type="number"
-                            step="0.0000001"
-                            required
-                            value={newResLongitude}
-                            onChange={(e) =>
-                              setNewResLongitude(Number(e.target.value))
-                            }
-                            placeholder="e.g. 75.6560"
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            City *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={newResCity}
-                            onChange={(e) => setNewResCity(e.target.value)}
-                            placeholder="e.g. Jaipur"
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Landmark
-                          </label>
-                          <input
-                            type="text"
-                            value={newResLandmark}
-                            onChange={(e) => setNewResLandmark(e.target.value)}
-                            placeholder="e.g. Near metro station"
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Contact Number
-                          </label>
-                          <input
-                            type="tel"
-                            value={newResContact}
-                            onChange={(e) => setNewResContact(e.target.value)}
-                            placeholder="e.g. +91 9876543210"
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Radius (km) *
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            min="1"
-                            value={newResRadius}
-                            onChange={(e) =>
-                              setNewResRadius(Number(e.target.value))
-                            }
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Outlet Address (India Locale) *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={newResAddress}
-                          onChange={(e) => setNewResAddress(e.target.value)}
-                          placeholder="e.g. Mansarovar, Jaipur"
-                          className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                        />
-                      </div>
-
-                      {/* Restaurant Image File Uploader (Single File Drag & Drop + Preview) */}
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block">
-                          Restaurant Cover Image *
-                        </label>
-
-                        {!newResImage ? (
-                          <div
-                            onDragEnter={handleResDrag}
-                            onDragOver={handleResDrag}
-                            onDragLeave={handleResDrag}
-                            onDrop={handleResDrop}
-                            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 ${
-                              resDragActive
-                                ? "border-brand-orange bg-orange-50/40 text-brand-orange scale-[0.99]"
-                                : "border-neutral-200 bg-neutral-50/50 hover:bg-neutral-50 hover:border-orange-200 text-neutral-400"
-                            }`}
-                          >
-                            <input
-                              type="file"
-                              id="restaurant-photo-uploader"
-                              accept="image/*"
-                              onChange={handleResPhotoUpload}
-                              className="hidden"
-                            />
-                            <label
-                              htmlFor="restaurant-photo-uploader"
-                              className="cursor-pointer flex flex-col items-center w-full"
-                            >
-                              <Upload className="h-5 w-5 text-neutral-400 mb-1 group-hover:text-brand-orange transition" />
-                              <p className="text-[10px] font-bold text-neutral-600">
-                                Drag & drop restaurant image or{" "}
-                                <span className="text-brand-orange underline">
-                                  browse files
-                                </span>
-                              </p>
-                              <p className="text-[9px] text-neutral-400 font-medium mt-0.5">
-                                JPEG, PNG, WebP supported. Uploaded via
-                                Cloudinary.
-                              </p>
-                            </label>
-                          </div>
-                        ) : (
-                          <div className="relative rounded-xl overflow-hidden border border-neutral-200 group h-32 w-full bg-neutral-100">
-                            <img
-                              src={newResImage}
-                              alt="Restaurant Cover"
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                              <button
-                                type="button"
-                                onClick={handleRemoveResImage}
-                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg shadow-md transition flex items-center gap-1 text-[10px] font-bold cursor-pointer"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                                <span>Remove Image</span>
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-2 border-t border-neutral-100 pt-3">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block mb-1">
-                          Operating Hours
-                        </label>
-                        <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
-                          {newResOperatingHours.map((oh, index) => (
-                            <div
-                              key={oh.day}
-                              className="flex items-center justify-between gap-2 bg-neutral-50 p-2 rounded-xl border border-neutral-100 text-xs"
-                            >
-                              <span className="font-bold text-neutral-700 w-10">
-                                {oh.day}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="time"
-                                  disabled={oh.isClosed}
-                                  value={oh.openTime}
-                                  onChange={(e) => {
-                                    const updated = [...newResOperatingHours];
-                                    updated[index].openTime = e.target.value;
-                                    setNewResOperatingHours(updated);
-                                  }}
-                                  className="w-24 bg-white border border-neutral-150 rounded-lg p-1 text-[11px] font-semibold text-center outline-none focus:border-brand-orange disabled:opacity-50"
-                                />
-                                <span className="text-neutral-400 font-semibold text-[10px]">
-                                  to
-                                </span>
-                                <input
-                                  type="time"
-                                  disabled={oh.isClosed}
-                                  value={oh.closeTime}
-                                  onChange={(e) => {
-                                    const updated = [...newResOperatingHours];
-                                    updated[index].closeTime = e.target.value;
-                                    setNewResOperatingHours(updated);
-                                  }}
-                                  className="w-24 bg-white border border-neutral-150 rounded-lg p-1 text-[11px] font-semibold text-center outline-none focus:border-brand-orange disabled:opacity-50"
-                                />
-                              </div>
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={oh.isClosed}
-                                  onChange={(e) => {
-                                    const updated = [...newResOperatingHours];
-                                    updated[index].isClosed = e.target.checked;
-                                    setNewResOperatingHours(updated);
-                                  }}
-                                  className="h-3 w-3 text-brand-orange focus:ring-brand-orange border-neutral-300 rounded"
-                                />
-                                <span className="text-[10px] font-bold text-neutral-500">
-                                  Closed
-                                </span>
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2.5 p-1">
-                        <input
-                          type="checkbox"
-                          id="isActiveOutlet"
-                          checked={newResIsActive}
-                          onChange={(e) => setNewResIsActive(e.target.checked)}
-                          className="h-4 w-4 text-brand-orange focus:ring-brand-orange border-neutral-300 rounded cursor-pointer"
-                        />
-                        <label
-                          htmlFor="isActiveOutlet"
-                          className="text-xs font-bold text-neutral-700 cursor-pointer select-none"
+                        <p className="text-[9px] text-neutral-400 font-medium mt-0.5">
+                          JPEG, PNG, WebP supported. Uploaded via
+                          Cloudinary.
+                        </p>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="relative rounded-xl overflow-hidden border border-neutral-200 group h-32 w-full bg-neutral-100">
+                      <img
+                        src={newResImage}
+                        alt="Restaurant Cover"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleRemoveResImage}
+                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg shadow-md transition flex items-center gap-1 text-[10px] font-bold cursor-pointer"
                         >
-                          Active Outlet (Show in catalog & take orders)
-                        </label>
+                          <X className="h-3.5 w-3.5" />
+                          <span>Remove Image</span>
+                        </button>
                       </div>
                     </div>
+                  )}
+                </div>
 
-                    <button
-                      type="submit"
-                      disabled={isSubmittingRes}
-                      className={`w-full bg-brand-orange hover:bg-orange-700 text-white font-black py-3 rounded-xl text-xs transition mt-4 shadow-md shadow-orange-600/10 shrink-0 flex items-center justify-center gap-2 ${
-                        isSubmittingRes ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
-                      }`}
-                    >
-                      {isSubmittingRes ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin text-white" />
-                          <span>
-                            {editingRes ? "Saving Changes..." : "Registering Kitchen Outlet..."}
-                          </span>
-                        </>
-                      ) : (
-                        <span>
-                          {editingRes ? "Save Changes" : "Register Kitchen Outlet"}
+                <div className="space-y-2 border-t border-neutral-100 pt-3">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block mb-1">
+                    Operating Hours
+                  </label>
+                  <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                    {newResOperatingHours.map((oh, index) => (
+                      <div
+                        key={oh.day}
+                        className="flex items-center justify-between gap-2 bg-neutral-50 p-2 rounded-xl border border-neutral-100 text-xs"
+                      >
+                        <span className="font-bold text-neutral-700 w-10">
+                          {oh.day}
                         </span>
-                      )}
-                    </button>
-                  </form>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="time"
+                            disabled={oh.isClosed}
+                            value={oh.openTime}
+                            onChange={(e) => {
+                              const updated = [...newResOperatingHours];
+                              updated[index].openTime = e.target.value;
+                              setNewResOperatingHours(updated);
+                            }}
+                            className="w-24 bg-white border border-neutral-150 rounded-lg p-1 text-[11px] font-semibold text-center outline-none focus:border-brand-orange disabled:opacity-50"
+                          />
+                          <span className="text-neutral-400 font-semibold text-[10px]">
+                            to
+                          </span>
+                          <input
+                            type="time"
+                            disabled={oh.isClosed}
+                            value={oh.closeTime}
+                            onChange={(e) => {
+                              const updated = [...newResOperatingHours];
+                              updated[index].closeTime = e.target.value;
+                              setNewResOperatingHours(updated);
+                            }}
+                            className="w-24 bg-white border border-neutral-150 rounded-lg p-1 text-[11px] font-semibold text-center outline-none focus:border-brand-orange disabled:opacity-50"
+                          />
+                        </div>
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={oh.isClosed}
+                            onChange={(e) => {
+                              const updated = [...newResOperatingHours];
+                              updated[index].isClosed = e.target.checked;
+                              setNewResOperatingHours(updated);
+                            }}
+                            className="h-3 w-3 text-brand-orange focus:ring-brand-orange border-neutral-300 rounded"
+                          />
+                          <span className="text-[10px] font-bold text-neutral-500">
+                            Closed
+                          </span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 p-1">
+                  <input
+                    type="checkbox"
+                    id="isActiveOutlet"
+                    checked={newResIsActive}
+                    onChange={(e) => setNewResIsActive(e.target.checked)}
+                    className="h-4 w-4 text-brand-orange focus:ring-brand-orange border-neutral-300 rounded cursor-pointer"
+                  />
+                  <label
+                    htmlFor="isActiveOutlet"
+                    className="text-xs font-bold text-neutral-700 cursor-pointer select-none"
+                  >
+                    Active Outlet (Show in catalog & take orders)
+                  </label>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmittingRes}
+                className={`w-full bg-brand-orange hover:bg-orange-700 text-white font-black py-3 rounded-xl text-xs transition mt-4 shadow-md shadow-orange-600/10 shrink-0 flex items-center justify-center gap-2 ${isSubmittingRes ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+              >
+                {isSubmittingRes ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-white" />
+                    <span>
+                      {editingRes ? "Saving Changes..." : "Registering Kitchen Outlet..."}
+                    </span>
+                  </>
+                ) : (
+                  <span>
+                    {editingRes ? "Save Changes" : "Register Kitchen Outlet"}
+                  </span>
+                )}
+              </button>
+            </form>
           </Modal>
 
           {/* MODAL: ADD DISH RECIPE */}
@@ -1722,161 +1758,160 @@ export default function AdminDashboard({
               </button>
             </div>
 
-                  <form onSubmit={handleAddDishSubmit} className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Dish Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newDishName}
-                        onChange={(e) => setNewDishName(e.target.value)}
-                        placeholder="e.g. Mutton Handi Biryani"
-                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                      />
-                    </div>
+            <form onSubmit={handleAddDishSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                  Dish Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newDishName}
+                  onChange={(e) => setNewDishName(e.target.value)}
+                  placeholder="e.g. Mutton Handi Biryani"
+                  className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                />
+              </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Price (₹) *
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          value={newDishPrice}
-                          onChange={(e) => setNewDishPrice(e.target.value)}
-                          placeholder="45"
-                          className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Recipe Category *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={newDishCategory}
-                          onChange={(e) => setNewDishCategory(e.target.value)}
-                          placeholder="Biryani / Mains / Starters"
-                          className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                        />
-                      </div>
-                    </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                    Price (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={newDishPrice}
+                    onChange={(e) => setNewDishPrice(e.target.value)}
+                    placeholder="45"
+                    className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                    Recipe Category *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newDishCategory}
+                    onChange={(e) => setNewDishCategory(e.target.value)}
+                    placeholder="Biryani / Mains / Starters"
+                    className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                  />
+                </div>
+              </div>
 
-                    {/* Single Image Drag & Drop File Picker + Preview Card */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block">
-                        Upload Dish Image *
-                      </label>
+              {/* Single Image Drag & Drop File Picker + Preview Card */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block">
+                  Upload Dish Image *
+                </label>
 
-                      {!newDishImage ? (
-                        <div
-                          onDragEnter={handleDishDrag}
-                          onDragOver={handleDishDrag}
-                          onDragLeave={handleDishDrag}
-                          onDrop={handleDishDrop}
-                          className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 ${
-                            dishDragActive
-                              ? "border-brand-orange bg-orange-50/40 text-brand-orange scale-[0.99]"
-                              : "border-neutral-200 bg-neutral-50/50 hover:bg-neutral-50 hover:border-orange-200 text-neutral-400"
-                          }`}
-                        >
-                          <input
-                            type="file"
-                            id="dish-photo-uploader-modal"
-                            accept="image/*"
-                            onChange={handleDishPhotoUpload}
-                            className="hidden"
-                          />
-                          <label
-                            htmlFor="dish-photo-uploader-modal"
-                            className="cursor-pointer flex flex-col items-center w-full"
-                          >
-                            <Upload className="h-5 w-5 text-neutral-400 mb-1 group-hover:text-brand-orange transition" />
-                            <p className="text-[10px] font-bold text-neutral-600">
-                              Drag & drop image or{" "}
-                              <span className="text-brand-orange underline">
-                                browse files
-                              </span>
-                            </p>
-                            <p className="text-[9px] text-neutral-400 font-medium mt-0.5">
-                              JPEG, PNG, WebP supported.
-                            </p>
-                          </label>
-                        </div>
-                      ) : (
-                        <div className="relative rounded-xl overflow-hidden border border-neutral-200 group h-28 w-full bg-neutral-100">
-                          <img
-                            src={newDishImage}
-                            alt="Dish Cover"
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                            <button
-                              type="button"
-                              onClick={handleRemoveDishImage}
-                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg shadow-md transition flex items-center gap-1 text-[10px] font-bold cursor-pointer"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              <span>Remove Image</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Dish Description *
-                      </label>
-                      <textarea
-                        required
-                        value={newDishDesc}
-                        onChange={(e) => setNewDishDesc(e.target.value)}
-                        placeholder="Explain ingredients, spices, and allergens."
-                        rows={2}
-                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-1.5">
-                      <label className="bg-neutral-50 border border-neutral-150 rounded-xl p-3 flex items-center gap-2.5 cursor-pointer hover:bg-neutral-100 select-none">
-                        <input
-                          type="checkbox"
-                          checked={newDishIsVeg}
-                          onChange={(e) => setNewDishIsVeg(e.target.checked)}
-                          className="accent-brand-orange"
-                        />
-                        <span className="text-[10px] font-black uppercase tracking-wider text-neutral-600">
-                          Pure Veggie
-                        </span>
-                      </label>
-
-                      <label className="bg-neutral-50 border border-neutral-150 rounded-xl p-3 flex items-center gap-2.5 cursor-pointer hover:bg-neutral-100 select-none">
-                        <input
-                          type="checkbox"
-                          checked={newDishIsBestseller}
-                          onChange={(e) =>
-                            setNewDishIsBestseller(e.target.checked)
-                          }
-                          className="accent-brand-orange"
-                        />
-                        <span className="text-[10px] font-black uppercase tracking-wider text-neutral-600">
-                          Best Seller
-                        </span>
-                      </label>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full bg-brand-orange hover:bg-orange-700 text-white font-black py-3 rounded-xl text-xs transition mt-2 cursor-pointer shadow-md"
+                {!newDishImage ? (
+                  <div
+                    onDragEnter={handleDishDrag}
+                    onDragOver={handleDishDrag}
+                    onDragLeave={handleDishDrag}
+                    onDrop={handleDishDrop}
+                    className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 ${dishDragActive
+                      ? "border-brand-orange bg-orange-50/40 text-brand-orange scale-[0.99]"
+                      : "border-neutral-200 bg-neutral-50/50 hover:bg-neutral-50 hover:border-orange-200 text-neutral-400"
+                      }`}
+                  >
+                    <input
+                      type="file"
+                      id="dish-photo-uploader-modal"
+                      accept="image/*"
+                      onChange={handleDishPhotoUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="dish-photo-uploader-modal"
+                      className="cursor-pointer flex flex-col items-center w-full"
                     >
-                      Publish Recipe Dish
-                    </button>
-                  </form>
+                      <Upload className="h-5 w-5 text-neutral-400 mb-1 group-hover:text-brand-orange transition" />
+                      <p className="text-[10px] font-bold text-neutral-600">
+                        Drag & drop image or{" "}
+                        <span className="text-brand-orange underline">
+                          browse files
+                        </span>
+                      </p>
+                      <p className="text-[9px] text-neutral-400 font-medium mt-0.5">
+                        JPEG, PNG, WebP supported.
+                      </p>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="relative rounded-xl overflow-hidden border border-neutral-200 group h-28 w-full bg-neutral-100">
+                    <img
+                      src={newDishImage}
+                      alt="Dish Cover"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={handleRemoveDishImage}
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg shadow-md transition flex items-center gap-1 text-[10px] font-bold cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        <span>Remove Image</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                  Dish Description *
+                </label>
+                <textarea
+                  required
+                  value={newDishDesc}
+                  onChange={(e) => setNewDishDesc(e.target.value)}
+                  placeholder="Explain ingredients, spices, and allergens."
+                  rows={2}
+                  className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1.5">
+                <label className="bg-neutral-50 border border-neutral-150 rounded-xl p-3 flex items-center gap-2.5 cursor-pointer hover:bg-neutral-100 select-none">
+                  <input
+                    type="checkbox"
+                    checked={newDishIsVeg}
+                    onChange={(e) => setNewDishIsVeg(e.target.checked)}
+                    className="accent-brand-orange"
+                  />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-neutral-600">
+                    Pure Veggie
+                  </span>
+                </label>
+
+                <label className="bg-neutral-50 border border-neutral-150 rounded-xl p-3 flex items-center gap-2.5 cursor-pointer hover:bg-neutral-100 select-none">
+                  <input
+                    type="checkbox"
+                    checked={newDishIsBestseller}
+                    onChange={(e) =>
+                      setNewDishIsBestseller(e.target.checked)
+                    }
+                    className="accent-brand-orange"
+                  />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-neutral-600">
+                    Best Seller
+                  </span>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-brand-orange hover:bg-orange-700 text-white font-black py-3 rounded-xl text-xs transition mt-2 cursor-pointer shadow-md"
+              >
+                Publish Recipe Dish
+              </button>
+            </form>
           </Modal>
         </div>
       </div>

@@ -74,7 +74,7 @@ export default function CheckoutPage({
   const { profile, addresses, addAddress } = useAuth();
 
   const [name, setName] = useState(profile?.name || "Vedanshi Bhabhra");
-  const [phone, setPhone] = useState(profile?.phone || "+91 98765 43210");
+  const [phone, setPhone] = useState(profile?.phone || "+91 9876543210");
   const [email, setEmail] = useState(
     profile?.email || "bhabhravedanshi@gmail.com",
   );
@@ -403,7 +403,7 @@ export default function CheckoutPage({
         (acc, curr) =>
           acc +
           Number(curr?.menuItem?.price ?? curr?.price ?? 0) *
-            Number(curr?.quantity ?? 1),
+          Number(curr?.quantity ?? 1),
         0,
       );
       const coupon = availableCoupons.find((c) => c.code === code);
@@ -431,7 +431,7 @@ export default function CheckoutPage({
     (acc, curr) =>
       acc +
       Number(curr?.menuItem?.price ?? curr?.price ?? 0) *
-        Number(curr?.quantity ?? 1),
+      Number(curr?.quantity ?? 1),
     0,
   );
 
@@ -444,8 +444,8 @@ export default function CheckoutPage({
 
   const deliveryFee =
     appliedCoupon?.code === "FREEDEL" ||
-    appliedCoupon?.discountType === "free-delivery" ||
-    isFreeDelivery
+      appliedCoupon?.discountType === "free-delivery" ||
+      isFreeDelivery
       ? 0
       : restaurantDeliveryFee;
   const taxesAndService = Math.round(subtotal * 0.05);
@@ -777,13 +777,13 @@ export default function CheckoutPage({
             "received",
           timestamp: orderObj?.createdAt
             ? new Date(orderObj.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
+              hour: "2-digit",
+              minute: "2-digit",
+            })
             : new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
           subtotal:
             orderObj?.subtotal !== undefined
               ? orderObj.subtotal
@@ -834,7 +834,7 @@ export default function CheckoutPage({
         setIsPlacingOrder(false);
         triggerToast(
           backendErr.response?.data?.message ||
-            "Failed to initiate order with payment gateway. Please try again.",
+          "Failed to initiate order with payment gateway. Please try again.",
         );
         return;
       }
@@ -932,7 +932,7 @@ export default function CheckoutPage({
           key: keyId,
           amount: amountPaise,
           currency: currency,
-          name: "QuickaBite",
+          name: "QuikaBite",
           description: `Food Order ${internalOrderId}`,
           prefill: {
             name: name,
@@ -973,7 +973,7 @@ export default function CheckoutPage({
               setIsPlacingOrder(false);
               triggerToast(
                 vErr.response?.data?.message ||
-                  "Payment verification failed! Please contact support if money was debited.",
+                "Payment verification failed! Please contact support if money was debited.",
               );
               return;
             }
@@ -1483,13 +1483,12 @@ export default function CheckoutPage({
                                     ? `${lbl.id} address is already saved in profile`
                                     : ""
                                 }
-                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition ${
-                                  isAlreadySaved
-                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60 line-through"
-                                    : isSelected
-                                      ? "bg-brand-orange text-white border-brand-orange shadow-xs cursor-pointer"
-                                      : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100 cursor-pointer"
-                                }`}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition ${isAlreadySaved
+                                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60 line-through"
+                                  : isSelected
+                                    ? "bg-brand-orange text-white border-brand-orange shadow-xs cursor-pointer"
+                                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100 cursor-pointer"
+                                  }`}
                               >
                                 <LIcon className="h-3.5 w-3.5" />
                                 <span>{lbl.id}</span>
@@ -1596,19 +1595,17 @@ export default function CheckoutPage({
                           <div
                             key={addrId || addr.detail}
                             onClick={() => handleSelectAddress(addr)}
-                            className={`cursor-pointer p-4 rounded-2xl border transition flex items-start justify-between gap-3 ${
-                              isSelected
-                                ? "bg-orange-50/40 border-brand-orange ring-2 ring-orange-200/60 shadow-xs"
-                                : "bg-gray-50/70 border-gray-100 hover:bg-gray-100/70 hover:border-gray-200"
-                            }`}
+                            className={`cursor-pointer p-4 rounded-2xl border transition flex items-start justify-between gap-3 ${isSelected
+                              ? "bg-orange-50/40 border-brand-orange ring-2 ring-orange-200/60 shadow-xs"
+                              : "bg-gray-50/70 border-gray-100 hover:bg-gray-100/70 hover:border-gray-200"
+                              }`}
                           >
                             <div className="flex items-start gap-3">
                               <div
-                                className={`p-2.5 rounded-xl shrink-0 ${
-                                  isSelected
-                                    ? "bg-brand-orange text-white"
-                                    : "bg-white text-gray-500 border border-gray-200 shadow-xs"
-                                }`}
+                                className={`p-2.5 rounded-xl shrink-0 ${isSelected
+                                  ? "bg-brand-orange text-white"
+                                  : "bg-white text-gray-500 border border-gray-200 shadow-xs"
+                                  }`}
                               >
                                 <AddrIcon className="h-4 w-4" />
                               </div>
@@ -1636,11 +1633,10 @@ export default function CheckoutPage({
 
                             <div className="pt-1 shrink-0">
                               <div
-                                className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                                  isSelected
-                                    ? "border-brand-orange bg-brand-orange text-white"
-                                    : "border-gray-300 bg-white"
-                                }`}
+                                className={`w-5 h-5 rounded-full border flex items-center justify-center ${isSelected
+                                  ? "border-brand-orange bg-brand-orange text-white"
+                                  : "border-gray-300 bg-white"
+                                  }`}
                               >
                                 {isSelected && (
                                   <Check className="w-3 h-3 stroke-[3]" />
@@ -1720,19 +1716,17 @@ export default function CheckoutPage({
                       key={m.id}
                       type="button"
                       onClick={() => setPaymentMethod(m.id)}
-                      className={`cursor-pointer w-full p-4 rounded-2xl border text-left transition flex items-start justify-between gap-4 ${
-                        isSelected
-                          ? "bg-neutral-900 text-white border-transparent shadow-lg shadow-neutral-900/15"
-                          : "bg-gray-50 hover:bg-gray-100/80 border-transparent text-gray-700"
-                      }`}
+                      className={`cursor-pointer w-full p-4 rounded-2xl border text-left transition flex items-start justify-between gap-4 ${isSelected
+                        ? "bg-neutral-900 text-white border-transparent shadow-lg shadow-neutral-900/15"
+                        : "bg-gray-50 hover:bg-gray-100/80 border-transparent text-gray-700"
+                        }`}
                     >
                       <div className="flex items-start gap-3.5">
                         <div
-                          className={`p-2.5 rounded-xl ${
-                            isSelected
-                              ? "bg-orange-500 text-white"
-                              : "bg-white text-gray-500 shadow-sm border border-gray-100"
-                          }`}
+                          className={`p-2.5 rounded-xl ${isSelected
+                            ? "bg-orange-500 text-white"
+                            : "bg-white text-gray-500 shadow-sm border border-gray-100"
+                            }`}
                         >
                           <IconComp className="h-5 w-5" />
                         </div>
@@ -1742,19 +1736,17 @@ export default function CheckoutPage({
                               {m.name}
                             </span>
                             <span
-                              className={`text-[8px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded ${
-                                isSelected
-                                  ? "bg-orange-500 text-white"
-                                  : "bg-gray-200 text-gray-600"
-                              }`}
+                              className={`text-[8px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded ${isSelected
+                                ? "bg-orange-500 text-white"
+                                : "bg-gray-200 text-gray-600"
+                                }`}
                             >
                               {m.badge}
                             </span>
                           </div>
                           <p
-                            className={`text-[11px] mt-1 leading-relaxed ${
-                              isSelected ? "text-gray-300" : "text-gray-500"
-                            }`}
+                            className={`text-[11px] mt-1 leading-relaxed ${isSelected ? "text-gray-300" : "text-gray-500"
+                              }`}
                           >
                             {m.description}
                           </p>
@@ -1762,11 +1754,10 @@ export default function CheckoutPage({
                       </div>
                       <div className="pt-1">
                         <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                            isSelected
-                              ? "border-orange-500 bg-orange-500"
-                              : "border-gray-300 bg-white"
-                          }`}
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected
+                            ? "border-orange-500 bg-orange-500"
+                            : "border-gray-300 bg-white"
+                            }`}
                         >
                           {isSelected && (
                             <div className="w-1.5 h-1.5 rounded-full bg-white" />
@@ -1817,11 +1808,10 @@ export default function CheckoutPage({
                     <button
                       type="button"
                       onClick={verifyCodCaptcha}
-                      className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                        codCaptchaVerified
-                          ? "bg-emerald-600 text-white"
-                          : "bg-brand-orange hover:bg-orange-700 text-white"
-                      }`}
+                      className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${codCaptchaVerified
+                        ? "bg-emerald-600 text-white"
+                        : "bg-brand-orange hover:bg-orange-700 text-white"
+                        }`}
                     >
                       {codCaptchaVerified ? (
                         <>
@@ -1877,7 +1867,7 @@ export default function CheckoutPage({
                     </div>
                     <p className="text-[11px] text-emerald-700 mt-0.5 font-semibold">
                       {appliedCoupon.code === "FREEDEL" ||
-                      appliedCoupon.discountType === "free-delivery"
+                        appliedCoupon.discountType === "free-delivery"
                         ? "Free Delivery unlocked for your order!"
                         : `Saved ₹ ${appliedCoupon.discount} on your order!`}
                     </p>

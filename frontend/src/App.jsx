@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { ShoppingCart } from "lucide-react";
 import {
   RESTAURANTS,
   CATEGORIES,
@@ -254,18 +255,18 @@ function AppContent() {
     }
   }, [toast]);
   const [adminSubTab, setAdminSubTab] = useState(() => {
-    return localStorage.getItem("quikabite_admin_subtab") || "overview";
+    return localStorage.getItem("Quikabite_admin_subtab") || "overview";
   });
   const [marketingSubTab, setMarketingSubTab] = useState(() => {
-    return localStorage.getItem("quikabite_marketing_subtab") || "whatsapp";
+    return localStorage.getItem("Quikabite_marketing_subtab") || "whatsapp";
   });
 
   useEffect(() => {
-    localStorage.setItem("quikabite_admin_subtab", adminSubTab);
+    localStorage.setItem("Quikabite_admin_subtab", adminSubTab);
   }, [adminSubTab]);
 
   useEffect(() => {
-    localStorage.setItem("quikabite_marketing_subtab", marketingSubTab);
+    localStorage.setItem("Quikabite_marketing_subtab", marketingSubTab);
   }, [marketingSubTab]);
 
   const [filterFastDelivery, setFilterFastDelivery] = useState(false);
@@ -958,6 +959,21 @@ function AppContent() {
             marketingSubTab={marketingSubTab}
             setMarketingSubTab={setMarketingSubTab}
           />
+        )}
+
+        {/* Global Floating Action Cart Button */}
+        {cartItems.length > 0 && !isCartOpen && (
+          <button
+            onClick={() => handleSetIsCartOpen(true)}
+            className="fixed bottom-20 sm:bottom-8 right-6 z-50 bg-[#60B246] hover:bg-[#529e3a] text-white p-4 rounded-full shadow-2xl shadow-emerald-600/40 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 border-2 border-white cursor-pointer group"
+            title="Open Basket"
+            id="global-floating-cart-btn"
+          >
+            <ShoppingCart className="h-6 w-6 text-white group-hover:rotate-12 transition-transform" />
+            <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[11px] font-black h-6 w-6 rounded-full flex items-center justify-center border-2 border-white shadow-md animate-bounce">
+              {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
+            </span>
+          </button>
         )}
 
         {/* 6. Custom Cart Conflict Modal */}

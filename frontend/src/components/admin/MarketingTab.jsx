@@ -77,14 +77,42 @@ export default function MarketingTab({
   const [newCouponIsLoyaltyReward, setNewCouponIsLoyaltyReward] =
     useState(false);
 
-  const handleUpdateRestaurantOffer = (e) => {
+  const handleUpdateRestaurantOffer = async (e) => {
     e.preventDefault();
     if (!selectedResIdForOffer || !newOfferText) {
       triggerToast("Select a kitchen and enter offer text.");
       return;
     }
+    const targetRes = restaurantsList?.find((r) => String(r.id) === String(selectedResIdForOffer) || String(r._id) === String(selectedResIdForOffer));
+    const resName = targetRes?.name || "Kitchen";
+    const cleanCode = (resName.replace(/[^a-zA-Z]/g, "").slice(0, 5) + "OFF").toUpperCase();
+
+    const couponPayload = {
+      code: cleanCode,
+      campaignCategory: "RESTAURANT",
+      bannerTitle: `${resName} - ${newOfferText}`,
+      discountLabel: newOfferText,
+      discountType: newOfferText.includes("%") ? "percentage" : "flat",
+      discountValue: parseFloat(newOfferText.replace(/\D/g, "")) || 20,
+      maximumDiscount: 100,
+      minimumOrderAmount: 150,
+      policyText: `Special promotion for ${resName}: ${newOfferText}`,
+      usageLimit: 100,
+      usageLimitPerUser: 1,
+      validFrom: new Date().toISOString(),
+      validTill: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      isActive: true,
+      restaurant: selectedResIdForOffer,
+    };
+
+    try {
+      await adminService.createCoupon(couponPayload);
+    } catch (err) {
+      console.warn("Notice: Failed to push promo coupon to /v1/coupons:", err?.message || err);
+    }
+
     const updated = restaurantsList.map((r) => {
-      if (r.id === selectedResIdForOffer) {
+      if (String(r.id) === String(selectedResIdForOffer) || String(r._id) === String(selectedResIdForOffer)) {
         return { ...r, discount: newOfferText };
       }
       return r;
@@ -92,7 +120,7 @@ export default function MarketingTab({
     setRestaurantsList(updated);
     saveRestaurantsToStorage(updated);
     triggerToast(
-      `Updated offer badge for "${restaurantsList.find((r) => r.id === selectedResIdForOffer)?.name}" to "${newOfferText}"`,
+      `Updated offer badge & created promo coupon for "${resName}" to "${newOfferText}"`,
     );
     setNewOfferText("");
   };
@@ -182,7 +210,7 @@ export default function MarketingTab({
         id: "lead_1",
         name: "Rajesh Agarwal",
         email: "rajesh@infosys.com",
-        phone: "+91 98765 43210",
+        phone: "9876543210",
         segment: "Corporate Catering",
         status: "Negotiation",
         value: 12500,
@@ -287,7 +315,7 @@ export default function MarketingTab({
           {
             type: "URL",
             text: "Track Order Live 📍",
-            value: "https://quikabite.app/track",
+            value: "https://Quikabite.app/track",
           },
           { type: "QUICK_REPLY", text: "Chat Support 💬" },
         ],
@@ -305,7 +333,7 @@ export default function MarketingTab({
           {
             type: "URL",
             text: "Order Now 🍕",
-            value: "https://quikabite.app/offers",
+            value: "https://Quikabite.app/offers",
           },
         ],
         status: "APPROVED",
@@ -348,7 +376,7 @@ export default function MarketingTab({
       {
         id: "c_1",
         name: "Ananya Singh",
-        phone: "+91 98765 43210",
+        phone: "+91 9876543210",
         tags: ["High Spender", "Burger Lover", "Active"],
         optIn: true,
         createdAt: "2026-06-20",
@@ -530,7 +558,7 @@ export default function MarketingTab({
       {
         id: "l_2",
         direction: "outgoing",
-        phone: "+91 98765 43210",
+        phone: "9876543210",
         message: "Template: ORDER_CONFIRMATION_V1 to Ananya Singh",
         status: "read",
         timestamp: "10:15:32",
@@ -538,7 +566,7 @@ export default function MarketingTab({
       {
         id: "l_3",
         direction: "incoming",
-        phone: "+91 98765 43210",
+        phone: "+91 9876543210",
         message: 'Button Clicked: "Track Order Live 📍"',
         status: "received",
         timestamp: "10:16:01",
@@ -617,31 +645,31 @@ export default function MarketingTab({
   const [isVerifyingWebhook, setIsVerifyingWebhook] = useState(false);
   const [webhookVerified, setWebhookVerified] = useState(false);
 
-  useEffect(() => {
-    if (activeSubTab === "whatsapp") {
-      const fetchWhatsAppConsoleData = async () => {
-        const stats = await adminService.getWhatsAppDashboardStats();
-        if (stats) setDashStats(stats);
+  // useEffect(() => {
+  //   if (activeSubTab === "whatsapp") {
+  //     const fetchWhatsAppConsoleData = async () => {
+  //       const stats = await adminService.getWhatsAppDashboardStats();
+  //       if (stats) setDashStats(stats);
 
-        const tpls = await adminService.getWhatsAppTemplates();
-        if (Array.isArray(tpls) && tpls.length > 0) {
-          const normalized = tpls.map((t) => ({
-            ...t,
-            id: t.id || t._id || t.name,
-            name: t.name || t.id || t._id,
-            category: t.category || "MARKETING",
-            body: t.body || (Array.isArray(t.components) ? t.components.find((c) => c.type === "BODY")?.text : "") || "",
-          }));
-          setTemplates(normalized);
-          setTestTemplateId(normalized[0].id || normalized[0].name);
-        }
+  //       const tpls = await adminService.getWhatsAppTemplates();
+  //       if (Array.isArray(tpls) && tpls.length > 0) {
+  //         const normalized = tpls.map((t) => ({
+  //           ...t,
+  //           id: t.id || t._id || t.name,
+  //           name: t.name || t.id || t._id,
+  //           category: t.category || "MARKETING",
+  //           body: t.body || (Array.isArray(t.components) ? t.components.find((c) => c.type === "BODY")?.text : "") || "",
+  //         }));
+  //         setTemplates(normalized);
+  //         setTestTemplateId(normalized[0].id || normalized[0].name);
+  //       }
 
-        const logsData = await adminService.getWhatsAppLogs();
-        if (Array.isArray(logsData) && logsData.length > 0) setLogs(logsData);
-      };
-      fetchWhatsAppConsoleData();
-    }
-  }, [activeSubTab]);
+  //       const logsData = await adminService.getWhatsAppLogs();
+  //       if (Array.isArray(logsData) && logsData.length > 0) setLogs(logsData);
+  //     };
+  //     fetchWhatsAppConsoleData();
+  //   }
+  // }, [activeSubTab]);
 
   const handleSyncCredentials = async () => {
     setIsSyncingMeta(true);
@@ -705,11 +733,11 @@ export default function MarketingTab({
     (USE_MOCK
       ? completedCamps.length > 0
         ? (
-            completedCamps.reduce(
-              (acc, c) => acc + parseFloat(c.openRate || "0"),
-              0,
-            ) / completedCamps.length
-          ).toFixed(1) + "%"
+          completedCamps.reduce(
+            (acc, c) => acc + parseFloat(c.openRate || "0"),
+            0,
+          ) / completedCamps.length
+        ).toFixed(1) + "%"
         : "94.8%"
       : "0%");
 
@@ -756,10 +784,10 @@ export default function MarketingTab({
 
       const isImageTemplate = Boolean(
         selectedTestTemplate?.name?.toLowerCase().includes("image") ||
-          selectedTestTemplate?.headerType === "IMAGE" ||
-          selectedTestTemplate?.components?.some(
-            (c) => c.type === "HEADER" && (c.format === "IMAGE" || c.format === "MEDIA"),
-          ),
+        selectedTestTemplate?.headerType === "IMAGE" ||
+        selectedTestTemplate?.components?.some(
+          (c) => c.type === "HEADER" && (c.format === "IMAGE" || c.format === "MEDIA"),
+        ),
       );
 
       const varObj = {};
@@ -985,22 +1013,22 @@ export default function MarketingTab({
         prev.map((c) =>
           c.id === campId
             ? {
-                ...c,
-                status: "COMPLETED",
-                sentAt: timestamp,
-                openRate:
-                  80 +
-                  Math.floor(Math.random() * 18) +
-                  "." +
-                  Math.floor(Math.random() * 9) +
-                  "%",
-                clickRate:
-                  40 +
-                  Math.floor(Math.random() * 35) +
-                  "." +
-                  Math.floor(Math.random() * 9) +
-                  "%",
-              }
+              ...c,
+              status: "COMPLETED",
+              sentAt: timestamp,
+              openRate:
+                80 +
+                Math.floor(Math.random() * 18) +
+                "." +
+                Math.floor(Math.random() * 9) +
+                "%",
+              clickRate:
+                40 +
+                Math.floor(Math.random() * 35) +
+                "." +
+                Math.floor(Math.random() * 9) +
+                "%",
+            }
             : c,
         ),
       );
@@ -1129,9 +1157,9 @@ export default function MarketingTab({
     }
     const tagsArr = newContactTagsString
       ? newContactTagsString
-          .split(",")
-          .map((t) => t.trim())
-          .filter((t) => t.length > 0)
+        .split(",")
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0)
       : ["Imported"];
     const newContact = {
       id: "c_" + Date.now(),
@@ -1162,7 +1190,7 @@ export default function MarketingTab({
       if (parts.length < 2) parts = trimmed.split("	");
       if (parts.length < 2) parts = trimmed.split(";");
       const name = parts[0]?.trim();
-      const phone = parts[1]?.trim() || "+91 98765 43210";
+      const phone = parts[1]?.trim() || "+91 9876543210";
       const rawTags = parts[2]?.trim() || "Bulk Import";
       const tags = rawTags
         .split("|")
@@ -1391,7 +1419,7 @@ export default function MarketingTab({
         {
           type: "URL",
           text: "Order Now 🍔",
-          value: "https://quikabite.app/offers",
+          value: "https://Quikabite.app/offers",
         },
       ],
     },
@@ -1792,52 +1820,7 @@ ${newTemplateBody}`
       className="bg-neutral-50/50 rounded-3xl p-6 border border-neutral-150 shadow-sm space-y-6"
       id="marketing-module-main-card"
     >
-      {/* MODULE HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-neutral-150 pb-5">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider font-mono flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              Meta Approved API
-            </span>
-          </div>
-          <h2 className="text-xl font-black text-neutral-900 tracking-tight flex items-center gap-2">
-            <MessageSquare className="h-5.5 w-5.5 text-brand-orange" />
-            <span>WhatsApp Marketing Command Center</span>
-          </h2>
-          <p className="text-xs text-neutral-500 font-semibold mt-0.5">
-            Broadcast promotions, automate checkout pings, and coordinate chat
-            loyalty loops with Meta Business Hub.
-          </p>
-        </div>
 
-        {/* TABS SELECTOR */}
-        <div className="flex bg-neutral-100 p-1 rounded-xl border border-neutral-200/60 self-stretch md:self-auto overflow-x-auto gap-0.5">
-          {[
-            { id: "whatsapp", label: "Console", icon: MessageSquare },
-            { id: "campaigns", label: "Campaigns", icon: Sparkles },
-            { id: "contacts", label: "Diner Directory", icon: Users },
-            { id: "templates", label: "Message Hub", icon: FileText },
-            { id: "automations", label: "Workflows", icon: Cpu },
-            { id: "leads", label: "Lead CRM", icon: Briefcase },
-            { id: "offers", label: "Brand Offers", icon: Tag },
-            { id: "coupons", label: "Promo Coupons", icon: Ticket },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isSel = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveSubTab(tab.id)}
-                className={`px-3 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all duration-150 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${isSel ? "bg-white text-neutral-950 shadow-xs border border-neutral-200/50" : "text-neutral-500 hover:text-neutral-800"}`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -1848,1111 +1831,6 @@ ${newTemplateBody}`
           transition={{ duration: 0.15 }}
           className="space-y-6"
         >
-          {/* ======================================================= */}
-          {/* TAB 1: WHATSAPP DASHBOARD / CONSOLE                     */}
-          {/* ======================================================= */}
-          {activeSubTab === "whatsapp" && (
-            <div className="space-y-6">
-              {/* API CONNECTION BAR */}
-              <div className="bg-neutral-900 text-white rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm relative overflow-hidden">
-                <div className="absolute right-0 top-0 opacity-10 transform translate-x-12 -translate-y-6 pointer-events-none">
-                  <Database className="h-44 w-44" />
-                </div>
-                <div className="space-y-1.5 z-10">
-                  <span className="bg-brand-orange text-white px-2.5 py-0.5 rounded-full text-[8px] font-black font-mono tracking-widest uppercase">
-                    API LIVE CHANNEL
-                  </span>
-                  <h3 className="text-md font-black">
-                    Meta Business API Cloud Node
-                  </h3>
-                  <div className="flex items-center gap-2 flex-wrap text-neutral-300 text-xs font-semibold">
-                    <span>Webhook Gateway:</span>
-                    <span className="font-mono text-[10px] text-orange-200 bg-neutral-800/80 px-2 py-0.5 rounded border border-neutral-700">
-                      https://quikabite.onrender.com/api/v1/webhooks/whatsapp
-                    </span>
-                    <button
-                      onClick={handleVerifyWebhook}
-                      disabled={isVerifyingWebhook}
-                      className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                    >
-                      {isVerifyingWebhook ? (
-                        <RefreshCw className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <UserCheck className="h-3 w-3" />
-                      )}
-                      <span>{webhookVerified ? "Verified ✅" : "Verify Webhook Handle"}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2.5 z-10">
-                  <div className="bg-neutral-800 border border-neutral-700/80 px-3.5 py-2 rounded-xl flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-green-500 animate-ping" />
-                    <span className="text-[10px] font-black uppercase tracking-wider text-neutral-300">
-                      Ping: 14ms
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleSyncCredentials}
-                    disabled={isSyncingMeta}
-                    className="bg-white/10 hover:bg-white/15 border border-white/10 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 ${isSyncingMeta ? "animate-spin" : ""}`} />
-                    <span>{isSyncingMeta ? "Syncing..." : "Synchronize Credentials"}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* METRIC CARD DOCK */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  {
-                    label: "Total Contacts",
-                    val: totalContactsCount.toLocaleString(),
-                    change: "+12% this month",
-                    color: "text-blue-600",
-                    bg: "bg-blue-50/50",
-                  },
-                  {
-                    label: "Campaigns",
-                    val: campaignsCount.toLocaleString(),
-                    change: "Active segments engaged",
-                    color: "text-green-600",
-                    bg: "bg-green-50/50",
-                  },
-                  {
-                    label: "Messages Sent",
-                    val: messagesSentCount.toLocaleString(),
-                    change: "99.2% Delivery rate",
-                    color: "text-orange-600",
-                    bg: "bg-orange-50/50",
-                  },
-                  {
-                    label: "Open Rate",
-                    val: averageOpenRate,
-                    change: "Highest across channels",
-                    color: "text-purple-600",
-                    bg: "bg-purple-50/50",
-                  },
-                ].map((stat, i) => (
-                  <div
-                    key={i}
-                    className={`p-4 rounded-2xl border border-neutral-100 ${stat.bg} space-y-1`}
-                  >
-                    <span className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                      {stat.label}
-                    </span>
-                    <div className={`text-xl font-black ${stat.color}`}>
-                      {stat.val}
-                    </div>
-                    <span className="text-[9px] font-semibold text-neutral-400 block">
-                      {stat.change}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* DOUBLE PANELS: SEND TEST & LOGS */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* LEFT PANEL: BROADCAST SENDER */}
-                <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-neutral-150 shadow-xs space-y-4">
-                  <div className="space-y-1">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-neutral-950 flex items-center gap-1.5">
-                      <Send className="h-4 w-4 text-brand-orange" />
-                      <span>Meta Sandbox Broadcast Simulator</span>
-                    </h3>
-                    <p className="text-[10px] text-neutral-400 font-semibold">
-                      Simulate outgoing transactional or promotional WhatsApp
-                      templates.
-                    </p>
-                  </div>
-
-                  <form onSubmit={handleSendTestMessage} className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Recipient Phone Number (with Country Code) *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. +916204676330"
-                        value={testPhone}
-                        onChange={(e) => setTestPhone(e.target.value)}
-                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Message Template *
-                      </label>
-                      <select
-                        value={testTemplateId || (selectedTestTemplate ? (selectedTestTemplate.id || selectedTestTemplate.name) : "")}
-                        onChange={(e) => handleSelectTestTemplate(e.target.value)}
-                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                      >
-                        {templates.map((t) => {
-                          const val = t.id || t._id || t.name;
-                          return (
-                            <option key={val} value={val}>
-                              {t.name || val} ({t.category || "MARKETING"})
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-
-                    {/* DYNAMIC VARIABLE FIELD RENDERING */}
-                    {selectedTestTemplate && (
-                      <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-100 space-y-3">
-                        <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400 block mb-1">
-                          Template Variables Mapping:
-                        </span>
-
-                        {/* Identify variables in body text */}
-                        {Array.from({
-                          length: (
-                            selectedTestTemplate.body.match(/\{\{\d\}\}/g) || []
-                          ).length,
-                        }).map((_, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono font-bold bg-white border border-neutral-200 w-10 text-center py-1 rounded">
-                              {"{{"}
-                              {idx + 1}
-                              {"}}"}
-                            </span>
-                            <input
-                              type="text"
-                              placeholder={`Value for var ${idx + 1}`}
-                              value={testVariables[idx] || ""}
-                              onChange={(e) => {
-                                const copy = [...testVariables];
-                                copy[idx] = e.target.value;
-                                setTestVariables(copy);
-                              }}
-                              className="flex-1 bg-white border border-neutral-150 rounded-lg p-1.5 text-[11px] font-semibold outline-none focus:border-brand-orange"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={isSendingTestMsg}
-                      className="w-full bg-neutral-950 hover:bg-neutral-900 text-white font-black py-3 rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
-                    >
-                      {isSendingTestMsg ? (
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Send className="h-3.5 w-3.5" />
-                      )}
-                      <span>{isSendingTestMsg ? "Transmitting..." : "Transmit Sandbox Message"}</span>
-                    </button>
-                  </form>
-                </div>
-
-                {/* RIGHT PANEL: WEBHOOK STREAMS */}
-                <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-neutral-150 shadow-xs flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-neutral-950 flex items-center gap-1.5">
-                        <Clock className="h-4 w-4 text-brand-orange" />
-                        <span>Cloud Webhook Stream & Activity Logs</span>
-                      </h3>
-                      <button
-                        onClick={handleClearLogs}
-                        disabled={isClearingLogs}
-                        className="text-[9px] font-bold text-neutral-400 hover:text-neutral-600 uppercase cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                      >
-                        {isClearingLogs ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : null}
-                        <span>{isClearingLogs ? "Clearing..." : "Clear logs"}</span>
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-neutral-400 font-semibold mb-4">
-                      Real-time callbacks monitoring outbound payloads, read
-                      receipts, and user reply events.
-                    </p>
-
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                      {logs.length === 0 ? (
-                        <div className="p-8 text-center text-neutral-300 font-semibold text-xs font-mono">
-                          No logging traffic on connection stream.
-                        </div>
-                      ) : (
-                        logs.map((log) => {
-                          const isSys = log.direction === "system";
-                          const isOut = log.direction === "outgoing";
-                          return (
-                            <div
-                              key={log.id}
-                              className="p-3 rounded-xl bg-neutral-50 border border-neutral-100 flex items-start gap-3"
-                            >
-                              <span className="font-mono text-[9px] text-neutral-400 font-semibold mt-0.5">
-                                {log.timestamp}
-                              </span>
-
-                              <div className="flex-1 space-y-1">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-[10px] font-black text-neutral-800">
-                                    {isSys
-                                      ? "🤖 API Connection"
-                                      : isOut
-                                        ? `📤 Sent to: ${log.phone}`
-                                        : `📥 Reply from: ${log.phone}`}
-                                  </span>
-
-                                  {/* Delivery status badge */}
-                                  <span
-                                    className={`text-[8px] font-mono font-black uppercase px-2 py-0.5 rounded ${log.status === "read" ? "bg-blue-100 text-blue-700 border border-blue-200" : log.status === "delivered" ? "bg-green-100 text-green-700 border border-green-200" : log.status === "sent" ? "bg-neutral-200 text-neutral-600" : log.status === "received" ? "bg-purple-100 text-purple-700 border border-purple-200" : "bg-green-100 text-green-700"}`}
-                                  >
-                                    {log.status}
-                                  </span>
-                                </div>
-                                <p className="text-[10.5px] font-medium text-neutral-600 break-words font-sans">
-                                  {log.message}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ======================================================= */}
-          {/* TAB 2: CAMPAIGNS                                        */}
-          {/* ======================================================= */}
-          {activeSubTab === "campaigns" && (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              {/* LEFT COLUMN: CAMPAIGN CREATION ORCHESTRATOR & LIVE MOCKUP */}
-              <div className="xl:col-span-7 bg-white p-6 rounded-2xl border border-neutral-150 shadow-xs space-y-6">
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-wider text-neutral-950 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-brand-orange" />
-                    <span>Campaign Orchestrator Hub</span>
-                  </h3>
-                  <p className="text-xs text-neutral-400 font-semibold mt-1">
-                    Design and broadcast personalized WhatsApp templates. Match
-                    with smart segments and schedule automated queue deliveries.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 border-t border-neutral-100 pt-5">
-                  {/* Sub-Column 1: Settings Form */}
-                  <form
-                    onSubmit={handleCreateCampaign}
-                    className="md:col-span-6 space-y-4"
-                  >
-                    <span className="text-[10px] font-black uppercase tracking-wider text-neutral-400 block border-b border-neutral-100 pb-1">
-                      1. Campaign Settings
-                    </span>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Campaign Name / Title *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={campaignName}
-                        onChange={(e) => setCampaignName(e.target.value)}
-                        placeholder="e.g. Biryani Weekend Promo 🍛"
-                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange focus:bg-white transition"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Target Audience Segment *
-                      </label>
-                      <select
-                        value={campaignSegment}
-                        onChange={(e) => setCampaignSegment(e.target.value)}
-                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-xs font-bold outline-none focus:border-brand-orange focus:bg-white transition"
-                      >
-                        <option value="All">
-                          👥 All Registered Diners (Opt-In)
-                        </option>
-
-                        <optgroup label="Smart Audience Segments">
-                          {segments.map((seg) => (
-                            <option key={seg.id} value={seg.id}>
-                              🎯 {seg.name}
-                            </option>
-                          ))}
-                        </optgroup>
-
-                        <optgroup label="Dynamic Interest Tags">
-                          {allTags.map((tag) => (
-                            <option key={tag} value={tag}>
-                              🏷️ Tag: {tag}
-                            </option>
-                          ))}
-                        </optgroup>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Approved Message Template *
-                      </label>
-                      <select
-                        value={campaignTemplateId}
-                        onChange={(e) => setCampaignTemplateId(e.target.value)}
-                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-xs font-bold outline-none focus:border-brand-orange focus:bg-white transition"
-                      >
-                        {templates
-                          .filter((t) => t.status === "APPROVED")
-                          .map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.name} ({t.category})
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-
-                    {/* Show dynamic Coupon / Variable 2 input if template uses it */}
-                    {(() => {
-                      const selectedTpl = templates.find(
-                        (t) => t.id === campaignTemplateId,
-                      );
-                      if (selectedTpl && selectedTpl.body.includes("{{2}}")) {
-                        return (
-                          <div className="space-y-1 animate-fade-in">
-                            <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                              Promo Code / Variable 2 Value
-                            </label>
-                            <input
-                              type="text"
-                              value={crmMsgVar2}
-                              onChange={(e) => setCrmMsgVar2(e.target.value)}
-                              placeholder="e.g. FEAST50"
-                              className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange focus:bg-white transition"
-                            />
-                            <p className="text-[9px] text-neutral-400 font-medium">
-                              Replaces the second parameter inside your template
-                              preview body.
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-
-                    <span className="text-[10px] font-black uppercase tracking-wider text-neutral-400 block border-b border-neutral-100 pt-3 pb-1">
-                      2. Dispatch Scheduling
-                    </span>
-
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setCampaignSchedule("instant")}
-                          className={`p-3 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer flex flex-col items-center gap-1.5 justify-center ${campaignSchedule === "instant" ? "bg-neutral-950 border-neutral-950 text-white" : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:bg-neutral-100"}`}
-                        >
-                          <Send className="h-4 w-4" />
-                          <span>Instant Blast</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setCampaignSchedule("scheduled")}
-                          className={`p-3 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer flex flex-col items-center gap-1.5 justify-center ${campaignSchedule === "scheduled" ? "bg-neutral-950 border-neutral-950 text-white" : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:bg-neutral-100"}`}
-                        >
-                          <Calendar className="h-4 w-4" />
-                          <span>Schedule Later</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {campaignSchedule === "scheduled" && (
-                      <div className="space-y-3 bg-neutral-50/80 p-3.5 rounded-xl border border-neutral-150 animate-fade-in">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Choose Date & Time *
-                          </label>
-                          <input
-                            type="datetime-local"
-                            required
-                            value={campaignScheduleTime}
-                            onChange={(e) =>
-                              setCampaignScheduleTime(e.target.value)
-                            }
-                            className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs font-bold outline-none focus:border-brand-orange"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Queue Frequency
-                          </label>
-                          <select
-                            value={campaignFrequency}
-                            onChange={(e) =>
-                              setCampaignFrequency(e.target.value)
-                            }
-                            className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs font-semibold outline-none focus:border-brand-orange"
-                          >
-                            <option value="one-time">One-Time Broadcast</option>
-                            <option value="weekly">Weekly Repeat Blast</option>
-                            <option value="monthly">
-                              Monthly Repeat Blast
-                            </option>
-                          </select>
-                        </div>
-
-                        <label className="flex items-center gap-2 text-xs font-semibold text-neutral-700 cursor-pointer pt-1">
-                          <input
-                            type="checkbox"
-                            checked={campaignLocalTimezone}
-                            onChange={(e) =>
-                              setCampaignLocalTimezone(e.target.checked)
-                            }
-                            className="rounded border-neutral-200 text-brand-orange focus:ring-brand-orange"
-                          />
-                          <span>Optimize for customer local timezone</span>
-                        </label>
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      className="w-full bg-neutral-950 hover:bg-neutral-900 text-white font-black py-3 rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs"
-                    >
-                      {campaignSchedule === "instant" ? (
-                        <>
-                          <Plus className="h-4.5 w-4.5" />
-                          <span>Draft Campaign</span>
-                        </>
-                      ) : (
-                        <>
-                          <Calendar className="h-4.5 w-4.5" />
-                          <span>Schedule Campaign Queue</span>
-                        </>
-                      )}
-                    </button>
-                  </form>
-
-                  {/* Sub-Column 2: Smartphone Live WhatsApp Mockup & Audience Dossier */}
-                  <div className="md:col-span-6 space-y-4 flex flex-col">
-                    {/* Audience Target Dossier Card */}
-                    <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3 shadow-2xs">
-                      <span className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block border-b border-neutral-100 pb-1">
-                        🎯 Target Audience Preview
-                      </span>
-
-                      {(() => {
-                        const targetRecipients =
-                          getMatchingContactsForCampaign(campaignSegment);
-                        return (
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <span className="text-base font-extrabold text-neutral-950 font-mono">
-                                  {targetRecipients.length} diners
-                                </span>
-                                <span className="text-[10px] text-neutral-400 font-semibold block">
-                                  of {contacts.length} total register database
-                                </span>
-                              </div>
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${targetRecipients.length > 0 ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}
-                              >
-                                {targetRecipients.length > 0
-                                  ? "Audience Ready"
-                                  : "Empty Audience"}
-                              </span>
-                            </div>
-
-                            {targetRecipients.length > 0 ? (
-                              <div className="space-y-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setShowCampaignRecipientList(
-                                      !showCampaignRecipientList,
-                                    )
-                                  }
-                                  className="text-[10px] text-brand-orange hover:text-orange-600 font-extrabold flex items-center gap-1 transition"
-                                >
-                                  {showCampaignRecipientList
-                                    ? "Hide recipient roster ✖"
-                                    : "👥 Review targeted diners list (" +
-                                      targetRecipients.length +
-                                      ") ➔"}
-                                </button>
-
-                                {showCampaignRecipientList && (
-                                  <div className="max-h-[110px] overflow-y-auto bg-white border border-neutral-150 rounded-xl p-2 space-y-1 text-[10px] font-semibold divide-y divide-neutral-100/60 shadow-inner">
-                                    {targetRecipients.map((r) => (
-                                      <div
-                                        key={r.id}
-                                        className="flex justify-between items-center py-1"
-                                      >
-                                        <span className="text-neutral-800 font-bold truncate max-w-[110px]">
-                                          {r.name}
-                                        </span>
-                                        <span className="text-neutral-400 font-mono text-[9px]">
-                                          {r.phone}
-                                        </span>
-                                        <div className="flex gap-0.5">
-                                          {r.tags.slice(0, 1).map((t) => (
-                                            <span
-                                              key={t}
-                                              className="text-[7px] bg-neutral-100 text-neutral-500 font-extrabold px-1 py-0.2 rounded uppercase"
-                                            >
-                                              {t}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="text-[9px] text-amber-600 font-medium leading-relaxed bg-amber-50 p-2 rounded-lg border border-amber-100">
-                                ⚠️ No opt-in diner profiles contain the tags
-                                matched by this segment criteria. Adjust your
-                                segment filter or tag selection.
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Smartphone Mockup */}
-                    <div className="flex-1 flex flex-col bg-neutral-950 border-4 border-neutral-800 rounded-[30px] p-3 shadow-md relative overflow-hidden min-h-[300px]">
-                      {/* Notch */}
-                      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 h-4 w-28 bg-neutral-800 rounded-b-xl z-20" />
-
-                      {/* Phone Screen Header */}
-                      <div className="bg-emerald-800 text-white pt-5 pb-2.5 px-3 rounded-t-2xl flex items-center justify-between border-b border-emerald-900/40 relative z-10">
-                        <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-emerald-600/80 flex items-center justify-center font-bold text-[10px] text-white">
-                            QB
-                          </div>
-                          <div className="leading-tight">
-                            <span className="text-[10px] font-black block tracking-tight">
-                              QuikaBite Broadcast
-                            </span>
-                            <span className="text-[8px] text-emerald-100/80 font-medium flex items-center gap-1">
-                              <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-                              <span>Live Template Preview</span>
-                            </span>
-                          </div>
-                        </div>
-                        <Smartphone className="h-4 w-4 text-emerald-100/60" />
-                      </div>
-
-                      {/* Phone Chat Body */}
-                      <div className="flex-1 bg-[#efeae2] p-3 rounded-b-2xl overflow-y-auto space-y-3 relative z-10 font-sans shadow-inner">
-                        <div className="text-center">
-                          <span className="text-[8px] bg-white/80 text-neutral-500 px-2 py-0.5 rounded-md font-extrabold shadow-3xs uppercase tracking-wider">
-                            Today
-                          </span>
-                        </div>
-
-                        {/* WhatsApp Message Bubble */}
-                        {(() => {
-                          const activeTpl = templates.find(
-                            (t) => t.id === campaignTemplateId,
-                          );
-                          if (!activeTpl) {
-                            return (
-                              <div className="text-center py-8 text-neutral-400 font-medium text-xs">
-                                No template selected.
-                              </div>
-                            );
-                          }
-                          let renderedBody = activeTpl.body;
-                          renderedBody = renderedBody.replace("{{1}}", "Alex");
-                          renderedBody = renderedBody.replace(
-                            "{{2}}",
-                            crmMsgVar2 || "FEAST50",
-                          );
-                          renderedBody = renderedBody.replace(
-                            "{{3}}",
-                            "120.00",
-                          );
-                          return (
-                            <div className="max-w-[90%] bg-white rounded-2xl rounded-tl-none p-3 shadow-xs border border-neutral-200/50 space-y-1.5 relative">
-                              <span className="absolute -left-1.5 top-0 text-white">
-                                <svg
-                                  width="8"
-                                  height="13"
-                                  viewBox="0 0 8 13"
-                                  fill="currentColor"
-                                >
-                                  <path d="M0 0 L8 0 L8 13 Z" />
-                                </svg>
-                              </span>
-
-                              {/* Body */}
-                              <p className="text-[10.5px] font-medium text-neutral-800 leading-relaxed font-sans whitespace-pre-line">
-                                {renderedBody}
-                              </p>
-
-                              {/* Footer */}
-                              {activeTpl.footer && (
-                                <p className="text-[8px] text-neutral-400 font-bold border-t border-neutral-100 pt-1 font-sans">
-                                  {activeTpl.footer}
-                                </p>
-                              )}
-
-                              {/* Buttons inside bubble or attached below */}
-                              {activeTpl.buttons &&
-                                activeTpl.buttons.length > 0 && (
-                                  <div className="border-t border-neutral-100/80 pt-1.5 mt-1.5 space-y-1.5">
-                                    {activeTpl.buttons.map((btn, i) => (
-                                      <div
-                                        key={i}
-                                        className="w-full bg-neutral-50/80 hover:bg-neutral-100 border border-neutral-200/50 rounded-lg py-1.5 px-2 text-[9.5px] font-black text-blue-600 text-center flex items-center justify-center gap-1 transition"
-                                      >
-                                        {btn.type === "URL" ? (
-                                          <Share2 className="h-3 w-3" />
-                                        ) : (
-                                          <MessageSquare className="h-3 w-3" />
-                                        )}
-                                        <span>{btn.text}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                              {/* Time stamp */}
-                              <div className="text-right text-[7.5px] text-neutral-400 font-semibold mt-1">
-                                12:40 PM ✓✓
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* RIGHT COLUMN: CAMPAIGNS DIRECTORY & SCHEDULER QUEUE */}
-              <div className="xl:col-span-5 bg-white p-6 rounded-2xl border border-neutral-150 shadow-xs space-y-5 flex flex-col justify-between">
-                <div className="space-y-4">
-                  {/* Header */}
-                  <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-wider text-neutral-950 flex items-center gap-1.5">
-                        <Database className="h-4.5 w-4.5 text-brand-orange" />
-                        <span>Campaign Directory</span>
-                      </h3>
-                      <p className="text-[10px] font-semibold text-neutral-400 mt-0.5">
-                        Manage broadcasts, queue configurations, and dispatch
-                        logs.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* BROADCAST PIPELINE SIMULATOR MODULE */}
-                  {activeSimulatorCampId && (
-                    <div className="p-4 rounded-xl bg-neutral-950 text-white border border-neutral-800 space-y-3.5 shadow-md relative overflow-hidden">
-                      <div className="absolute right-0 top-0 opacity-10 pointer-events-none transform translate-x-4 -translate-y-4">
-                        <Sparkles className="h-24 w-24 text-orange-400" />
-                      </div>
-
-                      <div className="flex justify-between items-center relative z-10">
-                        <span className="text-[9px] font-mono font-bold text-orange-400 uppercase tracking-widest flex items-center gap-1.5">
-                          <RefreshCw className="h-3 w-3 animate-spin text-orange-400" />
-                          BROADCAST PIPELINE RUNNING
-                        </span>
-                        <span className="text-xs font-mono font-black text-orange-400">
-                          {simulatorProgress}%
-                        </span>
-                      </div>
-
-                      <p className="text-[10px] font-mono font-semibold text-orange-100 relative z-10 leading-relaxed min-h-[30px]">
-                        {simulatorStep}
-                      </p>
-
-                      <div className="w-full bg-neutral-800 rounded-full h-1.5 overflow-hidden relative z-10">
-                        <div
-                          className="bg-brand-orange h-1.5 rounded-full transition-all duration-300"
-                          style={{ width: `${simulatorProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* SEARCH AND FILTERS BAR */}
-                  <div className="space-y-3">
-                    {/* Search Bar */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-400" />
-                      <input
-                        type="text"
-                        value={campaignSearch}
-                        onChange={(e) => setCampaignSearch(e.target.value)}
-                        placeholder="Search campaign directory..."
-                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold outline-none focus:border-brand-orange transition"
-                      />
-                    </div>
-
-                    {/* Status Tabs Slider */}
-                    <div className="flex bg-neutral-100 p-1 rounded-xl border border-neutral-200/40 gap-0.5 overflow-x-auto">
-                      {["ALL", "DRAFT", "SCHEDULED", "COMPLETED"].map(
-                        (status) => {
-                          const count =
-                            status === "ALL"
-                              ? campaigns.length
-                              : campaigns.filter((c) => c.status === status)
-                                  .length;
-                          const isSel = campaignStatusFilter === status;
-                          return (
-                            <button
-                              key={status}
-                              type="button"
-                              onClick={() => setCampaignStatusFilter(status)}
-                              className={`flex-1 py-1.5 px-2.5 rounded-lg font-black text-[9px] uppercase tracking-wider transition whitespace-nowrap cursor-pointer ${isSel ? "bg-white text-neutral-950 shadow-3xs" : "text-neutral-500 hover:text-neutral-800"}`}
-                            >
-                              <span>{status}</span>
-                              <span
-                                className={`ml-1 px-1 rounded font-extrabold ${isSel ? "bg-neutral-950 text-neutral-200" : "bg-neutral-200/60 text-neutral-600"}`}
-                              >
-                                {count}
-                              </span>
-                            </button>
-                          );
-                        },
-                      )}
-                    </div>
-                  </div>
-
-                  {/* CAMPAIGN CARDS LIST */}
-                  <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
-                    {(() => {
-                      const filteredCampaigns = campaigns.filter((camp) => {
-                        const matchesSearch =
-                          camp.name
-                            .toLowerCase()
-                            .includes(debouncedCampaignSearch.toLowerCase()) ||
-                          camp.targetSegment
-                            .toLowerCase()
-                            .includes(debouncedCampaignSearch.toLowerCase());
-                        const matchesFilter =
-                          campaignStatusFilter === "ALL" ||
-                          camp.status === campaignStatusFilter;
-                        return matchesSearch && matchesFilter;
-                      });
-                      if (filteredCampaigns.length === 0) {
-                        return (
-                          <div className="py-12 text-center text-neutral-300 font-semibold text-xs font-mono">
-                            No campaigns match filters.
-                          </div>
-                        );
-                      }
-                      return filteredCampaigns.map((camp) => {
-                        const tpl = templates.find(
-                          (t) => t.id === camp.templateId,
-                        );
-                        const isDraft = camp.status === "DRAFT";
-                        const isCompleted = camp.status === "COMPLETED";
-                        const isScheduled = camp.status === "SCHEDULED";
-                        const segmentName =
-                          segments.find((s) => s.id === camp.targetSegment)
-                            ?.name || camp.targetSegment;
-                        const isMessageExpanded =
-                          expandedCampaignMessageId === camp.id;
-                        const isRescheduling =
-                          reschedulingCampaignId === camp.id;
-                        return (
-                          <div
-                            key={camp.id}
-                            className={`p-4 rounded-xl border transition space-y-3 ${isScheduled ? "bg-blue-50/10 border-blue-100 hover:border-blue-200" : isCompleted ? "bg-neutral-50/40 border-neutral-100 hover:border-neutral-200" : "bg-white border-neutral-150 hover:shadow-2xs"}`}
-                          >
-                            {/* Card Header */}
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="space-y-0.5 truncate">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-extrabold text-neutral-900 text-xs truncate max-w-[150px]">
-                                    {camp.name}
-                                  </span>
-                                  <span
-                                    className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-md border ${isCompleted ? "bg-green-100 text-green-700 border-green-200" : isScheduled ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-neutral-100 text-neutral-600 border-neutral-200"}`}
-                                  >
-                                    {camp.status}
-                                  </span>
-                                </div>
-                                <p className="text-[10px] text-neutral-400 font-semibold">
-                                  Segment:{" "}
-                                  <span className="text-neutral-600 font-bold">
-                                    {segmentName}
-                                  </span>
-                                </p>
-                              </div>
-
-                              <div className="flex items-center gap-1.5">
-                                {/* Expand message bubble */}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setExpandedCampaignMessageId(
-                                      isMessageExpanded ? null : camp.id,
-                                    )
-                                  }
-                                  className={`p-1.5 rounded-lg border transition ${isMessageExpanded ? "bg-neutral-100 text-neutral-800" : "text-neutral-400 hover:bg-neutral-50"}`}
-                                  title="View broadcast message template bubble"
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                </button>
-
-                                {/* Duplicate / Pre-fill */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleDuplicateCampaign(camp)}
-                                  className="p-1.5 text-neutral-400 hover:text-neutral-800 hover:bg-neutral-50 border border-transparent rounded-lg transition"
-                                  title="Duplicate / Pre-fill Creator Wizard"
-                                >
-                                  <Share2 className="h-3.5 w-3.5" />
-                                </button>
-
-                                {/* Delete Campaign */}
-                                <button
-                                  onClick={() =>
-                                    handleDeleteCampaign(camp.id, camp.name)
-                                  }
-                                  className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                                  title="Delete campaign log"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Collapsible Message Preview */}
-                            {isMessageExpanded && tpl && (
-                              <div className="bg-[#efeae2]/40 p-3 rounded-xl border border-neutral-200/50 space-y-1.5 text-[10px] font-semibold text-neutral-700 animate-fade-in relative shadow-inner font-sans">
-                                <span className="text-[8px] font-black uppercase text-neutral-400 block mb-1">
-                                  WhatsApp Broadcast Preview:
-                                </span>
-                                <p className="whitespace-pre-line leading-relaxed text-neutral-800 font-medium">
-                                  {tpl.body
-                                    .replace("{{1}}", "[Diner Name]")
-                                    .replace("{{2}}", crmMsgVar2 || "FEAST50")}
-                                </p>
-                                {tpl.footer && (
-                                  <p className="text-[8px] text-neutral-400 font-bold border-t border-neutral-200/50 pt-1 mt-1">
-                                    {tpl.footer}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-
-                            {/* COMPLETED RESULTS PANELS */}
-                            {isCompleted && (
-                              <div className="grid grid-cols-3 gap-2 bg-white/85 p-2.5 rounded-xl border border-neutral-100/80 text-center font-mono">
-                                <div>
-                                  <span className="text-[8px] text-neutral-400 uppercase font-sans font-bold">
-                                    Recipients
-                                  </span>
-                                  <p className="text-xs font-black text-neutral-800 mt-0.5">
-                                    {camp.recipientsCount} phone(s)
-                                  </p>
-                                </div>
-                                <div className="space-y-0.5">
-                                  <span className="text-[8px] text-neutral-400 uppercase font-sans font-bold">
-                                    Open Rate
-                                  </span>
-                                  <p className="text-xs font-black text-green-600">
-                                    {camp.openRate}
-                                  </p>
-                                  <div className="w-full bg-neutral-100 h-1 rounded-full overflow-hidden">
-                                    <div
-                                      className="bg-green-500 h-1"
-                                      style={{ width: camp.openRate || "0%" }}
-                                    />
-                                  </div>
-                                </div>
-                                <div className="space-y-0.5">
-                                  <span className="text-[8px] text-neutral-400 uppercase font-sans font-bold">
-                                    CTR
-                                  </span>
-                                  <p className="text-xs font-black text-blue-600">
-                                    {camp.clickRate}
-                                  </p>
-                                  <div className="w-full bg-neutral-100 h-1 rounded-full overflow-hidden">
-                                    <div
-                                      className="bg-blue-500 h-1"
-                                      style={{ width: camp.clickRate || "0%" }}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* SCHEDULED SETTINGS & CONTROLS */}
-                            {isScheduled && (
-                              <div className="space-y-2">
-                                <div className="text-[9.5px] font-semibold text-neutral-500 flex flex-wrap items-center gap-x-2 gap-y-1 bg-white/80 px-2.5 py-2 rounded-lg border border-neutral-100 shadow-3xs">
-                                  <Calendar className="h-3.5 w-3.5 text-blue-500" />
-                                  <span>
-                                    Automated blast queued at{" "}
-                                    <span className="text-neutral-800 font-bold font-mono">
-                                      {camp.sentAt}
-                                    </span>
-                                  </span>
-                                  <span className="text-[8px] bg-blue-100 text-blue-700 font-black px-1.5 py-0.2 rounded uppercase">
-                                    one-time
-                                  </span>
-                                </div>
-
-                                {/* Reschedule Toggle / Inputs */}
-                                {isRescheduling ? (
-                                  <div className="bg-white p-3 rounded-lg border border-neutral-200 space-y-2 animate-fade-in">
-                                    <label className="text-[8px] font-black uppercase tracking-wider text-neutral-400 block">
-                                      Select New Run Time
-                                    </label>
-                                    <div className="flex gap-1.5">
-                                      <input
-                                        type="datetime-local"
-                                        value={tempRescheduleTime}
-                                        onChange={(e) =>
-                                          setTempRescheduleTime(e.target.value)
-                                        }
-                                        className="flex-1 bg-neutral-50 border border-neutral-200 rounded-md px-2 py-1 text-xs outline-none"
-                                      />
-                                      <button
-                                        onClick={() =>
-                                          handleSaveReschedule(
-                                            camp.id,
-                                            tempRescheduleTime,
-                                          )
-                                        }
-                                        className="bg-neutral-950 hover:bg-neutral-900 text-white text-[9px] font-black uppercase px-2.5 py-1 rounded transition"
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          setReschedulingCampaignId(null)
-                                        }
-                                        className="bg-neutral-100 hover:bg-neutral-200 text-neutral-600 text-[9px] font-bold px-2 py-1 rounded transition"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="flex gap-1.5 pt-1">
-                                    {/* Dispatch Now immediate button */}
-                                    <button
-                                      onClick={() => {
-                                        setCampaigns((prev) =>
-                                          prev.map((c) =>
-                                            c.id === camp.id
-                                              ? { ...c, status: "DRAFT" }
-                                              : c,
-                                          ),
-                                        );
-                                        triggerCampaignSendingSim(camp.id);
-                                      }}
-                                      className="flex-1 bg-neutral-950 hover:bg-neutral-900 text-white font-black py-1.5 px-2 rounded-lg text-[9px] uppercase tracking-wider transition flex items-center justify-center gap-1 cursor-pointer"
-                                    >
-                                      <Send className="h-3 w-3" />
-                                      <span>Dispatch Now</span>
-                                    </button>
-
-                                    {/* Reschedule trigger button */}
-                                    <button
-                                      onClick={() => {
-                                        setReschedulingCampaignId(camp.id);
-                                        setTempRescheduleTime(
-                                          camp.sentAt
-                                            ? camp.sentAt.replace(" ", "T")
-                                            : "",
-                                        );
-                                      }}
-                                      className="bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-700 font-extrabold py-1.5 px-2.5 rounded-lg text-[9px] uppercase tracking-wider transition cursor-pointer"
-                                    >
-                                      Reschedule
-                                    </button>
-
-                                    {/* Pause to Draft button */}
-                                    <button
-                                      onClick={() =>
-                                        handlePauseCampaign(camp.id)
-                                      }
-                                      className="bg-neutral-100 hover:bg-red-50 hover:text-red-600 border border-transparent text-neutral-400 font-bold py-1.5 px-2 rounded-lg text-[9px] uppercase tracking-wider transition cursor-pointer"
-                                      title="Convert back to Draft/Pause"
-                                    >
-                                      Pause
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* DRAFT TRIGGER SIMULATOR PANEL */}
-                            {isDraft && (
-                              <div className="pt-1.5">
-                                <button
-                                  onClick={() =>
-                                    triggerCampaignSendingSim(camp.id)
-                                  }
-                                  className="w-full bg-brand-orange hover:bg-orange-600 text-white font-black py-2 rounded-lg text-[9px] uppercase tracking-widest transition flex items-center justify-center gap-1 cursor-pointer shadow-3xs"
-                                >
-                                  <Send className="h-3.5 w-3.5" />
-                                  <span>Launch Broadcast Simulation</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-
-                {/* Upcoming Schedule Timeline Checklist / Calendar */}
-                <div className="border-t border-neutral-150 pt-4 space-y-3">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-neutral-950 flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4 text-brand-orange" />
-                    <span>Weekly Queue Checklist</span>
-                  </span>
-
-                  <div className="grid grid-cols-7 gap-1 font-mono text-center">
-                    {[
-                      { day: "Mo", date: 22, active: false },
-                      { day: "Tu", date: 23, active: false },
-                      { day: "We", date: 24, active: false },
-                      { day: "Th", date: 25, active: false },
-                      { day: "Fr", date: 26, active: false },
-                      { day: "Sa", date: 27, active: true },
-                      { day: "Su", date: 28, active: true, camp: true },
-                    ].map((d, i) => (
-                      <div
-                        key={i}
-                        className={`p-1.5 rounded-lg border transition-all ${d.active ? "bg-neutral-950 text-white border-neutral-950 shadow-3xs" : "bg-neutral-50 border-neutral-100 text-neutral-400"}`}
-                      >
-                        <span className="text-[8px] font-sans block uppercase font-bold tracking-tight">
-                          {d.day}
-                        </span>
-                        <span className="text-xs font-black block mt-0.5">
-                          {d.date}
-                        </span>
-                        {d.camp && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-brand-orange mx-auto mt-1 block animate-ping" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* ======================================================= */}
           {/* TAB 3: CONTACTS / REGISTERED CLIENTS                    */}
           {/* ======================================================= */}
@@ -3232,7 +2110,7 @@ ${newTemplateBody}`
                           required
                           value={newContactPhone}
                           onChange={(e) => setNewContactPhone(e.target.value)}
-                          placeholder="e.g. +91 98765 43210"
+                          placeholder="e.g. +91 9876543210"
                           className="w-full bg-white border border-neutral-200 rounded-lg p-2.5 text-xs font-semibold outline-none focus:border-brand-orange"
                         />
                       </div>
@@ -4071,13 +2949,13 @@ ${newTemplateBody}`
                                           prev.map((b, i) =>
                                             i === index
                                               ? {
-                                                  ...b,
-                                                  type: val,
-                                                  value:
-                                                    val === "QUICK_REPLY"
-                                                      ? void 0
-                                                      : "",
-                                                }
+                                                ...b,
+                                                type: val,
+                                                value:
+                                                  val === "QUICK_REPLY"
+                                                    ? void 0
+                                                    : "",
+                                              }
                                               : b,
                                           ),
                                         );
@@ -4474,10 +3352,10 @@ ${newTemplateBody}`
                   const conversionRate =
                     wonLeads.length + lostLeads.length > 0
                       ? (
-                          (wonLeads.length /
-                            (wonLeads.length + lostLeads.length)) *
-                          100
-                        ).toFixed(0) + "%"
+                        (wonLeads.length /
+                          (wonLeads.length + lostLeads.length)) *
+                        100
+                      ).toFixed(0) + "%"
                       : "0%";
                   return (
                     <>
@@ -5185,7 +4063,7 @@ ${newTemplateBody}`
                                           rendered = rendered.replace(
                                             "{{2}}",
                                             whatsappLeadVar1 ||
-                                              "QuikaBite Operations",
+                                            "QuikaBite Operations",
                                           );
                                           const nowStr =
                                             /* @__PURE__ */ new Date()
@@ -5275,10 +4153,10 @@ ${newTemplateBody}`
                                         prev.map((l) =>
                                           l.id === activeLead.id
                                             ? {
-                                                ...l,
-                                                lastFollowUp:
-                                                  nowStr.split(" ")[0],
-                                              }
+                                              ...l,
+                                              lastFollowUp:
+                                                nowStr.split(" ")[0],
+                                            }
                                             : l,
                                         ),
                                       );
@@ -5317,10 +4195,10 @@ ${newTemplateBody}`
                                         prev.map((l) =>
                                           l.id === activeLead.id
                                             ? {
-                                                ...l,
-                                                lastFollowUp:
-                                                  nowStr.split(" ")[0],
-                                              }
+                                              ...l,
+                                              lastFollowUp:
+                                                nowStr.split(" ")[0],
+                                            }
                                             : l,
                                         ),
                                       );
@@ -5385,197 +4263,197 @@ ${newTemplateBody}`
                   </button>
                 </div>
 
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (!newLeadName || !newLeadEmail || !newLeadPhone) {
-                            triggerToast(
-                              "Name, Email, and Phone are required.",
-                            );
-                            return;
-                          }
-                          const val = Number(newLeadValue) || 0;
-                          const newLead = {
-                            id: "lead_" + Date.now(),
-                            name: newLeadName,
-                            email: newLeadEmail,
-                            phone: newLeadPhone,
-                            companyName: newLeadCompany || void 0,
-                            segment: newLeadSegment,
-                            status: newLeadStatus,
-                            value: val,
-                            notes: newLeadNotes || "No notes added.",
-                            createdAt: /* @__PURE__ */ new Date()
-                              .toISOString()
-                              .split("T")[0],
-                            lastFollowUp: "Never",
-                          };
-                          setLeads((prev) => [newLead, ...prev]);
-                          setLeadsTimeline((prev) => ({
-                            ...prev,
-                            [newLead.id]: [
-                              {
-                                time: /* @__PURE__ */ new Date()
-                                  .toISOString()
-                                  .replace("T", " ")
-                                  .substr(0, 16),
-                                action: "Lead Created",
-                                note: `Lead created manually under segment "${newLeadSegment}".`,
-                              },
-                            ],
-                          }));
-                          setNewLeadName("");
-                          setNewLeadEmail("");
-                          setNewLeadPhone("");
-                          setNewLeadCompany("");
-                          setNewLeadValue("");
-                          setNewLeadStatus("New");
-                          setNewLeadNotes("");
-                          setShowAddLeadModal(false);
-                          setSelectedLeadId(newLead.id);
-                          triggerToast(`Lead for "${newLeadName}" created!`);
-                        }}
-                        className="space-y-4 text-left"
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newLeadName || !newLeadEmail || !newLeadPhone) {
+                      triggerToast(
+                        "Name, Email, and Phone are required.",
+                      );
+                      return;
+                    }
+                    const val = Number(newLeadValue) || 0;
+                    const newLead = {
+                      id: "lead_" + Date.now(),
+                      name: newLeadName,
+                      email: newLeadEmail,
+                      phone: newLeadPhone,
+                      companyName: newLeadCompany || void 0,
+                      segment: newLeadSegment,
+                      status: newLeadStatus,
+                      value: val,
+                      notes: newLeadNotes || "No notes added.",
+                      createdAt: /* @__PURE__ */ new Date()
+                        .toISOString()
+                        .split("T")[0],
+                      lastFollowUp: "Never",
+                    };
+                    setLeads((prev) => [newLead, ...prev]);
+                    setLeadsTimeline((prev) => ({
+                      ...prev,
+                      [newLead.id]: [
+                        {
+                          time: /* @__PURE__ */ new Date()
+                            .toISOString()
+                            .replace("T", " ")
+                            .substr(0, 16),
+                          action: "Lead Created",
+                          note: `Lead created manually under segment "${newLeadSegment}".`,
+                        },
+                      ],
+                    }));
+                    setNewLeadName("");
+                    setNewLeadEmail("");
+                    setNewLeadPhone("");
+                    setNewLeadCompany("");
+                    setNewLeadValue("");
+                    setNewLeadStatus("New");
+                    setNewLeadNotes("");
+                    setShowAddLeadModal(false);
+                    setSelectedLeadId(newLead.id);
+                    triggerToast(`Lead for "${newLeadName}" created!`);
+                  }}
+                  className="space-y-4 text-left"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                        Contact Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newLeadName}
+                        onChange={(e) => setNewLeadName(e.target.value)}
+                        placeholder="e.g. Suhail Al Mazrouei"
+                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                        Company Name
+                      </label>
+                      <input
+                        type="text"
+                        value={newLeadCompany}
+                        onChange={(e) =>
+                          setNewLeadCompany(e.target.value)
+                        }
+                        placeholder="e.g. Ministry of Economy"
+                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                        Email ID *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={newLeadEmail}
+                        onChange={(e) => setNewLeadEmail(e.target.value)}
+                        placeholder="suhail@moei.gov.ae"
+                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                        WhatsApp / Phone *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newLeadPhone}
+                        onChange={(e) => setNewLeadPhone(e.target.value)}
+                        placeholder="+91 9876543210"
+                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                        Target Segment *
+                      </label>
+                      <select
+                        value={newLeadSegment}
+                        onChange={(e) =>
+                          setNewLeadSegment(e.target.value)
+                        }
+                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
                       >
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                              Contact Name *
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              value={newLeadName}
-                              onChange={(e) => setNewLeadName(e.target.value)}
-                              placeholder="e.g. Suhail Al Mazrouei"
-                              className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                              Company Name
-                            </label>
-                            <input
-                              type="text"
-                              value={newLeadCompany}
-                              onChange={(e) =>
-                                setNewLeadCompany(e.target.value)
-                              }
-                              placeholder="e.g. Ministry of Economy"
-                              className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                            />
-                          </div>
-                        </div>
+                        <option value="Corporate Catering">
+                          Corporate Catering
+                        </option>
+                        <option value="Party Bookings">
+                          Party Bookings
+                        </option>
+                        <option value="Franchise Queries">
+                          Franchise Queries
+                        </option>
+                        <option value="VIP Memberships">
+                          VIP Memberships
+                        </option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                        Deal Value (₹) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        value={newLeadValue}
+                        onChange={(e) => setNewLeadValue(e.target.value)}
+                        placeholder="15000"
+                        className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                      />
+                    </div>
+                  </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                              Email ID *
-                            </label>
-                            <input
-                              type="email"
-                              required
-                              value={newLeadEmail}
-                              onChange={(e) => setNewLeadEmail(e.target.value)}
-                              placeholder="suhail@moei.gov.ae"
-                              className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                              WhatsApp / Phone *
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              value={newLeadPhone}
-                              onChange={(e) => setNewLeadPhone(e.target.value)}
-                              placeholder="+91 98765 43210"
-                              className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                            />
-                          </div>
-                        </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      Initial Stage Status
+                    </label>
+                    <select
+                      value={newLeadStatus}
+                      onChange={(e) => setNewLeadStatus(e.target.value)}
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                    >
+                      <option value="New">New</option>
+                      <option value="Contacted">Contacted</option>
+                      <option value="Proposal Sent">Proposal Sent</option>
+                      <option value="Negotiation">Negotiation</option>
+                      <option value="Won">Won</option>
+                      <option value="Lost">Lost</option>
+                    </select>
+                  </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                              Target Segment *
-                            </label>
-                            <select
-                              value={newLeadSegment}
-                              onChange={(e) =>
-                                setNewLeadSegment(e.target.value)
-                              }
-                              className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                            >
-                              <option value="Corporate Catering">
-                                Corporate Catering
-                              </option>
-                              <option value="Party Bookings">
-                                Party Bookings
-                              </option>
-                              <option value="Franchise Queries">
-                                Franchise Queries
-                              </option>
-                              <option value="VIP Memberships">
-                                VIP Memberships
-                              </option>
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                              Deal Value (₹) *
-                            </label>
-                            <input
-                              type="number"
-                              required
-                              value={newLeadValue}
-                              onChange={(e) => setNewLeadValue(e.target.value)}
-                              placeholder="15000"
-                              className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                            />
-                          </div>
-                        </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                      Notes & Brief *
+                    </label>
+                    <textarea
+                      required
+                      value={newLeadNotes}
+                      onChange={(e) => setNewLeadNotes(e.target.value)}
+                      placeholder="Detail requirements: scale of attendees, menu preferences, date and time, budget boundaries..."
+                      rows={3}
+                      className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
+                    />
+                  </div>
 
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Initial Stage Status
-                          </label>
-                          <select
-                            value={newLeadStatus}
-                            onChange={(e) => setNewLeadStatus(e.target.value)}
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                          >
-                            <option value="New">New</option>
-                            <option value="Contacted">Contacted</option>
-                            <option value="Proposal Sent">Proposal Sent</option>
-                            <option value="Negotiation">Negotiation</option>
-                            <option value="Won">Won</option>
-                            <option value="Lost">Lost</option>
-                          </select>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                            Notes & Brief *
-                          </label>
-                          <textarea
-                            required
-                            value={newLeadNotes}
-                            onChange={(e) => setNewLeadNotes(e.target.value)}
-                            placeholder="Detail requirements: scale of attendees, menu preferences, date and time, budget boundaries..."
-                            rows={3}
-                            className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
-                          />
-                        </div>
-
-                        <button
-                          type="submit"
-                          className="w-full bg-brand-orange hover:bg-orange-600 text-white font-black py-3 rounded-xl text-xs transition mt-2 cursor-pointer shadow-md"
-                        >
-                          Register Corporate CRM Deal
-                        </button>
-                      </form>
+                  <button
+                    type="submit"
+                    className="w-full bg-brand-orange hover:bg-orange-600 text-white font-black py-3 rounded-xl text-xs transition mt-2 cursor-pointer shadow-md"
+                  >
+                    Register Corporate CRM Deal
+                  </button>
+                </form>
               </Modal>
             </div>
           )}
@@ -6764,38 +5642,38 @@ ${newTemplateBody}`
           </button>
         </div>
 
-              <div className="space-y-4">
-                <p className="text-[10px] text-neutral-400 font-semibold leading-relaxed">
-                  Paste contact list rows copied from Excel or text files.
-                  Format each row as: <br />
-                  <span className="font-mono text-[9px] text-neutral-700 bg-neutral-100 p-1 rounded inline-block mt-1">
-                    Diner Name, Phone Number, Tag1|Tag2
-                  </span>
-                </p>
+        <div className="space-y-4">
+          <p className="text-[10px] text-neutral-400 font-semibold leading-relaxed">
+            Paste contact list rows copied from Excel or text files.
+            Format each row as: <br />
+            <span className="font-mono text-[9px] text-neutral-700 bg-neutral-100 p-1 rounded inline-block mt-1">
+              Diner Name, Phone Number, Tag1|Tag2
+            </span>
+          </p>
 
-                <textarea
-                  value={bulkPasteText}
-                  onChange={(e) => setBulkPasteText(e.target.value)}
-                  placeholder="e.g.&#10;John Doe, +919811112222, High Spender|Active&#10;Jane Smith, +919820001111, Vegan|Dessert Enthusiast"
-                  rows={6}
-                  className="w-full bg-neutral-50 border border-neutral-150 rounded-2xl p-4 text-xs font-mono outline-none focus:border-brand-orange"
-                />
+          <textarea
+            value={bulkPasteText}
+            onChange={(e) => setBulkPasteText(e.target.value)}
+            placeholder="e.g.&#10;John Doe, +919811112222, High Spender|Active&#10;Jane Smith, +919820001111, Vegan|Dessert Enthusiast"
+            rows={6}
+            className="w-full bg-neutral-50 border border-neutral-150 rounded-2xl p-4 text-xs font-mono outline-none focus:border-brand-orange"
+          />
 
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setShowBulkModal(false)}
-                    className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold px-4 py-2 rounded-xl text-xs transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleBulkImport}
-                    className="bg-brand-orange hover:bg-orange-600 text-white font-black px-5 py-2 rounded-xl text-xs transition"
-                  >
-                    Parse & Import List
-                  </button>
-                </div>
-              </div>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setShowBulkModal(false)}
+              className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold px-4 py-2 rounded-xl text-xs transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBulkImport}
+              className="bg-brand-orange hover:bg-orange-600 text-white font-black px-5 py-2 rounded-xl text-xs transition"
+            >
+              Parse & Import List
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

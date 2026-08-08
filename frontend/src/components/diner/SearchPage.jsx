@@ -111,20 +111,20 @@ export default function SearchPage({
 
   const searchSuggestions = searchQuery.trim()
     ? Array.from(
-        new Set([
-          ...restaurants
-            .filter((r) =>
-              r.name.toLowerCase().includes(searchQuery.toLowerCase()),
-            )
-            .map((r) => r.name),
-          ...restaurants
-            .flatMap((r) => r.menu)
-            .filter((m) =>
-              m.name.toLowerCase().includes(searchQuery.toLowerCase()),
-            )
-            .map((m) => m.name),
-        ]),
-      ).slice(0, 6)
+      new Set([
+        ...restaurants
+          .filter((r) =>
+            r.name.toLowerCase().includes(searchQuery.toLowerCase()),
+          )
+          .map((r) => r.name),
+        ...restaurants
+          .flatMap((r) => r.menu)
+          .filter((m) =>
+            m.name.toLowerCase().includes(searchQuery.toLowerCase()),
+          )
+          .map((m) => m.name),
+      ]),
+    ).slice(0, 6)
     : [];
 
   // Use debounced query for heavy filtering operations
@@ -144,9 +144,9 @@ export default function SearchPage({
     .filter((dish) => {
       const matchesSearch = debouncedSearchQuery.trim()
         ? dish.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          dish.category.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          dish.description.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          dish.restaurantName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+        dish.category.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        dish.description.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        dish.restaurantName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
         : true;
       if (!matchesSearch) return false;
       if (searchVegOnly && !dish.isVeg) return false;
@@ -177,12 +177,12 @@ export default function SearchPage({
   const searchedRestaurants = restaurants.filter((restaurant) => {
     const matchesSearch = debouncedSearchQuery.trim()
       ? restaurant.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        restaurant.cuisines.some((c) =>
-          c.toLowerCase().includes(debouncedSearchQuery.toLowerCase()),
-        ) ||
-        restaurant.menu.some((item) =>
-          item.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()),
-        )
+      restaurant.cuisines.some((c) =>
+        c.toLowerCase().includes(debouncedSearchQuery.toLowerCase()),
+      ) ||
+      restaurant.menu.some((item) =>
+        item.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()),
+      )
       : true;
     if (!matchesSearch) return false;
     if (searchVegOnly && !restaurant.menu.some((item) => item.isVeg))
@@ -357,11 +357,10 @@ export default function SearchPage({
                 setSearchVegOnly(!searchVegOnly);
                 if (searchNonVegOnly) setSearchNonVegOnly(false);
               }}
-              className={`group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-extrabold transition-all duration-200 border cursor-pointer ${
-                searchVegOnly
-                  ? "bg-emerald-500 text-white border-emerald-600 shadow-md scale-105"
-                  : "bg-white text-gray-600 border-gray-200 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 hover:shadow-md hover:-translate-y-0.5 hover:scale-105 active:scale-95"
-              }`}
+              className={`group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-extrabold transition-all duration-200 border cursor-pointer ${searchVegOnly
+                ? "bg-emerald-500 text-white border-emerald-600 shadow-md scale-105"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 hover:shadow-md hover:-translate-y-0.5 hover:scale-105 active:scale-95"
+                }`}
             >
               <span
                 className={`h-2 w-2 rounded-full ${searchVegOnly ? "bg-white" : "bg-emerald-500 group-hover:bg-white"}`}
@@ -375,11 +374,10 @@ export default function SearchPage({
                 setSearchNonVegOnly(!searchNonVegOnly);
                 if (searchVegOnly) setSearchVegOnly(false);
               }}
-              className={`group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-extrabold transition-all duration-200 border cursor-pointer ${
-                searchNonVegOnly
-                  ? "bg-red-500 text-white border-red-600 shadow-md scale-105"
-                  : "bg-white text-gray-600 border-gray-200 hover:bg-red-500 hover:text-white hover:border-red-500 hover:shadow-md hover:-translate-y-0.5 hover:scale-105 active:scale-95"
-              }`}
+              className={`group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-extrabold transition-all duration-200 border cursor-pointer ${searchNonVegOnly
+                ? "bg-red-500 text-white border-red-600 shadow-md scale-105"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-red-500 hover:text-white hover:border-red-500 hover:shadow-md hover:-translate-y-0.5 hover:scale-105 active:scale-95"
+                }`}
             >
               <span
                 className={`h-2 w-2 rounded-full ${searchNonVegOnly ? "bg-white" : "bg-red-500 group-hover:bg-white"}`}
@@ -425,11 +423,10 @@ export default function SearchPage({
             {/* Offers Only filter */}
             <button
               onClick={() => setSearchHasOffersOnly(!searchHasOffersOnly)}
-              className={`group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-extrabold transition-all duration-200 border cursor-pointer ${
-                searchHasOffersOnly
-                  ? "bg-orange-500 text-white border-orange-600 shadow-md scale-105"
-                  : "bg-white text-gray-600 border-gray-200 hover:bg-orange-500 hover:text-white hover:border-orange-500 hover:shadow-md hover:-translate-y-0.5 hover:scale-105 active:scale-95"
-              }`}
+              className={`group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-extrabold transition-all duration-200 border cursor-pointer ${searchHasOffersOnly
+                ? "bg-orange-500 text-white border-orange-600 shadow-md scale-105"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-orange-500 hover:text-white hover:border-orange-500 hover:shadow-md hover:-translate-y-0.5 hover:scale-105 active:scale-95"
+                }`}
             >
               <HiFire
                 className={`text-sm ${searchHasOffersOnly ? "text-white" : "text-orange-500 group-hover:text-white transition-colors"}`}
@@ -444,20 +441,20 @@ export default function SearchPage({
               searchRatingFilter !== "all" ||
               searchDeliveryTimeFilter !== "all" ||
               searchHasOffersOnly) && (
-              <button
-                onClick={() => {
-                  setSearchVegOnly(false);
-                  setSearchNonVegOnly(false);
-                  setSearchPriceFilter("all");
-                  setSearchRatingFilter("all");
-                  setSearchDeliveryTimeFilter("all");
-                  setSearchHasOffersOnly(false);
-                }}
-                className="bg-gray-100 hover:bg-gray-900 hover:text-white text-gray-600 font-extrabold text-xs px-3.5 py-2 rounded-full border border-transparent transition-all duration-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
-              >
-                Reset Filters
-              </button>
-            )}
+                <button
+                  onClick={() => {
+                    setSearchVegOnly(false);
+                    setSearchNonVegOnly(false);
+                    setSearchPriceFilter("all");
+                    setSearchRatingFilter("all");
+                    setSearchDeliveryTimeFilter("all");
+                    setSearchHasOffersOnly(false);
+                  }}
+                  className="bg-gray-100 hover:bg-gray-900 hover:text-white text-gray-600 font-extrabold text-xs px-3.5 py-2 rounded-full border border-transparent transition-all duration-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+                >
+                  Reset Filters
+                </button>
+              )}
           </div>
         </div>
       </div>
@@ -688,7 +685,7 @@ export default function SearchPage({
                           <span>{dish.deliveryTime}</span>
                         </span>
                         {dish.isAvailable === false ||
-                        dish.availability === false ? (
+                          dish.availability === false ? (
                           <span className="bg-neutral-100 text-neutral-400 border border-neutral-200 text-[9px] font-black px-2.5 py-1 rounded-lg select-none uppercase tracking-wider">
                             OUT OF STOCK
                           </span>

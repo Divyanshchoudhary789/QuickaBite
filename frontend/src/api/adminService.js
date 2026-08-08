@@ -261,55 +261,264 @@ export const adminService = {
     }
   },
 
-  // Drivers/Couriers management
-  async getDrivers() {
+  // Drivers/Couriers management (Riders API integration)
+  async getDrivers(queryParams = {}) {
     if (USE_MOCK) {
       await new Promise((resolve) => setTimeout(resolve, 100));
       const cached = localStorage.getItem("globaleats_drivers");
-      if (cached) return JSON.parse(cached);
-      const defaultDrivers = [
-        {
-          id: "drv-1",
-          name: "Ravi Kumar",
-          phone: "+91 98765 43210",
-          rating: 4.8,
-          vehicle: "Yamaha FZ (Motorcycle)",
-          status: "idle",
-          totalDeliveries: 342,
-        },
-        {
-          id: "drv-2",
-          name: "Amit Patel",
-          phone: "+91 99887 76655",
-          rating: 4.9,
-          vehicle: "Honda Activa (Scooter)",
-          status: "delivering",
-          totalDeliveries: 512,
-        },
-        {
-          id: "drv-3",
-          name: "Suresh Sharma",
-          phone: "+91 88776 65544",
-          rating: 4.5,
-          vehicle: "Hero Cycle (Bicycle)",
-          status: "offline",
-          totalDeliveries: 120,
-        },
-        {
-          id: "drv-4",
-          name: "Priya Nair",
-          phone: "+91 77665 54433",
-          rating: 4.7,
-          vehicle: "Ola Electric Scooter (E-Scooter)",
-          status: "idle",
-          totalDeliveries: 89,
-        },
-      ];
-      localStorage.setItem("globaleats_drivers", JSON.stringify(defaultDrivers));
-      return defaultDrivers;
+      let list = cached ? JSON.parse(cached) : [];
+      if (!cached) {
+        list = [
+          {
+            _id: "6a74878c655e9cef0fa7ba0d",
+            id: "6a74878c655e9cef0fa7ba0d",
+            fullName: "Amit Patel",
+            name: "Amit Patel",
+            phone: "9988776655",
+            rating: 4.9,
+            vehicleType: "Honda Activa 6G (EV/Bike)",
+            vehicle: "Honda Activa 6G (EV/Bike)",
+            licensePlate: "MH 02 CD 4567",
+            status: "IDLE",
+            totalDeliveries: 12,
+          },
+          {
+            _id: "drv-1",
+            id: "drv-1",
+            fullName: "Ravi Kumar",
+            name: "Ravi Kumar",
+            phone: "9876543210",
+            rating: 4.8,
+            vehicleType: "Yamaha FZ (Motorcycle)",
+            vehicle: "Yamaha FZ (Motorcycle)",
+            status: "IDLE",
+            totalDeliveries: 342,
+          },
+          {
+            _id: "drv-3",
+            id: "drv-3",
+            fullName: "Suresh Sharma",
+            name: "Suresh Sharma",
+            phone: "8877665544",
+            rating: 4.5,
+            vehicleType: "Hero Cycle (Bicycle)",
+            vehicle: "Hero Cycle (Bicycle)",
+            status: "OFFLINE",
+            totalDeliveries: 120,
+          },
+          {
+            _id: "drv-4",
+            id: "drv-4",
+            fullName: "Priya Nair",
+            name: "Priya Nair",
+            phone: "7766554433",
+            rating: 4.7,
+            vehicleType: "Ola Electric Scooter (E-Scooter)",
+            vehicle: "Ola Electric Scooter (E-Scooter)",
+            status: "IDLE",
+            totalDeliveries: 89,
+          },
+        ];
+        localStorage.setItem("globaleats_drivers", JSON.stringify(list));
+      }
+      if (queryParams && queryParams.status) {
+        const targetStatus = queryParams.status.toUpperCase();
+        list = list.filter((d) => (d.status || "").toUpperCase() === targetStatus);
+      }
+      return list;
     } else {
-      const response = await apiClient.get("/admin/drivers");
-      return response.data;
+      try {
+        const params = {};
+        if (queryParams && queryParams.status) params.status = queryParams.status;
+        const response = await apiClient.get("/v1/riders", { params });
+        const rawPayload = response.data;
+        const rawData = rawPayload?.data || rawPayload;
+        const list = Array.isArray(rawData) ? rawData : Array.isArray(rawPayload?.riders) ? rawPayload.riders : [];
+        return list.map((item) => ({
+          _id: item._id || item.id,
+          id: item._id || item.id,
+          fullName: item.fullName || item.name || "Unnamed Rider",
+          name: item.fullName || item.name || "Unnamed Rider",
+          phone: item.phone || "",
+          rating: item.rating !== undefined ? item.rating : 5.0,
+          vehicleType: item.vehicleType || item.vehicle || "Standard Bike",
+          vehicle: item.vehicleType || item.vehicle || "Standard Bike",
+          licensePlate: item.licensePlate || "",
+          status: (item.status || "OFFLINE").toUpperCase(),
+          totalDeliveries: item.totalDeliveries || 0,
+        }));
+      } catch (err) {
+        console.warn("getDrivers API call failed, falling back to local storage:", err?.message || err);
+        const cached = localStorage.getItem("globaleats_drivers");
+        let list = cached ? JSON.parse(cached) : [];
+        if (queryParams && queryParams.status) {
+          const targetStatus = queryParams.status.toUpperCase();
+          list = list.filter((d) => (d.status || "").toUpperCase() === targetStatus);
+        }
+        return list;
+      }
+    }
+  },
+
+  async onboardCourier(riderData) {
+    const payload = {
+      fullName: String(riderData.fullName || riderData.name || "").trim(),
+      phone: String(riderData.phone || "").replace(/\D/g, "").slice(-10),
+      vehicleType: String(riderData.vehicleType || riderData.vehicle || "Honda Activa 6G (EV/Bike)").trim(),
+      licensePlate: String(riderData.licensePlate || "").trim(),
+    };
+
+    if (USE_MOCK) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const cached = localStorage.getItem("globaleats_drivers");
+      const list = cached ? JSON.parse(cached) : [];
+      const newRider = {
+        _id: `rider-${Date.now()}`,
+        id: `rider-${Date.now()}`,
+        ...payload,
+        name: payload.fullName,
+        vehicle: payload.vehicleType,
+        rating: 5.0,
+        status: "OFFLINE",
+        totalDeliveries: 0,
+        createdAt: new Date().toISOString(),
+      };
+      const updated = [newRider, ...list];
+      localStorage.setItem("globaleats_drivers", JSON.stringify(updated));
+      return { success: true, message: "Courier onboarded successfully", data: newRider };
+    } else {
+      try {
+        const response = await apiClient.post("/v1/riders", payload);
+        const resData = response.data;
+        const created = resData?.data || resData;
+        const normalized = {
+          _id: created._id || created.id,
+          id: created._id || created.id,
+          fullName: created.fullName || payload.fullName,
+          name: created.fullName || payload.fullName,
+          phone: created.phone || payload.phone,
+          rating: created.rating || 5.0,
+          vehicleType: created.vehicleType || payload.vehicleType,
+          vehicle: created.vehicleType || payload.vehicleType,
+          licensePlate: created.licensePlate || payload.licensePlate,
+          status: (created.status || "OFFLINE").toUpperCase(),
+          totalDeliveries: created.totalDeliveries || 0,
+        };
+        const cached = localStorage.getItem("globaleats_drivers");
+        const list = cached ? JSON.parse(cached) : [];
+        localStorage.setItem("globaleats_drivers", JSON.stringify([normalized, ...list]));
+        return { success: true, message: resData?.message || "Courier onboarded successfully", data: normalized };
+      } catch (err) {
+        console.warn("onboardCourier API failed, saving locally:", err?.message || err);
+        const cached = localStorage.getItem("globaleats_drivers");
+        const list = cached ? JSON.parse(cached) : [];
+        const fallbackRider = {
+          _id: `rider-${Date.now()}`,
+          id: `rider-${Date.now()}`,
+          ...payload,
+          name: payload.fullName,
+          vehicle: payload.vehicleType,
+          rating: 5.0,
+          status: "OFFLINE",
+          totalDeliveries: 0,
+        };
+        localStorage.setItem("globaleats_drivers", JSON.stringify([fallbackRider, ...list]));
+        return { success: true, message: "Courier onboarded locally", data: fallbackRider };
+      }
+    }
+  },
+
+  async updateRiderStatus(id, status) {
+    const uppercaseStatus = String(status || "OFFLINE").toUpperCase();
+    if (USE_MOCK) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const cached = localStorage.getItem("globaleats_drivers");
+      const list = cached ? JSON.parse(cached) : [];
+      const updated = list.map((d) =>
+        d._id === id || d.id === id ? { ...d, status: uppercaseStatus } : d
+      );
+      localStorage.setItem("globaleats_drivers", JSON.stringify(updated));
+      const target = updated.find((d) => d._id === id || d.id === id);
+      return { success: true, message: "Rider status updated", data: target };
+    } else {
+      try {
+        const response = await apiClient.patch(`/v1/riders/${id}/status`, { status: uppercaseStatus });
+        const resData = response.data;
+        const cached = localStorage.getItem("globaleats_drivers");
+        if (cached) {
+          const list = JSON.parse(cached);
+          const updated = list.map((d) =>
+            d._id === id || d.id === id ? { ...d, status: uppercaseStatus } : d
+          );
+          localStorage.setItem("globaleats_drivers", JSON.stringify(updated));
+        }
+        return resData;
+      } catch (err) {
+        console.warn("updateRiderStatus API failed, updating local storage:", err?.message || err);
+        const cached = localStorage.getItem("globaleats_drivers");
+        const list = cached ? JSON.parse(cached) : [];
+        const updated = list.map((d) =>
+          d._id === id || d.id === id ? { ...d, status: uppercaseStatus } : d
+        );
+        localStorage.setItem("globaleats_drivers", JSON.stringify(updated));
+        return { success: true, message: "Rider status updated locally" };
+      }
+    }
+  },
+
+  async deleteRider(id) {
+    if (USE_MOCK) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const cached = localStorage.getItem("globaleats_drivers");
+      const list = cached ? JSON.parse(cached) : [];
+      const filtered = list.filter((d) => d._id !== id && d.id !== id);
+      localStorage.setItem("globaleats_drivers", JSON.stringify(filtered));
+      return { success: true, message: "Courier deleted successfully", data: {} };
+    } else {
+      try {
+        const response = await apiClient.delete(`/v1/riders/${id}`);
+        const cached = localStorage.getItem("globaleats_drivers");
+        if (cached) {
+          const list = JSON.parse(cached);
+          const filtered = list.filter((d) => d._id !== id && d.id !== id);
+          localStorage.setItem("globaleats_drivers", JSON.stringify(filtered));
+        }
+        return response.data;
+      } catch (err) {
+        console.warn("deleteRider API failed, removing locally:", err?.message || err);
+        const cached = localStorage.getItem("globaleats_drivers");
+        const list = cached ? JSON.parse(cached) : [];
+        const filtered = list.filter((d) => d._id !== id && d.id !== id);
+        localStorage.setItem("globaleats_drivers", JSON.stringify(filtered));
+        return { success: true, message: "Courier deleted locally", data: {} };
+      }
+    }
+  },
+
+  async dispatchOrderWithRider(orderId, riderId, deliveryRemarks = "Deliver carefully to the front door") {
+    const cleanId = String(orderId || "").replace(/^GE-/, "");
+    const payload = {
+      riderId,
+      deliveryRemarks,
+    };
+
+    if (USE_MOCK) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      if (riderId) {
+        await this.updateRiderStatus(riderId, "DELIVERING");
+      }
+      return { success: true, message: "Order dispatched with rider successfully" };
+    } else {
+      try {
+        const response = await apiClient.patch(`/v1/orders/${cleanId}/dispatch`, payload);
+        if (riderId) {
+          await this.updateRiderStatus(riderId, "DELIVERING");
+        }
+        return response.data;
+      } catch (err) {
+        console.warn("dispatchOrderWithRider API failed:", err?.message || err);
+        throw err;
+      }
     }
   },
 
@@ -318,8 +527,14 @@ export const adminService = {
       localStorage.setItem("globaleats_drivers", JSON.stringify(drivers));
       return drivers;
     } else {
-      const response = await apiClient.post("/admin/drivers", { drivers });
-      return response.data;
+      try {
+        const response = await apiClient.post("/admin/drivers", { drivers });
+        localStorage.setItem("globaleats_drivers", JSON.stringify(drivers));
+        return response.data;
+      } catch (err) {
+        localStorage.setItem("globaleats_drivers", JSON.stringify(drivers));
+        return drivers;
+      }
     }
   },
 

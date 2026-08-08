@@ -620,7 +620,7 @@ export default function AuthPage({
                             cleaned = cleaned.slice(0, 10);
                             setPhone(cleaned ? `+91 ${cleaned}` : "");
                           }}
-                          placeholder="98765 43210"
+                          placeholder="9876543210"
                           className="w-full bg-neutral-50 border border-neutral-150 focus:border-brand-orange rounded-2xl py-3.5 pl-11 pr-4 text-xs font-semibold text-neutral-900 outline-none transition focus:bg-white"
                         />
                       </div>
@@ -636,35 +636,21 @@ export default function AuthPage({
                       <button
                         type="button"
                         onClick={() => setOtpChannel("sms")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${
-                          otpChannel === "sms"
-                            ? "border-blue-500 bg-blue-50/50 text-blue-700 font-black shadow-xs"
-                            : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                        }`}
+                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "sms"
+                          ? "border-blue-500 bg-blue-50/50 text-blue-700 font-black shadow-xs"
+                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
+                          }`}
                       >
                         <Smartphone className="h-4 w-4" />
                         <span>SMS</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setOtpChannel("whatsapp")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${
-                          otpChannel === "whatsapp"
-                            ? "border-emerald-500 bg-emerald-50/50 text-emerald-700 font-black shadow-xs"
-                            : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                        }`}
-                      >
-                        <MessageCircle className="h-4 w-4 text-emerald-500" />
-                        <span>WhatsApp</span>
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setOtpChannel("call")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${
-                          otpChannel === "call"
-                            ? "border-amber-500 bg-amber-50/50 text-amber-700 font-black shadow-xs"
-                            : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                        }`}
+                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "call"
+                          ? "border-amber-500 bg-amber-50/50 text-amber-700 font-black shadow-xs"
+                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
+                          }`}
                       >
                         <PhoneIcon className="h-4 w-4 text-amber-500" />
                         <span>Voice Call</span>
@@ -731,7 +717,7 @@ export default function AuthPage({
                 {/* Header text */}
                 <div className="space-y-1">
                   <h2 className="font-display font-black text-2xl text-neutral-900 tracking-tight leading-none">
-                    Join QuikaBite 🌟
+                    Join QuickaBite 🌟
                   </h2>
                   <p className="text-xs text-neutral-400 font-medium">
                     Set up your secure profile to unlock discount coupon
@@ -807,11 +793,10 @@ export default function AuthPage({
                       <button
                         type="button"
                         onClick={() => setOtpChannel("sms")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${
-                          otpChannel === "sms"
-                            ? "border-blue-500 bg-blue-50/50 text-blue-700 font-black shadow-xs"
-                            : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                        }`}
+                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "sms"
+                          ? "border-blue-500 bg-blue-50/50 text-blue-700 font-black shadow-xs"
+                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
+                          }`}
                       >
                         <Smartphone className="h-4 w-4" />
                         <span>SMS</span>
@@ -819,11 +804,10 @@ export default function AuthPage({
                       <button
                         type="button"
                         onClick={() => setOtpChannel("whatsapp")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${
-                          otpChannel === "whatsapp"
-                            ? "border-emerald-500 bg-emerald-50/50 text-emerald-700 font-black shadow-xs"
-                            : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                        }`}
+                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "whatsapp"
+                          ? "border-emerald-500 bg-emerald-50/50 text-emerald-700 font-black shadow-xs"
+                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
+                          }`}
                       >
                         <MessageCircle className="h-4 w-4 text-emerald-500" />
                         <span>WhatsApp</span>
@@ -831,11 +815,10 @@ export default function AuthPage({
                       <button
                         type="button"
                         onClick={() => setOtpChannel("call")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${
-                          otpChannel === "call"
-                            ? "border-amber-500 bg-amber-50/50 text-amber-700 font-black shadow-xs"
-                            : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                        }`}
+                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "call"
+                          ? "border-amber-500 bg-amber-50/50 text-amber-700 font-black shadow-xs"
+                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
+                          }`}
                       >
                         <PhoneIcon className="h-4 w-4 text-amber-500" />
                         <span>Voice Call</span>
@@ -930,7 +913,7 @@ export default function AuthPage({
                       For secure multi-factor gourmet auth, enter the 6-digit
                       code dispatched to phone{" "}
                       <span className="text-neutral-700 font-extrabold">
-                        {pendingUser?.phone || "+91 98765 43210"}
+                        {pendingUser?.phone || "+91 9876543210"}
                       </span>{" "}
                       via{" "}
                       <span className="text-brand-orange font-black">

@@ -1,59 +1,73 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, MapPin, Zap, Star, Tag } from "lucide-react";
+import {
+  FaBowlRice,
+  FaPizzaSlice,
+  FaBurger,
+  FaUtensils,
+  FaCakeCandles,
+  FaCarrot,
+  FaDrumstickBite,
+  FaFishFins,
+  FaBacon,
+  FaCookieBite,
+  FaFire,
+  FaWandMagicSparkles,
+} from "react-icons/fa6";
 import { dinerService } from "../../api/dinerService";
 import { useAuth } from "../../context/AuthContext";
 
 const DEFAULT_SLIDES = [
   {
     title: "UP TO 50% OFF",
-    subtitle: "ON YOUR FIRST ORDER",
+    subtitle: "ON YOUR FIRST GOURMET ORDER",
     code: "WELCOME50",
-    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800",
+    image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&q=80&w=1200",
     accent: "#FF5200",
     bg: "from-[#FF5200] via-[#FF7340] to-[#FFA040]",
-    tag: "🎉 New User Deal",
+    tag: "🎉 New User Special",
   },
   {
     title: "FLAT 40% OFF",
-    subtitle: "ON PREMIUM FEASTS",
+    subtitle: "ON WOODFIRED ARTISAN PIZZAS",
     code: "FOOD40",
-    image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=800",
+    image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=1200",
     accent: "#E91E8C",
     bg: "from-[#E91E8C] via-[#F06292] to-[#FF5252]",
-    tag: "🍕 Pizza Lovers",
+    tag: "🍕 Pizza Mania",
   },
   {
     title: "BUY 1 GET 1 FREE",
-    subtitle: "ON LEBANESE SHAWARMAS",
+    subtitle: "ON CHARCOAL GRILLED KEBABS",
     code: "YALLABOGO",
-    image: "https://images.unsplash.com/photo-1574894709920-11b28e7367e3?auto=format&fit=crop&q=80&w=800",
+    image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=1200",
     accent: "#00897B",
     bg: "from-[#00897B] via-[#26A69A] to-[#00BCD4]",
-    tag: "🥙 BOGO Offer",
+    tag: "🥙 BOGO Feast",
   },
   {
-    title: "FREE DELIVERY",
-    subtitle: "ON ORDERS ABOVE ₹199",
+    title: "FREE FAST DELIVERY",
+    subtitle: "ON SMASH BURGERS & SIDES",
     code: "FREEDEL",
-    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=800",
+    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=1200",
     accent: "#7B1FA2",
     bg: "from-[#7B1FA2] via-[#AB47BC] to-[#E040FB]",
-    tag: "🛵 Free Delivery",
+    tag: "Superfast 20 Min",
   },
 ];
 
-// Swiggy-style quick cuisine chips
+// Swiggy-style quick cuisine chips with professional vector food icons
 const QUICK_CUISINES = [
-  { label: "Biryani", emoji: "🍛", color: "bg-amber-100 text-amber-800 border-amber-200" },
-  { label: "Pizza", emoji: "🍕", color: "bg-red-100 text-red-800 border-red-200" },
-  { label: "Burgers", emoji: "🍔", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-  { label: "Chinese", emoji: "🥡", color: "bg-orange-100 text-orange-800 border-orange-200" },
-  { label: "Desserts", emoji: "🍰", color: "bg-pink-100 text-pink-800 border-pink-200" },
-  { label: "Healthy", emoji: "🥗", color: "bg-green-100 text-green-800 border-green-200" },
-  { label: "Shawarma", emoji: "🥙", color: "bg-lime-100 text-lime-800 border-lime-200" },
-  { label: "Sushi", emoji: "🍱", color: "bg-sky-100 text-sky-800 border-sky-200" },
-  { label: "Pasta", emoji: "🍝", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  { label: "Rolls", emoji: "🌯", color: "bg-teal-100 text-teal-800 border-teal-200" },
+  { label: "Biryani", icon: FaBowlRice, badge: "Hot", bg: "from-amber-500/10 to-orange-500/10 text-amber-900 border-amber-300 hover:bg-amber-500 hover:text-white" },
+  { label: "Pizza", icon: FaPizzaSlice, badge: "40% OFF", bg: "from-red-500/10 to-rose-500/10 text-red-900 border-red-300 hover:bg-red-500 hover:text-white" },
+  { label: "Burgers", icon: FaBurger, badge: "Smash", bg: "from-yellow-500/10 to-amber-500/10 text-yellow-900 border-yellow-300 hover:bg-yellow-500 hover:text-white" },
+  { label: "Chinese", icon: FaUtensils, badge: "Spicy", bg: "from-orange-500/10 to-red-500/10 text-orange-900 border-orange-300 hover:bg-orange-500 hover:text-white" },
+  { label: "Desserts", icon: FaCakeCandles, badge: "Sweet", bg: "from-pink-500/10 to-rose-500/10 text-pink-900 border-pink-300 hover:bg-pink-500 hover:text-white" },
+  { label: "Healthy", icon: FaCarrot, badge: "Fresh", bg: "from-emerald-500/10 to-green-500/10 text-emerald-900 border-emerald-300 hover:bg-emerald-500 hover:text-white" },
+  { label: "Shawarma", icon: FaDrumstickBite, badge: "BOGO", bg: "from-lime-500/10 to-emerald-500/10 text-lime-900 border-lime-300 hover:bg-lime-500 hover:text-white" },
+  { label: "Sushi", icon: FaFishFins, badge: "Fresh", bg: "from-sky-500/10 to-blue-500/10 text-sky-900 border-sky-300 hover:bg-sky-500 hover:text-white" },
+  { label: "Pasta", icon: FaBacon, badge: "Cheese", bg: "from-purple-500/10 to-indigo-500/10 text-purple-900 border-purple-300 hover:bg-purple-500 hover:text-white" },
+  { label: "Rolls", icon: FaCookieBite, badge: "Wrap", bg: "from-teal-500/10 to-cyan-500/10 text-teal-900 border-teal-300 hover:bg-teal-500 hover:text-white" },
 ];
 
 export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSelect }) {
@@ -96,19 +110,19 @@ export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSe
   const bgGradient = slide.bg || "from-[#FF5200] via-[#FF7340] to-[#FFA040]";
 
   return (
-    <div id="hero-slider-section" className="relative -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
+    <div id="hero-slider-section" className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 lg:-mt-8 overflow-hidden">
       {/* ── MAIN BANNER ── */}
-      <div className={`relative bg-gradient-to-br ${bgGradient} min-h-[260px] sm:min-h-[320px] overflow-hidden`}>
+      <div className={`relative bg-gradient-to-br ${bgGradient} min-h-[340px] sm:min-h-[420px] md:min-h-[460px] overflow-hidden flex flex-col justify-between`}>
 
         {/* Decorative blobs */}
-        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-black/10 blur-2xl pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-96 h-96 rounded-full bg-white/15 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-72 h-72 rounded-full bg-black/15 blur-3xl pointer-events-none" />
 
         {/* Slide background images (crossfade) */}
         {slides.map((s, idx) => (
           <div
             key={idx}
-            className={`absolute inset-0 transition-opacity duration-700 ${idx === currentSlide ? "opacity-30" : "opacity-0"}`}
+            className={`absolute inset-0 transition-opacity duration-700 ${idx === currentSlide ? "opacity-35" : "opacity-0"}`}
             aria-hidden="true"
           >
             <img
@@ -119,58 +133,88 @@ export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSe
             />
           </div>
         ))}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent pointer-events-none" />
 
         {/* Content */}
-        <div className="relative z-10 px-4 sm:px-8 lg:px-12 py-8 sm:py-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 max-w-7xl mx-auto">
+        <div className="relative z-10 px-6 sm:px-12 lg:px-16 pt-5 sm:pt-8 md:pt-10 pb-6 flex flex-col sm:flex-row items-center justify-between gap-6 max-w-7xl mx-auto w-full">
           {/* Left text block */}
-          <div className="flex-1 max-w-lg space-y-3">
+          <div className="flex-1 max-w-xl space-y-4 text-left">
             {/* Location bar */}
-            <div className="flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 text-white/80 shrink-0" />
-              <span className="text-white/80 text-xs font-semibold truncate max-w-[220px]">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-amber-300 shrink-0 animate-bounce" />
+              <span className="text-white/90 text-xs sm:text-sm font-extrabold truncate max-w-[260px] bg-black/25 backdrop-blur-md px-3 py-1 rounded-full border border-white/20">
                 {currentLocation || "Detecting location…"}
               </span>
             </div>
 
             {/* Offer tag pill */}
-            <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-sm border border-white/30 text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
-              <Tag className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow-md">
+              <Tag className="h-3.5 w-3.5 text-yellow-300" />
               {slide.tag || "Exclusive Offer"}
             </span>
 
             {/* Big headline */}
-            <h1 className="font-display font-black text-3xl sm:text-5xl text-white leading-tight drop-shadow-lg">
+            <h1 className="font-display font-black text-4xl sm:text-6xl md:text-7xl text-white leading-none drop-shadow-xl tracking-tight">
               {slide.title}
             </h1>
-            <p className="text-white/90 font-bold text-sm sm:text-base uppercase tracking-wide">
+            <p className="text-white/90 font-black text-base sm:text-xl uppercase tracking-wide drop-shadow-md">
               {slide.subtitle}
             </p>
 
             {/* Code + CTA */}
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <div className="bg-white/20 backdrop-blur-sm border border-white/30 px-4 py-2 rounded-xl text-xs font-mono font-black text-white tracking-widest">
-                USE: <span className="text-yellow-300">{slide.code || "QUIKABITE"}</span>
+            <div className="flex flex-wrap items-center gap-4 pt-2">
+              <div className="bg-white/25 backdrop-blur-md border border-white/35 px-5 py-3 rounded-2xl text-xs sm:text-sm font-mono font-black text-white tracking-widest shadow-lg">
+                USE: <span className="text-yellow-300 font-extrabold">{slide.code || "QuickaBITE"}</span>
               </div>
               <button
                 onClick={onSearchClick}
-                className="cursor-pointer bg-white text-gray-900 font-extrabold text-sm px-6 py-2.5 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 active:scale-100 transition-all duration-200"
+                className="cursor-pointer bg-white text-gray-900 font-black text-sm sm:text-base px-8 py-3.5 rounded-2xl shadow-xl hover:shadow-2xl hover:bg-orange-50 hover:scale-105 active:scale-100 transition-all duration-200 flex items-center gap-2"
               >
-                Order Now →
+                <span>Order Now</span>
+                <span className="text-brand-orange text-lg">→</span>
               </button>
             </div>
           </div>
 
-          {/* Right: food image spotlight */}
-          <div className="hidden sm:block relative w-56 h-48 shrink-0">
+          {/* Right: mouth-watering ultra-realistic food spotlight */}
+          <div className="hidden sm:block relative w-72 h-64 sm:w-80 sm:h-72 md:w-[420px] md:h-[340px] shrink-0">
             {slides.map((s, idx) => (
               <img
                 key={idx}
                 src={s.image}
                 alt={s.title}
                 referrerPolicy="no-referrer"
-                className={`absolute inset-0 w-full h-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl transition-all duration-700 ${idx === currentSlide ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+                className={`absolute inset-0 w-full h-full object-cover rounded-3xl border-4 border-white/40 shadow-2xl transition-all duration-700 transform ${idx === currentSlide ? "opacity-100 scale-100 rotate-1" : "opacity-0 scale-95 -rotate-2"}`}
               />
+            ))}
+          </div>
+        </div>
+
+        {/* ── HERO BOTTOM FEATURE BAR ── */}
+        <div className="mt-auto w-full relative z-20 border-t border-white/20 bg-black/30 backdrop-blur-xl py-3.5 px-4 sm:px-8 lg:px-12">
+          <div className="max-w-7xl mx-auto flex items-center gap-4 sm:gap-6 overflow-x-auto no-scrollbar">
+            {[
+              {title: "Superfast 20 Min", sub: "On-time or free" },
+              {title: "50% OFF First Order", sub: "Use WELCOME50" },
+              {title: "Free Delivery > ₹199", sub: "Zero hidden charges" },
+              {title: "4.8★ Rated Kitchens", sub: "100% Quality checked" },
+              {title: "Daily Hot Deals", sub: "Fresh offers hourly" },
+              {title: "Instant UPI Cashback", sub: "Extra ₹30 back" },
+              { title: "Late Night Delivery", sub: "Open till 3 AM" },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-md px-4 py-2 rounded-2xl shrink-0 transition-all duration-300 transform hover:scale-105 shadow-xs group cursor-pointer"
+              >
+                <div>
+                  <p className="font-display font-black text-xs sm:text-s text-white leading-tight drop-shadow-sm">
+                    {item.title}
+                  </p>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-yellow-300 mt-0.5">
+                    {item.sub}
+                  </p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -192,7 +236,7 @@ export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSe
         </button>
 
         {/* Dot indicators */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
           {slides.map((_, idx) => (
             <button
               key={idx}
@@ -200,40 +244,6 @@ export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSe
               aria-label={`Slide ${idx + 1}`}
               className={`rounded-full transition-all duration-300 ${idx === currentSlide ? "w-7 h-2 bg-white" : "w-2 h-2 bg-white/40 hover:bg-white/60"}`}
             />
-          ))}
-        </div>
-      </div>
-
-      {/* ── PROMO STRIP ── */}
-      <div className="bg-gradient-to-r from-[#FF5200] to-[#FFC300] px-4 sm:px-8 lg:px-12 py-2.5 flex items-center gap-6 overflow-x-auto no-scrollbar">
-        {[
-          { icon: "⚡", text: "Fast Delivery in 20 mins" },
-          { icon: "🎁", text: "50% OFF on First Order" },
-          { icon: "🆓", text: "Free Delivery above ₹199" },
-          { icon: "⭐", text: "4.8★ Rated Restaurants" },
-          { icon: "🔥", text: "Exclusive Daily Deals" },
-          { icon: "💳", text: "Pay via UPI & get cashback" },
-        ].map((item, i) => (
-          <span key={i} className="flex items-center gap-1.5 text-white text-xs font-bold whitespace-nowrap shrink-0">
-            <span>{item.icon}</span>
-            <span>{item.text}</span>
-            {i < 5 && <span className="ml-4 text-white/40">•</span>}
-          </span>
-        ))}
-      </div>
-
-      {/* ── QUICK CUISINE CHIPS ── */}
-      <div className="bg-white border-b border-gray-100 px-4 sm:px-8 lg:px-12 py-3">
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar max-w-7xl mx-auto">
-          {QUICK_CUISINES.map((c) => (
-            <button
-              key={c.label}
-              onClick={() => onCuisineSelect?.(c.label.toLowerCase())}
-              className={`flex items-center gap-1.5 shrink-0 px-3.5 py-1.5 rounded-full border text-xs font-bold transition hover:scale-105 active:scale-95 cursor-pointer ${c.color}`}
-            >
-              <span className="text-base leading-none">{c.emoji}</span>
-              <span>{c.label}</span>
-            </button>
           ))}
         </div>
       </div>

@@ -160,25 +160,25 @@ export default function BrandManagementTab({ orders, triggerToast }) {
         prev.map((b) =>
           b.id === editingBrand.id
             ? {
-                ...b,
-                name: formName,
-                slogan: formSlogan || `${formCuisineType} Gastronomy`,
-                description: formDescription,
-                iconName: formIconName,
-                bannerImage:
-                  formBannerImage ||
-                  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
-                prepTime: formPrepTime,
-                deliveryFee: formDeliveryFee,
-                status: formStatus,
-                isVisible: formIsVisible,
-                themeColor,
-                // Update category of any Specialties to match updated Cuisine Type
-                specialties: b.specialties.map((s) => ({
-                  ...s,
-                  category: formCuisineType,
-                })),
-              }
+              ...b,
+              name: formName,
+              slogan: formSlogan || `${formCuisineType} Gastronomy`,
+              description: formDescription,
+              iconName: formIconName,
+              bannerImage:
+                formBannerImage ||
+                "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
+              prepTime: formPrepTime,
+              deliveryFee: formDeliveryFee,
+              status: formStatus,
+              isVisible: formIsVisible,
+              themeColor,
+              // Update category of any Specialties to match updated Cuisine Type
+              specialties: b.specialties.map((s) => ({
+                ...s,
+                category: formCuisineType,
+              })),
+            }
             : b,
         ),
       );
@@ -536,10 +536,10 @@ export default function BrandManagementTab({ orders, triggerToast }) {
                           {item.name}
                         </span>
                       )) || (
-                        <span className="text-[10px] text-gray-400 italic font-medium">
-                          No specialties created
-                        </span>
-                      )}
+                          <span className="text-[10px] text-gray-400 italic font-medium">
+                            No specialties created
+                          </span>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -577,239 +577,239 @@ export default function BrandManagementTab({ orders, triggerToast }) {
       {/* BRAND MODAL (ADD & EDIT) */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} maxWidth="max-w-lg">
         <div>
-              {/* Modal Header */}
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          {/* Modal Header */}
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h4 className="font-display font-black text-base text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                {editingBrand ? (
+                  <Edit className="h-5 w-5 text-brand-orange" />
+                ) : (
+                  <FolderPlus className="h-5 w-5 text-brand-orange" />
+                )}
+                <span>
+                  {editingBrand
+                    ? "Edit Virtual Brand Lab"
+                    : "Launch New Brand Concept"}
+                </span>
+              </h4>
+              <p className="text-[10px] text-gray-400 font-semibold">
+                Configure details to update our distributed cloud kitchen
+                recipe lists
+              </p>
+            </div>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="h-8 w-8 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center text-gray-500 transition focus:outline-none"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <form onSubmit={handleSaveBrand} className="p-6 space-y-4">
+            {/* Row 1: Name and Cuisine */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                  Brand Name
+                </label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. QuikaBite Indian"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                  Cuisine Specialty
+                </label>
+                <select
+                  value={formCuisineType}
+                  onChange={(e) => setFormCuisineType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange bg-white"
+                >
+                  <option value="Biryani">Biryani</option>
+                  <option value="Pizza">Pizza</option>
+                  <option value="Chinese">Chinese</option>
+                  <option value="Indian">Indian</option>
+                  <option value="Italian">Italian</option>
+                  <option value="Burgers">Burgers</option>
+                  <option value="Desserts">Desserts</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Slogan */}
+            <div>
+              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                Slogan / Tagline
+              </label>
+              <input
+                type="text"
+                value={formSlogan}
+                onChange={(e) => setFormSlogan(e.target.value)}
+                placeholder="e.g. Authentic Wood-Fired Masterpieces"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                Concept Description
+              </label>
+              <textarea
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder="Provide a detailed, mouth-watering description of the food concept, sourcing, hygiene, etc."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
+              />
+            </div>
+
+            {/* Row 3: Logo (Icon) Select */}
+            <div>
+              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                Dynamic Theme Icon
+              </label>
+              <div className="grid grid-cols-6 gap-2">
+                {Object.keys(ICON_MAP).map((iconName) => {
+                  const Icon = ICON_MAP[iconName];
+                  const isSelected = formIconName === iconName;
+                  return (
+                    <button
+                      key={iconName}
+                      type="button"
+                      onClick={() => setFormIconName(iconName)}
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition ${isSelected ? "border-brand-orange bg-orange-50 text-brand-orange font-black" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="text-[8px] font-black uppercase leading-none">
+                        {iconName}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Banner Image URL */}
+            <div>
+              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                Banner Image URL
+              </label>
+              <div className="flex gap-2">
+                <span className="px-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 shrink-0">
+                  <ImageIcon className="h-4 w-4" />
+                </span>
+                <input
+                  type="text"
+                  value={formBannerImage}
+                  onChange={(e) => setFormBannerImage(e.target.value)}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
+                />
+              </div>
+              <span className="text-[9px] text-gray-400 font-semibold block mt-1">
+                Provide a landscape Unsplash image URL for beautiful layout
+                rendering.
+              </span>
+            </div>
+
+            {/* Prep time & Delivery fee */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                  Average Prep Time
+                </label>
+                <input
+                  type="text"
+                  value={formPrepTime}
+                  onChange={(e) => setFormPrepTime(e.target.value)}
+                  placeholder="e.g. 25 mins"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                  Delivery Fee
+                </label>
+                <input
+                  type="text"
+                  value={formDeliveryFee}
+                  onChange={(e) => setFormDeliveryFee(e.target.value)}
+                  placeholder="e.g. Free"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
+                />
+              </div>
+            </div>
+
+            {/* Status & Visibility Row */}
+            <div className="grid grid-cols-2 gap-4 bg-neutral-50 p-3 rounded-2xl border border-neutral-150">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-display font-black text-base text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-                    {editingBrand ? (
-                      <Edit className="h-5 w-5 text-brand-orange" />
-                    ) : (
-                      <FolderPlus className="h-5 w-5 text-brand-orange" />
-                    )}
-                    <span>
-                      {editingBrand
-                        ? "Edit Virtual Brand Lab"
-                        : "Launch New Brand Concept"}
-                    </span>
-                  </h4>
-                  <p className="text-[10px] text-gray-400 font-semibold">
-                    Configure details to update our distributed cloud kitchen
-                    recipe lists
-                  </p>
+                  <span className="text-[10px] font-black uppercase text-gray-800 block">
+                    Brand Status
+                  </span>
+                  <span className="text-[9px] text-gray-400 font-semibold leading-tight">
+                    Disable if out of stock
+                  </span>
                 </div>
                 <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="h-8 w-8 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center text-gray-500 transition focus:outline-none"
+                  type="button"
+                  onClick={() =>
+                    setFormStatus((prev) =>
+                      prev === "Active" ? "Disabled" : "Active",
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${formStatus === "Active" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}
                 >
-                  <X className="h-4 w-4" />
+                  {formStatus}
                 </button>
               </div>
 
-              {/* Modal Body */}
-              <form onSubmit={handleSaveBrand} className="p-6 space-y-4">
-                {/* Row 1: Name and Cuisine */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                      Brand Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      placeholder="e.g. QuikaBite Indian"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                      Cuisine Specialty
-                    </label>
-                    <select
-                      value={formCuisineType}
-                      onChange={(e) => setFormCuisineType(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange bg-white"
-                    >
-                      <option value="Biryani">Biryani</option>
-                      <option value="Pizza">Pizza</option>
-                      <option value="Chinese">Chinese</option>
-                      <option value="Indian">Indian</option>
-                      <option value="Italian">Italian</option>
-                      <option value="Burgers">Burgers</option>
-                      <option value="Desserts">Desserts</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Slogan */}
+              <div className="flex items-center justify-between border-l border-neutral-200 pl-4">
                 <div>
-                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                    Slogan / Tagline
-                  </label>
-                  <input
-                    type="text"
-                    value={formSlogan}
-                    onChange={(e) => setFormSlogan(e.target.value)}
-                    placeholder="e.g. Authentic Wood-Fired Masterpieces"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                    Concept Description
-                  </label>
-                  <textarea
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    placeholder="Provide a detailed, mouth-watering description of the food concept, sourcing, hygiene, etc."
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
-                  />
-                </div>
-
-                {/* Row 3: Logo (Icon) Select */}
-                <div>
-                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                    Dynamic Theme Icon
-                  </label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {Object.keys(ICON_MAP).map((iconName) => {
-                      const Icon = ICON_MAP[iconName];
-                      const isSelected = formIconName === iconName;
-                      return (
-                        <button
-                          key={iconName}
-                          type="button"
-                          onClick={() => setFormIconName(iconName)}
-                          className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition ${isSelected ? "border-brand-orange bg-orange-50 text-brand-orange font-black" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
-                        >
-                          <Icon className="h-5 w-5" />
-                          <span className="text-[8px] font-black uppercase leading-none">
-                            {iconName}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Banner Image URL */}
-                <div>
-                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                    Banner Image URL
-                  </label>
-                  <div className="flex gap-2">
-                    <span className="px-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 shrink-0">
-                      <ImageIcon className="h-4 w-4" />
-                    </span>
-                    <input
-                      type="text"
-                      value={formBannerImage}
-                      onChange={(e) => setFormBannerImage(e.target.value)}
-                      placeholder="https://images.unsplash.com/..."
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
-                    />
-                  </div>
-                  <span className="text-[9px] text-gray-400 font-semibold block mt-1">
-                    Provide a landscape Unsplash image URL for beautiful layout
-                    rendering.
+                  <span className="text-[10px] font-black uppercase text-gray-800 block">
+                    Home Visibility
+                  </span>
+                  <span className="text-[9px] text-gray-400 font-semibold leading-tight">
+                    Hide on consumer grid
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setFormIsVisible((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${formIsVisible ? "bg-emerald-500 text-white" : "bg-neutral-300 text-neutral-700"}`}
+                >
+                  {formIsVisible ? "Visible" : "Hidden"}
+                </button>
+              </div>
+            </div>
 
-                {/* Prep time & Delivery fee */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                      Average Prep Time
-                    </label>
-                    <input
-                      type="text"
-                      value={formPrepTime}
-                      onChange={(e) => setFormPrepTime(e.target.value)}
-                      placeholder="e.g. 25 mins"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                      Delivery Fee
-                    </label>
-                    <input
-                      type="text"
-                      value={formDeliveryFee}
-                      onChange={(e) => setFormDeliveryFee(e.target.value)}
-                      placeholder="e.g. Free"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
-                    />
-                  </div>
-                </div>
-
-                {/* Status & Visibility Row */}
-                <div className="grid grid-cols-2 gap-4 bg-neutral-50 p-3 rounded-2xl border border-neutral-150">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-black uppercase text-gray-800 block">
-                        Brand Status
-                      </span>
-                      <span className="text-[9px] text-gray-400 font-semibold leading-tight">
-                        Disable if out of stock
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormStatus((prev) =>
-                          prev === "Active" ? "Disabled" : "Active",
-                        )
-                      }
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${formStatus === "Active" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}
-                    >
-                      {formStatus}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between border-l border-neutral-200 pl-4">
-                    <div>
-                      <span className="text-[10px] font-black uppercase text-gray-800 block">
-                        Home Visibility
-                      </span>
-                      <span className="text-[9px] text-gray-400 font-semibold leading-tight">
-                        Hide on consumer grid
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFormIsVisible((prev) => !prev)}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${formIsVisible ? "bg-emerald-500 text-white" : "bg-neutral-300 text-neutral-700"}`}
-                    >
-                      {formIsVisible ? "Visible" : "Hidden"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Modal Actions */}
-                <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 border border-gray-250 hover:bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-md"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>
-                      {editingBrand ? "Save Changes" : "Launch Brand"}
-                    </span>
-                  </button>
-                </div>
-              </form>
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 border border-gray-250 hover:bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-md"
+              >
+                <Save className="h-4 w-4" />
+                <span>
+                  {editingBrand ? "Save Changes" : "Launch Brand"}
+                </span>
+              </button>
+            </div>
+          </form>
         </div>
       </Modal>
     </div>

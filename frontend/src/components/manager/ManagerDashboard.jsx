@@ -26,63 +26,63 @@ export default function ManagerDashboard({
 
   return (
     <>
-    <div
-      className="min-h-screen bg-neutral-50/70 py-6 px-4 sm:px-6 lg:px-8 font-sans"
-      id="manager-workspace-root"
-    >
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Quick Header actions like Logout for manager */}
-        <div className="flex justify-between items-center bg-neutral-950 text-white rounded-2xl p-4 border border-neutral-800 shadow-lg">
-          <div className="flex items-center gap-2">
-            <ChefHat className="h-6 w-6 text-brand-orange animate-pulse" />
-            <span className="font-black tracking-wider text-[10px] uppercase text-neutral-200">
-              QuikaBite Kitchen System v1.4
-            </span>
+      <div
+        className="min-h-screen bg-neutral-50/70 py-6 px-4 sm:px-6 lg:px-8 font-sans"
+        id="manager-workspace-root"
+      >
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Quick Header actions like Logout for manager */}
+          <div className="flex justify-between items-center bg-neutral-950 text-white rounded-2xl p-4 border border-neutral-800 shadow-lg">
+            <div className="flex items-center gap-2">
+              <ChefHat className="h-6 w-6 text-brand-orange animate-pulse" />
+              <span className="font-black tracking-wider text-[10px] uppercase text-neutral-200">
+                QuikaBite Kitchen System v1.4
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowLogoutConfirm(true)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition cursor-pointer"
+              >
+                Logout Securely
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
+
+          {/* Sub Navigation for Manager */}
+          <div className="bg-white p-1.5 rounded-2xl shadow-xs border border-neutral-150 flex gap-1 items-center">
             <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition cursor-pointer"
+              onClick={() => setManagerSubTab("kitchen")}
+              className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer ${managerSubTab === "kitchen" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
             >
-              Logout Securely
+              <ChefHat className="h-4 w-4" />
+              <span>Kitchen Operations Board</span>
+            </button>
+            <button
+              onClick={() => setManagerSubTab("reports")}
+              className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer ${managerSubTab === "reports" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>BI & Reporting Dashboard</span>
             </button>
           </div>
+
+          {managerSubTab === "kitchen" && (
+            <KitchenOperationsBoard
+              orders={orders}
+              setOrders={setOrders}
+              triggerToast={triggerToast}
+              setHideBottomNavbar={setHideBottomNavbar}
+            />
+          )}
+
+          {managerSubTab === "reports" && (
+            <div className="bg-neutral-950 rounded-3xl p-6 border border-neutral-800 shadow-2xl">
+              <ManagerReportingDashboard triggerToast={triggerToast} />
+            </div>
+          )}
         </div>
-
-        {/* Sub Navigation for Manager */}
-        <div className="bg-white p-1.5 rounded-2xl shadow-xs border border-neutral-150 flex gap-1 items-center">
-          <button
-            onClick={() => setManagerSubTab("kitchen")}
-            className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer ${managerSubTab === "kitchen" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
-          >
-            <ChefHat className="h-4 w-4" />
-            <span>Kitchen Operations Board</span>
-          </button>
-          <button
-            onClick={() => setManagerSubTab("reports")}
-            className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer ${managerSubTab === "reports" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>BI & Reporting Dashboard</span>
-          </button>
-        </div>
-
-        {managerSubTab === "kitchen" && (
-          <KitchenOperationsBoard
-            orders={orders}
-            setOrders={setOrders}
-            triggerToast={triggerToast}
-            setHideBottomNavbar={setHideBottomNavbar}
-          />
-        )}
-
-        {managerSubTab === "reports" && (
-          <div className="bg-neutral-950 rounded-3xl p-6 border border-neutral-800 shadow-2xl">
-            <ManagerReportingDashboard triggerToast={triggerToast} />
-          </div>
-        )}
       </div>
-    </div>
 
       {showLogoutConfirm && createPortal(
         <div

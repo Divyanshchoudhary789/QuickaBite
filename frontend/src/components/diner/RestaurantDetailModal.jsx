@@ -1892,53 +1892,29 @@ export default function RestaurantDetailModal({
           </div>
         </div>
 
-        {/* Floating Cart Button (Inside Modal) */}
-        {totalCartCount > 0 && (
-          <div
-            className="absolute bottom-20 right-6 z-30"
-            id="floating-cart-anchor"
-          >
-            <button
-              onClick={handleGoToCart}
-              className="bg-brand-orange hover:bg-orange-700 text-white h-12 w-12 rounded-full shadow-lg flex items-center justify-center transition-transform duration-200 hover:scale-105 relative border border-white/25"
-              title="View Cart Page"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              <span className="absolute -top-1.5 -right-1.5 bg-black text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center border border-white">
-                {totalCartCount}
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* Sticky Checkout CTA at Modal Bottom */}
+        {/* Sticky Checkout CTA at Modal Bottom (Beautiful Button) */}
         {totalCartCount > 0 ? (
           <div
-            className="bg-brand-orange p-4 sm:rounded-b-3xl text-white flex items-center justify-between shadow-premium border-t border-orange-600/30 shrink-0 sticky bottom-0 left-0 right-0 z-20 animate-slide-up"
+            className="w-full p-3 sm:p-4 bg-white border-t border-gray-100 shrink-0 sticky bottom-0 left-0 right-0 z-50 animate-slide-up sm:rounded-b-3xl shadow-lg"
             id="restaurant-detail-sticky-checkout"
           >
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5">
-                <span className="bg-white text-brand-orange font-black text-[11px] h-5 w-5 rounded-full flex items-center justify-center">
-                  {totalCartCount}
-                </span>
-                <span className="font-extrabold text-xs tracking-wide uppercase">
-                  DISHES ADDED
-                </span>
-              </div>
-              <p className="text-[10px] text-orange-100 font-semibold">
-                Total Feast Cost:{" "}
-                <span className="font-black text-white">
-                  ₹ {totalCartCost.toFixed(2)}
-                </span>
-              </p>
-            </div>
-
             <button
               onClick={handleGoToCart}
-              className="bg-white hover:bg-orange-50 text-brand-orange font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 uppercase tracking-wider"
+              className="w-full bg-[#60B246] hover:bg-[#529e3a] active:scale-[0.98] text-white px-5 py-3.5 sm:py-4 rounded-2xl shadow-xl shadow-emerald-600/25 transition-all duration-200 flex items-center justify-between cursor-pointer group border border-emerald-400/30"
             >
-              <span>View Basket & Checkout ➔</span>
+              <div className="flex items-center gap-3 text-left">
+                <div className="bg-white/20 backdrop-blur-xs text-white font-black text-xs px-2.5 py-1 rounded-xl flex items-center justify-center border border-white/30 shadow-xs">
+                  {totalCartCount} {totalCartCount === 1 ? "ITEM" : "ITEMS"}
+                </div>
+                <p className="text-xs sm:text-sm font-semibold text-emerald-100">
+                  Subtotal: <span className="font-black text-white text-base">₹{totalCartCost.toFixed(2)}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 font-black text-xs sm:text-sm uppercase tracking-wider text-white group-hover:translate-x-1 transition-transform">
+                <span>View Cart</span>
+                <span className="text-lg">➔</span>
+              </div>
             </button>
           </div>
         ) : (

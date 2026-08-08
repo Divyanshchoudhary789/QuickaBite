@@ -82,7 +82,7 @@ export default function OrdersPage({
       if (updated) {
         try {
           localStorage.setItem("globaleats_rejected_times", JSON.stringify(next));
-        } catch (e) {}
+        } catch (e) { }
         return next;
       }
       return prev;
@@ -130,7 +130,7 @@ export default function OrdersPage({
       next.add(targetStr);
       try {
         localStorage.setItem("globaleats_rejected_dismissed", JSON.stringify(Array.from(next)));
-      } catch (e) {}
+      } catch (e) { }
       return next;
     });
     if (triggerToast) {
@@ -281,17 +281,16 @@ ${divider}
 Subtotal      : ₹ ${subtotalNum.toFixed(2).padStart(8)}
 Delivery Fee  : ${deliveryFeeNum === 0 ? "FREE".padStart(10) : `₹ ${deliveryFeeNum.toFixed(2).padStart(8)}`}
 Tax & Svc (5%): ₹ ${taxNum.toFixed(2).padStart(8)}
-${
-  discountNum > 0
-    ? `Promo Discount: -₹ ${discountNum.toFixed(2).padStart(7)}
+${discountNum > 0
+        ? `Promo Discount: -₹ ${discountNum.toFixed(2).padStart(7)}
 `
-    : ""
-}${divider}
+        : ""
+      }${divider}
 GRAND TOTAL   : ₹ ${totalNum.toFixed(2).padStart(8)}
 ${divider}
 Payment Mode  : Secured Gateway
 Thank you for choosing QuikaBite Gourmet dining!
-For support, contact support@quikabite.ae
+For support, contact support@Quikabite.ae
 ${divider}
     `;
     const blob = new Blob([invoiceText], { type: "text/plain" });
@@ -578,25 +577,25 @@ ${divider}
                             style={{
                               width:
                                 order.status === "received" ||
-                                order.status === "placed" ||
-                                order.status === "pending"
+                                  order.status === "placed" ||
+                                  order.status === "pending"
                                   ? "0%"
                                   : order.status === "accepted" ||
-                                      order.status === "confirmed"
+                                    order.status === "confirmed"
                                     ? "25%"
                                     : order.status === "preparing" ||
-                                        order.status === "ready" ||
-                                        order.status === "ready-for-pickup"
+                                      order.status === "ready" ||
+                                      order.status === "ready-for-pickup"
                                       ? "50%"
                                       : order.status === "dispatched" ||
-                                          order.status === "out_for_delivery" ||
-                                          order.status === "out for delivery" ||
-                                          order.status === "delivering" ||
-                                          order.status === "in_transit" ||
-                                          order.status === "in transit" ||
-                                          order.status === "on_way" ||
-                                          order.status === "on way" ||
-                                          order.status === "shipped"
+                                        order.status === "out_for_delivery" ||
+                                        order.status === "out for delivery" ||
+                                        order.status === "delivering" ||
+                                        order.status === "in_transit" ||
+                                        order.status === "in transit" ||
+                                        order.status === "on_way" ||
+                                        order.status === "on way" ||
+                                        order.status === "shipped"
                                         ? "75%"
                                         : "100%",
                             }}

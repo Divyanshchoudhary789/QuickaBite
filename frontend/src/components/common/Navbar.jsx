@@ -81,7 +81,7 @@ export default function Navbar({
   return (
     <>
       <header
-        className="sticky top-0 z-40 w-full bg-white border-b border-gray-100 shadow-sm"
+        className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-xl border-b border-gray-200/50 shadow-xs transition-all duration-300 hover:bg-white/95"
         id="global-header"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -148,25 +148,22 @@ export default function Navbar({
                                 setCurrentLocation(formattedText);
                                 setShowLocationMenu(false);
                               }}
-                              className={`w-full text-left px-4 py-3 text-sm hover:bg-orange-50 transition flex items-start gap-2.5 ${
-                                isSelected ? "bg-orange-50/70" : ""
-                              }`}
+                              className={`w-full text-left px-4 py-3 text-sm hover:bg-orange-50 transition flex items-start gap-2.5 ${isSelected ? "bg-orange-50/70" : ""
+                                }`}
                             >
                               <Icon
-                                className={`h-4 w-4 mt-0.5 shrink-0 ${
-                                  isSelected
-                                    ? "text-brand-orange"
-                                    : "text-gray-400"
-                                }`}
+                                className={`h-4 w-4 mt-0.5 shrink-0 ${isSelected
+                                  ? "text-brand-orange"
+                                  : "text-gray-400"
+                                  }`}
                               />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   <span
-                                    className={`font-bold text-xs ${
-                                      isSelected
-                                        ? "text-brand-orange"
-                                        : "text-gray-800"
-                                    }`}
+                                    className={`font-bold text-xs ${isSelected
+                                      ? "text-brand-orange"
+                                      : "text-gray-800"
+                                      }`}
                                   >
                                     {addr.label === "Other" && addr.tagName
                                       ? addr.tagName

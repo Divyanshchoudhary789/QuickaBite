@@ -27,7 +27,7 @@ const DEFAULT_USERS = [
     name: "Vedanshi Bhabhra",
     fullName: "Vedanshi Bhabhra",
     email: "bhabhravedanshi@gmail.com",
-    phone: "+91 98765 43210",
+    phone: "+91 9876543210",
     role: "admin",
     status: "active",
     isBlocked: false,
@@ -81,7 +81,7 @@ const DEFAULT_USERS = [
     id: "usr-6",
     name: "Chef Sanjay",
     fullName: "Chef Sanjay",
-    email: "sanjay@quickabite.ae",
+    email: "sanjay@Quikabite.ae",
     phone: "+91 88800 12345",
     role: "manager",
     status: "active",
@@ -229,10 +229,10 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
         prev.map((u) =>
           u.id === userId || u._id === userId
             ? {
-                ...u,
-                role: nextRole,
-                ...(restaurantId ? { restaurant: restaurantId } : {}),
-              }
+              ...u,
+              role: nextRole,
+              ...(restaurantId ? { restaurant: restaurantId } : {}),
+            }
             : u,
         ),
       );
@@ -251,9 +251,9 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
       setRoleChangeTarget({ user, nextRole });
       setSelectedRoleRestaurantId(
         user.restaurant ||
-          (restaurants.length > 0
-            ? restaurants[0].id || restaurants[0]._id || ""
-            : ""),
+        (restaurants.length > 0
+          ? restaurants[0].id || restaurants[0]._id || ""
+          : ""),
       );
       setShowRoleModal(true);
     } else {
@@ -266,9 +266,9 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
     setRoleChangeTarget({ user, nextRole: "manager" });
     setSelectedRoleRestaurantId(
       user.restaurant ||
-        (restaurants.length > 0
-          ? restaurants[0].id || restaurants[0]._id || ""
-          : ""),
+      (restaurants.length > 0
+        ? restaurants[0].id || restaurants[0]._id || ""
+        : ""),
     );
     setShowRoleModal(true);
   };
@@ -326,13 +326,13 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
         prev.map((u) =>
           u.id === userId || u._id === userId
             ? {
-                ...u,
-                ...updatedUser,
-                role: editUserData.role,
-                ...(editUserData.role === "manager"
-                  ? { restaurant: editUserData.restaurant }
-                  : {}),
-              }
+              ...u,
+              ...updatedUser,
+              role: editUserData.role,
+              ...(editUserData.role === "manager"
+                ? { restaurant: editUserData.restaurant }
+                : {}),
+            }
             : u,
         ),
       );
@@ -359,10 +359,10 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
         prev.map((u) =>
           u.id === userId || u._id === userId
             ? {
-                ...u,
-                isBlocked: nextIsBlocked,
-                status: nextIsBlocked ? "suspended" : "active",
-              }
+              ...u,
+              isBlocked: nextIsBlocked,
+              status: nextIsBlocked ? "suspended" : "active",
+            }
             : u,
         ),
       );
@@ -579,11 +579,10 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
                         {/* BlockUser & UnblockUser API Trigger */}
                         <button
                           onClick={() => handleToggleStatus(u)}
-                          className={`p-1.5 rounded-lg transition cursor-pointer ${
-                            !u.isBlocked && u.status !== "suspended"
-                              ? "text-amber-600 hover:bg-amber-50"
-                              : "text-emerald-600 hover:bg-emerald-50"
-                          }`}
+                          className={`p-1.5 rounded-lg transition cursor-pointer ${!u.isBlocked && u.status !== "suspended"
+                            ? "text-amber-600 hover:bg-amber-50"
+                            : "text-emerald-600 hover:bg-emerald-50"
+                            }`}
                           title={
                             !u.isBlocked && u.status !== "suspended"
                               ? "Suspend Account (BlockUser)"
@@ -653,7 +652,7 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
               required
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98765 43210"
+              placeholder="+91 9876543210"
               className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
             />
           </div>
@@ -775,7 +774,7 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
               onChange={(e) =>
                 setEditUserData({ ...editUserData, phone: e.target.value })
               }
-              placeholder="+91 98765 43210"
+              placeholder="+91 9876543210"
               className="w-full bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-xs font-semibold outline-none focus:border-brand-orange"
             />
           </div>
@@ -792,12 +791,12 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
                   ...editUserData,
                   role: newRole,
                   ...(newRole === "manager" &&
-                  !editUserData.restaurant &&
-                  restaurants.length > 0
+                    !editUserData.restaurant &&
+                    restaurants.length > 0
                     ? {
-                        restaurant:
-                          restaurants[0].id || restaurants[0]._id || "",
-                      }
+                      restaurant:
+                        restaurants[0].id || restaurants[0]._id || "",
+                    }
                     : {}),
                 });
               }}

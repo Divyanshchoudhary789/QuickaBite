@@ -782,6 +782,10 @@ export const dinerService = {
     }
   },
 
+  async getCoupons() {
+    return this.getActiveCoupons();
+  },
+
   // --- REVIEWS APIs ---
   async getReviewsByRestaurant(restaurantId) {
     if (USE_MOCK) {
@@ -1226,7 +1230,7 @@ export const normalizeOrder = (raw) => {
     contactPhone: orderObj.contactPhone || orderObj.user?.phone || "",
     contactEmail: orderObj.contactEmail || orderObj.user?.email || "",
     driverName: deliveryObj.driverName || orderObj.driverName || "Ahmed Ali",
-    driverPhone: deliveryObj.driverPhone || orderObj.driverPhone || "+91 98765 43210",
+    driverPhone: deliveryObj.driverPhone || orderObj.driverPhone || "+91 9876543210",
     deliveryPartner: deliveryObj.partner || orderObj.deliveryPartner || "Gold Partner",
     vehicleDetails: deliveryObj.vehicleDetails || orderObj.vehicleDetails || "Red Honda Activa (DX-09-RT-4412)",
     deliveryInstructions: orderObj.deliveryInstructions || { presets: [], customNote: "" },
@@ -1251,11 +1255,11 @@ export const normalizeRestaurant = (res) => {
     typeof res.image === "string"
       ? res.image
       : res.image?.secure_url ||
-        res.image?.url ||
-        res.imageUrl ||
-        res.photo ||
-        res.coverImage ||
-        "https://images.unsplash.com/photo-1526779259212-939e64788e3c?fm=jpg&q=60&w=3000&auto=format&fit=crop";
+      res.image?.url ||
+      res.imageUrl ||
+      res.photo ||
+      res.coverImage ||
+      "https://images.unsplash.com/photo-1526779259212-939e64788e3c?fm=jpg&q=60&w=3000&auto=format&fit=crop";
 
   return {
     id: res.id || res._id || res.slug,

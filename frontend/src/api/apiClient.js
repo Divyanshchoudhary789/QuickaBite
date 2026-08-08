@@ -1,7 +1,9 @@
 import axios from "axios";
 
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://quikabite.onrender.com/api",
+  baseURL: import.meta.env.VITE_API_URL || "https://Quikabite.onrender.com/api",
   headers: {
     "Content-Type": "application/json",
   },

@@ -40,7 +40,7 @@ export const managerService = {
   // Fetch Dashboard Stats (GET /v1/dashboard/stats?filter=...) with local fallback
   async getDashboardStats(filter = "all", customRange = {}) {
     const cleanFilter = (filter || "all").toString().trim().toLowerCase();
-    
+
     if (!USE_MOCK) {
       try {
         const params = {};
@@ -89,7 +89,7 @@ export const managerService = {
     const reportType = options.reportType || "items";
     const filter = options.filter || "last30days";
     const format = options.format || "csv";
-    
+
     if (!USE_MOCK) {
       try {
         const params = { reportType, filter, format };
@@ -125,7 +125,7 @@ export const managerService = {
   _computeLocalStats(orders = [], filter = "all", customRange = {}) {
     const now = new Date();
     const todayStr = now.toISOString().split("T")[0];
-    
+
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split("T")[0];

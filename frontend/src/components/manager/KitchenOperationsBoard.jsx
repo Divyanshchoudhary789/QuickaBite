@@ -19,16 +19,25 @@ import {
   Plus,
   Radio,
   RotateCw,
+  MessageSquare,
 } from "lucide-react";
 import { managerService } from "../../api/managerService";
+import { adminService } from "../../api/adminService";
+import { chatService } from "../../api/chatService";
 import { parseApiError } from "../../api/apiClient";
 import { useAuth } from "../../context/AuthContext";
 import { isPaidOrCodOrder } from "../../api/dinerService";
 
 const PARTNER_PRESETS = {
+  "QuikaBite Fleet": {
+    driverName: "",
+    driverPhone: "",
+    vehicleDetails: "",
+    deliveryRemarks: "Direct express dispatch via registered internal fleet rider.",
+  },
   Ola: {
     driverName: "Rajesh Kumar",
-    driverPhone: "+91 98765 43210",
+    driverPhone: "98765 43210",
     vehicleDetails: "White Maruti Dzire (KA-01-MJ-4321)",
     deliveryRemarks: "Drive carefully. Keep thermal case sealed.",
   },
@@ -71,6 +80,8 @@ export default function KitchenOperationsBoard({
   const [driverPhone, setDriverPhone] = useState("");
   const [vehicleDetails, setVehicleDetails] = useState("");
   const [deliveryRemarks, setDeliveryRemarks] = useState("");
+  const [availableRiders, setAvailableRiders] = useState([]);
+  const [selectedRiderId, setSelectedRiderId] = useState("");
 
   const setOrdersRef = useRef(setOrders);
   useEffect(() => {
@@ -189,6 +200,113 @@ export default function KitchenOperationsBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLiveSimulating, isMockMode]);
 
+  const [chatOrder, setChatOrder] = useState(null);
+  const [managerChatMessages, setManagerChatMessages] = useState([]);
+  const [managerChatInput, setManagerChatInput] = useState("");
+  const [managerChatConv, setManagerChatConv] = useState(null);
+  const managerChatEndRef = useRef(null);
+
+  const handleOpenManagerChat = async (order) => {
+    setChatOrder(order);
+    playKitchenBeep(1200, 0.05);
+    try {
+      const orderId = order.id || order._id;
+      const conv = await chatService.startConversation(orderId);
+      setManagerChatConv(conv);
+      const msgs = await chatService.getMessages(conv._id || conv.id);
+      if (msgs && msgs.length > 0) {
+        setManagerChatMessages(
+          msgs.map((m) => ({
+            id: m._id || m.id || `msg-${Date.now()}`,
+            sender:
+              m.senderType === "AGENT" || m.sender === "agent"
+                ? "agent"
+                : m.senderType === "USER" || m.sender === "user"
+                  ? "user"
+                  : "bot",
+            senderType: m.senderType || "USER",
+            text: m.message || m.text || "",
+            timestamp:
+              m.timestamp ||
+              (m.createdAt
+                ? new Date(m.createdAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+                : "Just now"),
+          })),
+        );
+      } else {
+        setManagerChatMessages([
+          {
+            id: "msg-1",
+            sender: "bot",
+            senderType: "BOT",
+            text: `Conversation initialized for Order #${orderId}. Live support room connected.`,
+            timestamp: "Just now",
+          },
+        ]);
+      }
+
+      // Connect Socket.io and Join Room (Event: join_conversation)
+      const convId = conv._id || conv.id;
+      chatService.connectSocket(convId, (newMsg) => {
+        setManagerChatMessages((prev) => {
+          const exists = prev.some((m) => m.id === (newMsg._id || newMsg.id));
+          if (exists) return prev;
+          return [
+            ...prev,
+            {
+              id: newMsg._id || newMsg.id || `msg-${Date.now()}`,
+              sender:
+                newMsg.senderType === "AGENT" || newMsg.sender === "agent"
+                  ? "agent"
+                  : newMsg.senderType === "USER" || newMsg.sender === "user"
+                    ? "user"
+                    : "bot",
+              senderType: newMsg.senderType || "USER",
+              text: newMsg.message || newMsg.text || "",
+              timestamp: newMsg.timestamp || "Just now",
+            },
+          ];
+        });
+      });
+    } catch (err) {
+      console.warn("Failed to open manager chat:", err);
+    }
+  };
+
+  const handleSendManagerReply = () => {
+    if (!managerChatInput.trim() || !chatOrder) return;
+    const convId =
+      managerChatConv?._id ||
+      managerChatConv?.id ||
+      `conv-${chatOrder.id || chatOrder._id}`;
+    const text = managerChatInput.trim();
+
+    const agentMsg = {
+      id: `msg-agent-${Date.now()}`,
+      sender: "agent",
+      senderType: "AGENT",
+      text,
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    setManagerChatMessages((prev) => [...prev, agentMsg]);
+    setManagerChatInput("");
+
+    // Emit Socket.io send_message Event (senderType: "AGENT")
+    chatService.sendMessage({
+      conversationId: convId,
+      message: text,
+      senderType: "AGENT",
+      sender: "manager",
+    });
+  };
+
   const fetchIncomingOrders = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -275,8 +393,8 @@ export default function KitchenOperationsBoard({
     if (details) {
       setSelectedOrder((prev) =>
         prev &&
-        (String(prev.id) === String(order.id) ||
-          String(prev._id) === String(order._id))
+          (String(prev.id) === String(order.id) ||
+            String(prev._id) === String(order._id))
           ? { ...prev, ...details }
           : prev,
       );
@@ -308,12 +426,31 @@ export default function KitchenOperationsBoard({
         orderToAssign &&
         getOrderColumn(orderToAssign.status) !== "dispatched"
       ) {
-        const defaults = PARTNER_PRESETS.Ola;
-        setAssignmentPartner("Ola");
-        setDriverName(defaults.driverName);
-        setDriverPhone(defaults.driverPhone);
-        setVehicleDetails(defaults.vehicleDetails);
-        setDeliveryRemarks(defaults.deliveryRemarks);
+        // Fetch available IDLE riders from backend / local fleet (GET /v1/riders?status=IDLE)
+        try {
+          const idleRiders = await adminService.getDrivers({ status: "IDLE" });
+          const safeRiders = Array.isArray(idleRiders) ? idleRiders : [];
+          setAvailableRiders(safeRiders);
+          setAssignmentPartner("QuikaBite Fleet");
+          if (safeRiders.length > 0) {
+            const first = safeRiders[0];
+            setSelectedRiderId(first._id || first.id);
+            setDriverName(first.fullName || first.name || "");
+            setDriverPhone(first.phone || "");
+            setVehicleDetails(first.vehicleType || first.vehicle || "");
+            setDeliveryRemarks("Direct express dispatch via registered internal fleet rider.");
+          } else {
+            const defaults = PARTNER_PRESETS.Ola;
+            setSelectedRiderId("");
+            setAssignmentPartner("Ola");
+            setDriverName(defaults.driverName);
+            setDriverPhone(defaults.driverPhone);
+            setVehicleDetails(defaults.vehicleDetails);
+            setDeliveryRemarks(defaults.deliveryRemarks);
+          }
+        } catch (e) {
+          console.warn("Could not fetch available riders:", e);
+        }
         setAssigningOrder(orderToAssign);
         return;
       }
@@ -376,17 +513,21 @@ export default function KitchenOperationsBoard({
     remarks,
   ) => {
     try {
+      if (selectedRiderId) {
+        await adminService.dispatchOrderWithRider(orderId, selectedRiderId, remarks);
+      }
       const updated = await managerService.dispatchOrder(orderId, {
         partner,
         driverName: name,
         driverPhone: phone,
         vehicleDetails: vehicle,
         deliveryRemarks: remarks,
+        riderId: selectedRiderId || undefined,
       });
       setOrders(updated);
       playKitchenBeep(783.99, 0.35);
       triggerToast(
-        `Order #${String(orderId).slice(-5)} DISPATCHED via ${partner} with courier ${name}!`,
+        `Order #${String(orderId).slice(-5)} DISPATCHED to rider ${name}!`,
       );
       setAssigningOrder(null);
       setSelectedOrder(null);
@@ -424,7 +565,7 @@ export default function KitchenOperationsBoard({
       const name =
         orderInput.contactName || orderInput.user?.fullName || "Customer";
       const phone =
-        orderInput.contactPhone || orderInput.user?.phone || "+91 98765 43210";
+        orderInput.contactPhone || orderInput.user?.phone || "98765 43210";
       const addrObj =
         typeof orderInput.address === "object" ? orderInput.address : null;
       const addrStr =
@@ -458,10 +599,10 @@ export default function KitchenOperationsBoard({
       "Sneha Iyer",
     ];
     const phones = [
-      "+91 62046 76330",
-      "+91 98765 43210",
-      "+91 87654 32109",
-      "+91 76543 21098",
+      "62046 76330",
+      "98765 43210",
+      "87654 32109",
+      "76543 21098",
     ];
     const addresses = [
       "phulwariy keshri tola, saran Bihar",
@@ -479,20 +620,20 @@ export default function KitchenOperationsBoard({
   const searchLower = (debouncedSearchTerm || "").toLowerCase();
   const safeOrdersList = Array.isArray(orders)
     ? orders.filter((o) => {
-        if (!o) return false;
-        const pStatus = String(o.paymentStatus || "").toLowerCase().trim();
-        const oStatus = String(o.status || "").toLowerCase().trim();
-        if (
-          pStatus === "rejected" ||
-          pStatus === "failed" ||
-          pStatus === "cancelled" ||
-          oStatus === "rejected" ||
-          oStatus === "cancelled"
-        ) {
-          return false;
-        }
-        return isPaidOrCodOrder(o);
-      })
+      if (!o) return false;
+      const pStatus = String(o.paymentStatus || "").toLowerCase().trim();
+      const oStatus = String(o.status || "").toLowerCase().trim();
+      if (
+        pStatus === "rejected" ||
+        pStatus === "failed" ||
+        pStatus === "cancelled" ||
+        oStatus === "rejected" ||
+        oStatus === "cancelled"
+      ) {
+        return false;
+      }
+      return isPaidOrCodOrder(o);
+    })
     : [];
   const matchedOrders = safeOrdersList.filter((o) => {
     if (!o) return false;
@@ -708,7 +849,7 @@ export default function KitchenOperationsBoard({
                     const customer = getCustomerInfo(order);
                     const timeDisplay =
                       typeof order.timestamp === "string" &&
-                      order.timestamp.includes("T")
+                        order.timestamp.includes("T")
                         ? order.timestamp.split("T")[1]?.slice(0, 5)
                         : order.timestamp || "Just now";
                     return (
@@ -767,15 +908,24 @@ export default function KitchenOperationsBoard({
                           </div>
                         )}
                         <div
-                          className="pt-2 border-t border-neutral-100"
+                          className="pt-2 border-t border-neutral-100 flex gap-1.5 items-center"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          <button
+                            type="button"
+                            onClick={() => handleOpenManagerChat(order)}
+                            className="bg-orange-50 hover:bg-orange-100 text-brand-orange border border-orange-200 p-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shrink-0"
+                            title="Open Customer Support Chat"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5 text-brand-orange" />
+                            <span className="text-[9px] font-black uppercase">Chat</span>
+                          </button>
                           {col.id === "received" && (
                             <button
                               onClick={() =>
                                 handleUpdateStatus(order.id, "accepted")
                               }
-                              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
+                              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
                             >
                               <Check className="h-3.5 w-3.5" /> Accept Order
                             </button>
@@ -785,7 +935,7 @@ export default function KitchenOperationsBoard({
                               onClick={() =>
                                 handleUpdateStatus(order.id, "preparing")
                               }
-                              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
                             >
                               <Play className="h-3.5 w-3.5 animate-pulse" />{" "}
                               Start Preparing
@@ -796,7 +946,7 @@ export default function KitchenOperationsBoard({
                               onClick={() =>
                                 handleUpdateStatus(order.id, "ready")
                               }
-                              className="w-full bg-amber-500 hover:bg-amber-650 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
+                              className="flex-1 bg-amber-500 hover:bg-amber-650 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
                             >
                               <Bell className="h-3.5 w-3.5 animate-bounce" />{" "}
                               Mark Ready
@@ -807,7 +957,7 @@ export default function KitchenOperationsBoard({
                               onClick={() =>
                                 handleUpdateStatus(order.id, "dispatched")
                               }
-                              className="w-full bg-emerald-600 hover:bg-emerald-750 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-750 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
                             >
                               <Truck className="h-3.5 w-3.5" /> Dispatch Courier
                             </button>
@@ -817,7 +967,7 @@ export default function KitchenOperationsBoard({
                               onClick={() =>
                                 handleUpdateStatus(order.id, "delivered")
                               }
-                              className="w-full bg-neutral-900 hover:bg-neutral-950 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition shadow-xs"
+                              className="flex-1 bg-neutral-900 hover:bg-neutral-950 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition shadow-xs"
                             >
                               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />{" "}
                               Done / Deliver
@@ -1075,14 +1225,47 @@ export default function KitchenOperationsBoard({
                   <div className="p-6 space-y-5 flex-1 overflow-y-auto">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-wider text-neutral-400 block">
-                        Select Courier Integration Provider
+                        Select Available Courier (Status: IDLE)
                       </label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {["Ola", "Uber", "Rapido", "Porter"].map((partner) => {
+                      {availableRiders.length > 0 ? (
+                        <select
+                          value={selectedRiderId}
+                          onChange={(e) => {
+                            const rId = e.target.value;
+                            setSelectedRiderId(rId);
+                            const found = availableRiders.find((r) => String(r._id || r.id) === String(rId));
+                            if (found) {
+                              setDriverName(found.fullName || found.name || "");
+                              setDriverPhone(found.phone || "");
+                              setVehicleDetails(found.vehicleType || found.vehicle || "");
+                            }
+                          }}
+                          className="w-full bg-neutral-50 border-2 border-emerald-400 rounded-2xl p-3 text-xs font-bold text-neutral-900 outline-none focus:border-emerald-500 cursor-pointer shadow-xs"
+                        >
+                          {availableRiders.map((r) => (
+                            <option key={r._id || r.id} value={r._id || r.id}>
+                              🛵 {r.fullName || r.name} ({r.vehicleType || r.vehicle || "Bike"}{r.licensePlate ? ` - ${r.licensePlate}` : ""})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-[10px] font-bold text-red-600">
+                          ⚠️ No couriers currently available (IDLE)
+                        </div>
+                      )}
+
+                      <label className="text-[10px] font-black uppercase tracking-wider text-neutral-400 block pt-2">
+                        Select Courier Integration Provider Preset
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {["QuikaBite Fleet", "Ola", "Uber", "Rapido", "Porter"].map((partner) => {
                           const isSelected = assignmentPartner === partner;
                           let brandColor =
                             "border-neutral-200 text-neutral-700 hover:bg-neutral-50";
                           if (isSelected) {
+                            if (partner === "QuikaBite Fleet")
+                              brandColor =
+                                "border-brand-orange bg-orange-50 text-brand-orange ring-2 ring-brand-orange/20 font-black";
                             if (partner === "Ola")
                               brandColor =
                                 "border-emerald-500 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-500/20";
@@ -1100,28 +1283,54 @@ export default function KitchenOperationsBoard({
                             <button
                               key={partner}
                               type="button"
-                              onClick={() => {
+                              onClick={async () => {
                                 playKitchenBeep(1e3, 0.05);
                                 setAssignmentPartner(partner);
-                                const defaults = PARTNER_PRESETS[partner];
-                                setDriverName(defaults.driverName);
-                                setDriverPhone(defaults.driverPhone);
-                                setVehicleDetails(defaults.vehicleDetails);
-                                setDeliveryRemarks(defaults.deliveryRemarks);
+                                if (partner === "QuikaBite Fleet") {
+                                  try {
+                                    const idleRiders = await adminService.getDrivers({ status: "IDLE" });
+                                    const safeRiders = Array.isArray(idleRiders) ? idleRiders : [];
+                                    setAvailableRiders(safeRiders);
+                                    if (safeRiders.length > 0) {
+                                      const first = safeRiders[0];
+                                      setSelectedRiderId(first._id || first.id);
+                                      setDriverName(first.fullName || first.name || "");
+                                      setDriverPhone(first.phone || "");
+                                      setVehicleDetails(first.vehicleType || first.vehicle || "");
+                                    } else {
+                                      setSelectedRiderId("");
+                                      setDriverName("");
+                                      setDriverPhone("");
+                                      setVehicleDetails("");
+                                    }
+                                    setDeliveryRemarks(PARTNER_PRESETS["QuikaBite Fleet"].deliveryRemarks);
+                                  } catch (err) {
+                                    console.error("Failed to load IDLE fleet riders:", err);
+                                  }
+                                } else {
+                                  const defaults = PARTNER_PRESETS[partner];
+                                  setSelectedRiderId("");
+                                  setDriverName(defaults.driverName);
+                                  setDriverPhone(defaults.driverPhone);
+                                  setVehicleDetails(defaults.vehicleDetails);
+                                  setDeliveryRemarks(defaults.deliveryRemarks);
+                                }
                               }}
-                              className={`py-3.5 px-2 rounded-2xl border-2 font-black text-xs uppercase tracking-wider transition cursor-pointer text-center flex flex-col items-center justify-center gap-1 ${brandColor}`}
-                              id={`partner-select-${partner.toLowerCase()}`}
+                              className={`py-3.5 px-1.5 rounded-2xl border-2 font-black text-xs uppercase tracking-wider transition cursor-pointer text-center flex flex-col items-center justify-center gap-1 ${brandColor}`}
+                              id={`partner-select-${partner.toLowerCase().replace(/\s+/g, "-")}`}
                             >
                               <span className="text-lg">
-                                {partner === "Ola"
-                                  ? "🟢"
-                                  : partner === "Uber"
-                                    ? "⚫"
-                                    : partner === "Rapido"
-                                      ? "🟡"
-                                      : "🔵"}
+                                {partner === "QuikaBite Fleet"
+                                  ? "⚡"
+                                  : partner === "Ola"
+                                    ? "🟢"
+                                    : partner === "Uber"
+                                      ? "⚫"
+                                      : partner === "Rapido"
+                                        ? "🟡"
+                                        : "🔵"}
                               </span>
-                              <span className="text-[10px] block mt-0.5">
+                              <span className="text-[9px] font-black leading-tight block mt-0.5">
                                 {partner}
                               </span>
                             </button>
@@ -1262,6 +1471,105 @@ export default function KitchenOperationsBoard({
               </div>
             );
           })()}
+      </AnimatePresence>
+
+      {/* 4. MANAGER CUSTOMER SUPPORT CHAT MODAL */}
+      <AnimatePresence>
+        {chatOrder && (
+          <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col h-[580px]"
+            >
+              {/* Modal Header */}
+              <div className="bg-neutral-900 text-white p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-brand-orange/20 border border-brand-orange/40 rounded-2xl flex items-center justify-center text-lg">
+                    💬
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Customer Support Chat</span>
+                      <span className="text-[9px] font-black bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+                        LIVE AGENT ROOM
+                      </span>
+                    </h3>
+                    <p className="text-[10px] text-neutral-400 font-semibold">
+                      Order #{String(chatOrder.id || chatOrder._id).slice(-6)} • {getCustomerInfo(chatOrder).name} ({getCustomerInfo(chatOrder).phone})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    chatService.disconnectSocket();
+                    setChatOrder(null);
+                  }}
+                  className="bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white p-2 rounded-xl transition cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Message Stream */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-neutral-50/50">
+                {managerChatMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex items-end gap-2 max-w-[85%] ${msg.sender === "agent" ? "ml-auto flex-row-reverse" : ""
+                      }`}
+                  >
+                    <div className="text-xs shrink-0 select-none">
+                      {msg.sender === "agent" ? "🧑‍💼" : msg.sender === "bot" ? "🤖" : "👤"}
+                    </div>
+                    <div className="space-y-0.5">
+                      <div
+                        className={`p-3 rounded-2xl text-xs leading-relaxed ${msg.sender === "agent"
+                          ? "bg-brand-orange text-white rounded-br-xs font-bold shadow-xs"
+                          : msg.sender === "bot"
+                            ? "bg-neutral-100 border border-neutral-200 text-neutral-800 rounded-bl-xs"
+                            : "bg-white border border-neutral-200 text-neutral-900 rounded-bl-xs shadow-xs font-semibold"
+                          }`}
+                      >
+                        <p className="whitespace-pre-line break-words">{msg.text}</p>
+                      </div>
+                      <span
+                        className={`text-[8px] text-neutral-400 font-bold block ${msg.sender === "agent" ? "text-right" : "text-left"
+                          }`}
+                      >
+                        {msg.timestamp}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div ref={managerChatEndRef} />
+              </div>
+
+              {/* Input Area */}
+              <div className="p-3 bg-white border-t border-neutral-150 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={managerChatInput}
+                  onChange={(e) => setManagerChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendManagerReply()}
+                  placeholder="Type official manager reply to customer..."
+                  className="flex-1 px-4 py-3 bg-neutral-50 border border-neutral-200 text-xs text-neutral-900 rounded-xl outline-none focus:border-brand-orange font-semibold"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendManagerReply}
+                  disabled={!managerChatInput.trim()}
+                  className="bg-brand-orange hover:bg-orange-700 disabled:opacity-50 text-white font-black px-4 py-3 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-orange-500/20"
+                >
+                  <span>Send</span>
+                  <Radio className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );

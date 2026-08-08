@@ -6,6 +6,7 @@ import {
   OFFER_CARDS,
   COLLECTIONS,
   POPULAR_CUISINES,
+  INITIAL_RESTAURANTS,
 } from "../../data";
 import HeroSlider from "./HeroSlider";
 import CloudKitchenSection from "./CloudKitchenSection";
@@ -117,29 +118,102 @@ export default function HomePage({
   const animFrameRef = useRef(null);
   const [isDraggingState, setIsDraggingState] = useState(false);
   const [liveCoupons, setLiveCoupons] = useState([]);
-  const [isLoadingCoupons, setIsLoadingCoupons] = useState(true);
   const [randomSideCoupons, setRandomSideCoupons] = useState([]);
   const [reelsList, setReelsList] = useState([]);
-  const [isLoadingReels, setIsLoadingReels] = useState(true);
+  const topChainsScrollRef = useRef(null);
+  const cravingScrollRef = useRef(null);
+
+  const scrollCraving = (direction) => {
+    if (cravingScrollRef.current) {
+      const scrollAmount = direction === "left" ? -300 : 300;
+      cravingScrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    }
+  };
+
+  const scrollTopChains = (direction) => {
+    if (topChainsScrollRef.current) {
+      const scrollAmount = direction === "left" ? -320 : 320;
+      topChainsScrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    }
+  };
+
+  const DEFAULT_REELS = [
+    {
+      id: "reel-1",
+      title: "Signature Angus Truffle Burger",
+      restaurantName: "The Gourmet Burger Bistro",
+      image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80",
+      rating: "4.9",
+      deliveryTime: "15 min",
+      offer: "30% OFF",
+      logo: "🍔",
+      tag: "TRENDING",
+    },
+    {
+      id: "reel-2",
+      title: "Royal Mutton Dum Biryani",
+      restaurantName: "Royal Biryani Palace",
+      image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=400&q=80",
+      rating: "4.8",
+      deliveryTime: "20 min",
+      offer: "FLAT ₹100",
+      logo: "🍛",
+      tag: "POPULAR",
+    },
+    {
+      id: "reel-3",
+      title: "Woodfired Truffle Cheese Pizza",
+      restaurantName: "Napoli Artisan Pizza",
+      image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=400&q=80",
+      rating: "4.9",
+      deliveryTime: "18 min",
+      offer: "BUY 1 GET 1",
+      logo: "🍕",
+      tag: "HOT",
+    },
+    {
+      id: "reel-4",
+      title: "Charcoal Shish Kebab Platter",
+      restaurantName: "Kebab House",
+      image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=400&q=80",
+      rating: "4.7",
+      deliveryTime: "25 min",
+      offer: "FREE DEL",
+      logo: "🥙",
+      tag: "CHEF'S SPECIAL",
+    },
+    {
+      id: "reel-5",
+      title: "Crispy Szechuan Chili Noodles",
+      restaurantName: "Asian Wok",
+      image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=400&q=80",
+      rating: "4.6",
+      deliveryTime: "22 min",
+      offer: "20% OFF",
+      logo: "🥡",
+      tag: "SPICY",
+    },
+  ];
+
+  const displayReels = (reelsList && reelsList.length > 0) ? reelsList : DEFAULT_REELS;
+
+  const activeRestaurantsList =
+    (filteredRestaurants && filteredRestaurants.length > 0)
+      ? filteredRestaurants
+      : (restaurants && restaurants.length > 0)
+        ? restaurants
+        : INITIAL_RESTAURANTS;
 
   useEffect(() => {
     let isMounted = true;
     const fetchReels = async () => {
-      setIsLoadingReels(true);
       try {
         const fetched = await dinerService.getReels();
-        if (isMounted) {
-          setReelsList(Array.isArray(fetched) && fetched.length > 0 ? fetched : []);
+        if (isMounted && Array.isArray(fetched) && fetched.length > 0) {
+          setReelsList(fetched);
         }
       } catch (err) {
         console.error("Error fetching reels on HomePage:", err);
-        if (isMounted) {
-          setReelsList([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingReels(false);
-        }
       }
     };
     fetchReels();
@@ -243,10 +317,6 @@ export default function HomePage({
         }
       } catch (err) {
         console.error("Error fetching coupons on HomePage:", err);
-      } finally {
-        if (isMounted) {
-          setIsLoadingCoupons(false);
-        }
       }
     };
     fetchActiveCoupons();
@@ -316,95 +386,211 @@ export default function HomePage({
         }}
       />
 
-      {/* Explore Cuisine Section — Swiggy-style colourful circular icons grid */}
-      <div
-        className="relative overflow-hidden rounded-premium bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 border border-orange-100 shadow-soft"
-        id="explore-cuisine-circular-section"
-      >
-        {/* Decorative blobs */}
-        <div className="absolute -top-12 -right-12 w-40 h-40 bg-orange-200 rounded-full blur-3xl opacity-30 pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-yellow-200 rounded-full blur-3xl opacity-30 pointer-events-none" />
-
-        <div className="relative z-10 px-4 sm:px-6 pt-5 pb-4">
-          {/* Section header */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-display font-black text-lg sm:text-xl text-gray-900 tracking-tight">
-                What are you craving? 🍽️
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">Tap a cuisine to filter restaurants instantly</p>
-            </div>
+      {/* What's on your mind? — Swiggy-style circular HD food photography carousel */}
+      <div className="space-y-4 pt-2" id="explore-cuisine-circular-section">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display font-black text-2xl sm:text-3xl md:text-4xl text-gray-900 tracking-tight flex items-center gap-2">
+              <span>What's on your mind?</span>
+            </h3>
+            <p className="text-xs text-gray-500 font-medium">Explore top dishes &amp; filter kitchens by dish</p>
+          </div>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                setIsCuisineExpanded(!isCuisineExpanded);
-                triggerToast(isCuisineExpanded ? "Showing fewer cuisines" : "All cuisines unlocked!");
-              }}
-              className="text-xs font-black text-brand-orange hover:underline cursor-pointer flex items-center gap-1"
+              type="button"
+              onClick={() => scrollCraving("left")}
+              className="h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 flex items-center justify-center transition cursor-pointer active:scale-95 shadow-xs"
+              aria-label="Scroll Left"
             >
-              {isCuisineExpanded ? "Show Less ▲" : "See All ▼"}
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollCraving("right")}
+              className="h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 flex items-center justify-center transition cursor-pointer active:scale-95 shadow-xs"
+              aria-label="Scroll Right"
+            >
+              <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-
-          {/* Cuisine icon grid */}
-          {(() => {
-            const CUISINE_TILES = [
-              { id: "biryani", emoji: "🍛", label: "Biryani", bg: "bg-amber-500", shadow: "shadow-amber-300" },
-              { id: "pizza", emoji: "🍕", label: "Pizza", bg: "bg-red-500", shadow: "shadow-red-300" },
-              { id: "burger", emoji: "🍔", label: "Burger", bg: "bg-yellow-500", shadow: "shadow-yellow-300" },
-              { id: "chinese", emoji: "🥡", label: "Chinese", bg: "bg-orange-500", shadow: "shadow-orange-300" },
-              { id: "desserts", emoji: "🍰", label: "Desserts", bg: "bg-pink-500", shadow: "shadow-pink-300" },
-              { id: "healthy", emoji: "🥗", label: "Healthy", bg: "bg-green-500", shadow: "shadow-green-300" },
-              { id: "arabian", emoji: "🥙", label: "Shawarma", bg: "bg-lime-500", shadow: "shadow-lime-300" },
-              { id: "japanese", emoji: "🍱", label: "Sushi", bg: "bg-sky-500", shadow: "shadow-sky-300" },
-              { id: "italian", emoji: "🍝", label: "Pasta", bg: "bg-purple-500", shadow: "shadow-purple-300" },
-              { id: "american", emoji: "🌮", label: "Tacos", bg: "bg-teal-500", shadow: "shadow-teal-300" },
-              { id: "indian", emoji: "🫕", label: "Indian", bg: "bg-rose-500", shadow: "shadow-rose-300" },
-              { id: "mexican", emoji: "🌯", label: "Rolls", bg: "bg-cyan-500", shadow: "shadow-cyan-300" },
-            ];
-            const visibleTiles = isCuisineExpanded ? CUISINE_TILES : CUISINE_TILES.slice(0, 8);
-            return (
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-3">
-                {visibleTiles.map((tile) => {
-                  const isSelected = selectedCategory === tile.id;
-                  return (
-                    <button
-                      key={tile.id}
-                      onClick={() => {
-                        setSelectedCategory(tile.id === selectedCategory ? "all" : tile.id);
-                        if (tile.id !== selectedCategory) {
-                          triggerToast(`Showing ${tile.label} restaurants!`);
-                          const resSection = document.getElementById("restaurants-grid-section");
-                          if (resSection) resSection.scrollIntoView({ behavior: "smooth" });
-                        }
-                      }}
-                      className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all duration-200 cursor-pointer group focus:outline-none active:scale-90 hover:scale-105 ${isSelected ? `${tile.bg} border-transparent shadow-lg ${tile.shadow}` : "bg-white border-gray-100 hover:border-gray-200 hover:shadow-md"}`}
-                    >
-                      <span className={`text-2xl sm:text-3xl leading-none transition-transform duration-200 group-hover:scale-110 ${isSelected ? "drop-shadow-md" : ""}`}>
-                        {tile.emoji}
-                      </span>
-                      <span className={`text-[10px] font-black uppercase tracking-wide leading-none ${isSelected ? "text-white" : "text-gray-600"}`}>
-                        {tile.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
         </div>
 
+        {/* Circular HD food tiles horizontal carousel */}
+        {(() => {
+          const CRAVING_ITEMS = [
+            { id: "biryani", label: "Biryani", image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&q=80&w=400" },
+            { id: "pizza", label: "Pizza", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=400" },
+            { id: "burger", label: "Burger", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=400" },
+            { id: "chinese", label: "Chinese", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&q=80&w=400" },
+            { id: "arabian", label: "Shawarma", image: "https://images.unsplash.com/photo-1561651823-34feb02250e4?auto=format&fit=crop&q=80&w=400" },
+            { id: "desserts", label: "Cakes", image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80&w=400" },
+            { id: "healthy", label: "Salads", image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=400" },
+            { id: "japanese", label: "Sushi", image: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&q=80&w=400" },
+            { id: "italian", label: "Pasta", image: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&q=80&w=400" },
+            { id: "american", label: "Tacos", image: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&q=80&w=400" },
+            { id: "indian", label: "North Indian", image: "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?auto=format&fit=crop&q=80&w=400" },
+            { id: "mexican", label: "Rolls", image: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&q=80&w=400" },
+          ];
+          return (
+            <div
+              ref={cravingScrollRef}
+              className="flex gap-6 sm:gap-8 overflow-x-auto no-scrollbar py-2 scroll-smooth snap-x snap-mandatory"
+            >
+              {CRAVING_ITEMS.map((item) => {
+                const isSelected = selectedCategory === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(item.id === selectedCategory ? "all" : item.id);
+                      if (item.id !== selectedCategory) {
+                        triggerToast(`Showing ${item.label} kitchens!`);
+                        const resSection = document.getElementById("restaurants-grid-section");
+                        if (resSection) resSection.scrollIntoView({ behavior: "smooth" });
+                      }
+                    }}
+                    className="shrink-0 snap-start flex flex-col items-center gap-2.5 group cursor-pointer active:scale-95 focus:outline-none"
+                  >
+                    {/* HD Circular Avatar Container */}
+                    <div
+                      className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-full p-1 transition-all duration-300 transform group-hover:scale-105 shadow-md ${
+                        isSelected
+                          ? "ring-4 ring-brand-orange ring-offset-2 scale-105 shadow-xl bg-orange-500"
+                          : "bg-gradient-to-br from-orange-100 to-amber-100 border border-orange-200/60 hover:shadow-lg"
+                      }`}
+                    >
+                      <img
+                        src={item.image}
+                        alt={item.label}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400";
+                        }}
+                        className="w-full h-full object-cover rounded-full transition-transform duration-500 group-hover:rotate-2"
+                      />
+                      {isSelected && (
+                        <span className="absolute bottom-1 right-1 bg-brand-orange text-white text-[10px] font-black h-6 w-6 rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                          ✓
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Label */}
+                    <span
+                      className={`text-xs sm:text-sm font-extrabold tracking-tight transition-colors ${
+                        isSelected ? "text-brand-orange" : "text-gray-700 group-hover:text-gray-900"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
-      {/* Reels Section — Instagram Stories style cards */}
+      {/* Top restaurant chains in your area — Swiggy horizontal carousel */}
+      <div className="space-y-4 pt-4 border-t border-gray-100" id="top-chains-carousel-section">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display font-black text-xl sm:text-2xl md:text-3xl text-gray-900 tracking-tight flex items-center gap-2">
+            <span>Top restaurant chains in your area</span>
+          </h3>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => scrollTopChains("left")}
+              className="h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 flex items-center justify-center transition cursor-pointer active:scale-95 shadow-xs"
+              aria-label="Scroll Left"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTopChains("right")}
+              className="h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 flex items-center justify-center transition cursor-pointer active:scale-95 shadow-xs"
+              aria-label="Scroll Right"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <div
+          ref={topChainsScrollRef}
+          className="flex gap-5 overflow-x-auto no-scrollbar pb-3 scroll-smooth snap-x snap-mandatory"
+        >
+          {activeRestaurantsList.map((res) => {
+            const distanceStr = `${(res.coordinates?.x * 0.05 + res.coordinates?.y * 0.03 + 0.8).toFixed(1)} km`;
+            return (
+              <div
+                key={`chain-${res.id}`}
+                onClick={() => setSelectedRestaurant(res)}
+                className="shrink-0 snap-start w-[240px] sm:w-[270px] bg-white rounded-2xl overflow-hidden cursor-pointer group shadow-xs hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] border border-gray-100"
+              >
+                {/* Image + Swiggy Badge */}
+                <div className="relative h-40 bg-gray-100 overflow-hidden">
+                  <img
+                    src={res.image}
+                    alt={res.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                  {/* Swiggy Discount Ribbon */}
+                  <div className="absolute bottom-2.5 left-3 text-white font-black text-xs uppercase tracking-wider drop-shadow-md flex items-center gap-1">
+                    <span>🏷️</span>
+                    <span>{res.discount || (res.isPromoBadge ? "FLAT 30% OFF" : "ITEMS AT ₹99")}</span>
+                  </div>
+
+                  {/* Favorite Button */}
+                  <button
+                    onClick={(e) => handleToggleFavorite(res.id || res._id, e, res.name)}
+                    className="absolute top-2.5 right-2.5 h-7 w-7 bg-white/80 hover:bg-white text-gray-700 rounded-full flex items-center justify-center backdrop-blur-sm transition shadow-xs z-10 cursor-pointer"
+                  >
+                    <Heart
+                      className={`h-4 w-4 ${
+                        (favorites || []).some(f => String(f) === String(res.id) || String(f?.id) === String(res.id))
+                          ? "text-red-500 fill-red-500"
+                          : "text-gray-500"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Details */}
+                <div className="p-3.5 space-y-1">
+                  <h4 className="font-display font-extrabold text-base text-gray-900 truncate group-hover:text-brand-orange transition">
+                    {res.name}
+                  </h4>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                    <span className="flex items-center gap-0.5 bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px] font-black">
+                      ★ {res.rating}
+                    </span>
+                    <span>•</span>
+                    <span>{res.deliveryTime}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 font-medium truncate">
+                    {(res.cuisines || []).join(", ")}
+                  </p>
+                  <p className="text-[11px] text-gray-400 font-semibold truncate">
+                    {res.address || "Downtown, " + distanceStr}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
       <div className="space-y-4" id="reels-highlights-section">
         {/* Section header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-pink-500 via-red-500 to-orange-500 flex items-center justify-center shadow-md shadow-pink-200">
-              <span className="text-lg">🎬</span>
-            </div>
             <div>
-              <h3 className="font-display font-extrabold text-lg tracking-tight text-gray-900 leading-tight">
+              <h3 className="font-display font-black text-2xl sm:text-3xl tracking-tight text-gray-900 leading-tight">
                 Food Reels
               </h3>
               <p className="text-[11px] text-gray-400 font-medium leading-none">Watch &amp; order instantly</p>
@@ -426,16 +612,7 @@ export default function HomePage({
           className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x snap-mandatory"
           id="reels-scroller"
         >
-          {isLoadingReels ? (
-            /* Skeleton */
-            [1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="shrink-0 snap-start w-[160px] sm:w-[180px] h-[280px] sm:h-[310px] rounded-2xl bg-gray-200 animate-pulse"
-              />
-            ))
-          ) : (
-            reelsList.map((reel, idx) => {
+          {displayReels.map((reel, idx) => {
               /* Cycle through vibrant gradient overlays */
               const OVERLAYS = [
                 "from-orange-900/90 via-orange-700/40 to-transparent",
@@ -532,46 +709,7 @@ export default function HomePage({
                   </div>
                 </div>
               );
-            })
-          )}
-        </div>
-      </div>
-
-
-      {/* Exclusive Multi-brand Cloud Kitchen Section */}
-      <CloudKitchenSection
-        cartItems={cartItems}
-        onAddToCart={handleAddToCart}
-        onRemoveFromCart={handleRemoveFromCart}
-      />
-
-      {/* Trending Offers Horizontal Strip — Swiggy-style */}
-      <div className="space-y-3" id="trending-deals-strip">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🔥</span>
-          <h3 className="font-display font-extrabold text-lg text-gray-900 tracking-tight">Trending Deals</h3>
-        </div>
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-          {[
-            { label: "50% OFF", sub: "First Order", color: "from-[#FF5200] to-[#FF8C00]", emoji: "🎉" },
-            { label: "Free Delivery", sub: "Above ₹199", color: "from-[#0D9488] to-[#06B6D4]", emoji: "🛵" },
-            { label: "Buy 1 Get 1", sub: "On Biryani", color: "from-[#7C3AED] to-[#C026D3]", emoji: "🍛" },
-            { label: "Flat ₹100 OFF", sub: "On ₹499+", color: "from-[#DC2626] to-[#F97316]", emoji: "💸" },
-            { label: "30% Cashback", sub: "On UPI Pay", color: "from-[#0284C7] to-[#6366F1]", emoji: "📲" },
-            { label: "Late Night", sub: "Extra 20% OFF", color: "from-[#374151] to-[#6B7280]", emoji: "🌙" },
-          ].map((deal, i) => (
-            <div
-              key={i}
-              onClick={() => setActiveTab && setActiveTab("offers")}
-              className={`shrink-0 cursor-pointer bg-gradient-to-br ${deal.color} text-white rounded-2xl px-5 py-4 flex items-center gap-3 shadow-md hover:scale-105 active:scale-95 transition-transform duration-200 min-w-[160px]`}
-            >
-              <span className="text-3xl">{deal.emoji}</span>
-              <div>
-                <p className="font-display font-black text-sm leading-tight">{deal.label}</p>
-                <p className="text-[11px] text-white/80 font-semibold mt-0.5">{deal.sub}</p>
-              </div>
-            </div>
-          ))}
+            })}
         </div>
       </div>
 
@@ -581,13 +719,12 @@ export default function HomePage({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🍽️</span>
-              <h3 className="font-display font-black text-xl sm:text-2xl tracking-tight text-gray-900">
-                Explore Restaurants
+              <h3 className="font-display font-black text-2xl sm:text-3xl md:text-4xl tracking-tight text-gray-900">
+                Restaurants with online food delivery in your area
               </h3>
             </div>
-            <p className="text-xs text-gray-500 ml-9">
-              Discover premium culinary kitchens in your neighborhood
+            <p className="text-xs text-gray-500 ml-1">
+              Explore top-rated kitchens, fast delivery, and daily discounts
             </p>
           </div>
           {selectedCategory !== "all" && (
@@ -803,32 +940,13 @@ export default function HomePage({
         </div>
 
         {/* Render lists or grid */}
-        {!restaurants || restaurants.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm flex flex-col h-[320px] p-5 space-y-4"
-              >
-                <div className="h-44 bg-neutral-200 rounded-2xl w-full animate-pulse" />
-                <div className="space-y-2">
-                  <div className="h-5 bg-neutral-200 rounded-full w-2/3" />
-                  <div className="h-3 bg-neutral-200 rounded-full w-1/2" />
-                </div>
-                <div className="border-t border-gray-50 pt-3 flex justify-between">
-                  <div className="h-4 bg-neutral-200 rounded-full w-20" />
-                  <div className="h-4 bg-neutral-200 rounded-full w-16" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredRestaurants.length > 0 ? (
+        {activeRestaurantsList.length > 0 ? (
           <>
             {/* GRID LAYOUT */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {(isExploreMoreUnlocked
-                ? filteredRestaurants
-                : filteredRestaurants.slice(0, 3)
+                ? activeRestaurantsList
+                : activeRestaurantsList.slice(0, 3)
               ).map((res) => {
                 const distanceStr = `${(res.coordinates.x * 0.05 + res.coordinates.y * 0.03 + 0.8).toFixed(1)} km`;
                 return (
@@ -979,98 +1097,12 @@ export default function HomePage({
             </button>
           </div>
         )}
-      </div>
-
-      {/* Vibrant Promo Banners Row — Swiggy/Zomato style */}
-      <div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-        id="split-promo-banner-row"
-      >
-        {/* Banner 1: Big discount */}
-        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-[#FF5200] to-[#FFC300] p-6 text-white shadow-lg group cursor-pointer hover:scale-[1.02] transition-transform duration-200 col-span-1 sm:col-span-2 lg:col-span-2">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.18),transparent_60%)] pointer-events-none" />
-          <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="relative z-10 flex items-center justify-between gap-4">
-            <div className="space-y-2">
-              <span className="inline-block bg-white/25 backdrop-blur-sm border border-white/30 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
-                ⏰ Limited Time
-              </span>
-              <h3 className="font-display font-black text-3xl sm:text-4xl leading-none">
-                FLAT 40% OFF
-              </h3>
-              <p className="text-sm font-bold text-orange-100 uppercase tracking-wide">
-                On orders above ₹100
-              </p>
-              <div className="flex items-center gap-3 pt-1">
-                <span className="bg-white/20 border border-white/30 font-mono font-black text-sm px-3.5 py-2 rounded-xl backdrop-blur-sm tracking-widest">
-                  Use: <span className="text-yellow-300">FOOD40</span>
-                </span>
-                <button
-                  onClick={() => triggerToast('Coupon "FOOD40" copied!')}
-                  className="bg-white text-[#FF5200] font-extrabold text-xs px-4 py-2 rounded-xl hover:bg-orange-50 transition cursor-pointer"
-                >
-                  Copy Code
-                </button>
-              </div>
-            </div>
-            <img
-              src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=300"
-              alt="food"
-              referrerPolicy="no-referrer"
-              className="hidden sm:block w-36 h-36 object-cover rounded-xl border-2 border-white/30 shadow-xl shrink-0 group-hover:scale-105 transition-transform duration-300"
-            />
-          </div>
-        </div>
-
-        {/* Banner 2: Live coupons stack */}
-        <div className="flex flex-col gap-3">
-          {isLoadingCoupons ? (
-            <>
-              <div className="h-28 bg-gradient-to-r from-emerald-400 to-teal-500 animate-pulse rounded-2xl" />
-              <div className="h-28 bg-gradient-to-r from-purple-400 to-pink-500 animate-pulse rounded-2xl" />
-            </>
-          ) : (() => {
-            const card0 = randomSideCoupons[0] || (liveCoupons.length > 0 ? liveCoupons[0] : OFFER_CARDS[0]);
-            const card0Title = card0?.title || card0?.discount || (card0?.discountType === "flat" ? `₹ ${card0.discountValue} OFF` : card0?.discountValue ? `${card0.discountValue}% OFF` : "Exclusive Offer");
-            const card0Code = card0?.code || "FREEDEL";
-            const card1 = randomSideCoupons[1] || (liveCoupons.length > 1 ? liveCoupons[1] : OFFER_CARDS[1] || OFFER_CARDS[0]);
-            const card1Title = card1?.title || card1?.discount || (card1?.discountType === "flat" ? `₹ ${card1.discountValue} OFF` : card1?.discountValue ? `${card1.discountValue}% OFF` : "Partner Reward");
-            const card1Code = card1?.code || "BANK30";
-            return (
-              <>
-                <div className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white flex items-center justify-between gap-3 shadow-md group hover:scale-[1.02] transition-transform duration-200 cursor-pointer relative overflow-hidden">
-                  <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full blur-xl pointer-events-none" />
-                  <div className="z-10">
-                    <span className="text-[10px] font-black text-emerald-200 uppercase tracking-wider">🛵 Delivery Offer</span>
-                    <h4 className="font-display font-black text-xl text-white mt-0.5">{card0Title}</h4>
-                    <span className="bg-white/20 border border-white/25 font-mono text-[10px] font-black px-2.5 py-1 rounded-md inline-block mt-2 tracking-wider">
-                      {card0Code}
-                    </span>
-                  </div>
-                  <FaMotorcycle className="h-14 w-14 text-white/80 shrink-0 group-hover:translate-x-1 transition-transform" />
-                </div>
-                <div className="flex-1 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl p-5 text-white flex items-center justify-between gap-3 shadow-md group hover:scale-[1.02] transition-transform duration-200 cursor-pointer relative overflow-hidden">
-                  <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/10 rounded-full blur-xl pointer-events-none" />
-                  <div className="z-10">
-                    <span className="text-[10px] font-black text-pink-200 uppercase tracking-wider">🎁 Bank Reward</span>
-                    <h4 className="font-display font-black text-xl text-white mt-0.5">{card1Title}</h4>
-                    <span className="bg-white/20 border border-white/25 font-mono text-[10px] font-black px-2.5 py-1 rounded-md inline-block mt-2 tracking-wider">
-                      {card1Code}
-                    </span>
-                  </div>
-                  <span className="text-4xl shrink-0">💳</span>
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      </div>
+      </div>  
 
       {/* Collections Row */}
       <div className="space-y-4" id="collections-scroller-section">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">📂</span>
             <h3 className="font-display font-extrabold text-lg tracking-tight text-gray-900">
               Curated Collections
             </h3>
@@ -1111,112 +1143,80 @@ export default function HomePage({
         </div>
       </div>
 
-      {/* Coupons fast look row */}
-      <div className="space-y-4" id="coupons-scroller-section">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🎟️</span>
-            <h3 className="font-display font-extrabold text-lg tracking-tight text-gray-900">
-              Top Offers For You
-            </h3>
-          </div>
-          <button
-            onClick={() => setActiveTab && setActiveTab("offers")}
-            className="text-brand-orange cursor-pointer text-xs font-black hover:underline flex items-center gap-0.5"
-          >
-            <span>View All Deals</span>
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Coupons List */}
-        {isLoadingCoupons ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((n) => (
-              <div
-                key={n}
-                className="h-32 bg-gray-100 animate-pulse rounded-2xl p-4 border border-gray-200"
-              />
-            ))}
-          </div>
-        ) : (liveCoupons.length > 0 ? liveCoupons : OFFER_CARDS).length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(liveCoupons.length > 0 ? liveCoupons : OFFER_CARDS).map(
-              (card, idx) => {
-                const cardColor =
-                  card.color || CARD_COLORS[idx % CARD_COLORS.length];
-                const cardTitle =
-                  card.title ||
-                  card.discount ||
-                  (card.discountType === "flat"
-                    ? `₹ ${card.discountValue} OFF`
-                    : `${card.discountValue}% OFF`);
-                const cardCondition =
-                  card.desc ||
-                  card.condition ||
-                  (card.minOrder > 0
-                    ? `ON ORDERS ABOVE ₹ ${card.minOrder}`
-                    : "FOR ALL ORDERS");
-
-                return (
-                  <div
-                    key={card.id || card.code || idx}
-                    className={`border border-dashed p-4 rounded-2xl ${
-                      idx >= 2 ? "hidden sm:flex" : "flex"
-                    } flex-col justify-between min-h-[128px] h-auto transition hover:shadow-xs relative ${cardColor}`}
-                  >
-                    <div className="absolute top-1/2 -left-2.5 h-5 w-5 bg-neutral-50 border-r border-dashed border-gray-200 rounded-full transform -translate-y-1/2" />
-                    <div className="absolute top-1/2 -right-2.5 h-5 w-5 bg-neutral-50 border-l border-dashed border-gray-200 rounded-full transform -translate-y-1/2" />
-
-                    <div>
-                      <h4 className="font-display font-black text-lg leading-none uppercase">
-                        {cardTitle}
-                      </h4>
-                      <p className="text-[10px] font-bold mt-1 uppercase tracking-wider opacity-85 break-words">
-                        {cardCondition}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-white/20 mt-2">
-                      <span className="font-mono font-black text-xs bg-white/45 px-2.5 py-1 rounded-md tracking-wider">
-                        {card.code}
-                      </span>
-                      <button
-                        onClick={() => {
-                          if (card.code) {
-                            navigator.clipboard.writeText(card.code);
-                            triggerToast(`Coupon "${card.code}" copied!`);
-                          }
-                        }}
-                        className="cursor-pointer text-[10px] hover:underline hover:font-bold text-black"
-                      >
-                        Copy Code
-                      </button>
-                    </div>
-                  </div>
-                );
-              },
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-6 bg-gray-50 border border-gray-100 rounded-2xl">
-            <p className="text-xs text-gray-500 font-bold">
-              No active offers at the moment. Check back soon!
-            </p>
-          </div>
-        )}
-      </div>
-
       {/* Circular Popular Cuisines (Replication from image) */}
       <div className="space-y-4" id="popular-cuisines-row">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-gray-800">
-            <PiBowlFoodFill className="h-5 w-5 animate-pulse text-red-500" />
             <h3 className="font-display font-extrabold text-lg tracking-tight">
               Popular Cuisines
             </h3>
           </div>
         </div>
+
+        {/* Swiggy Footer Accordions — Cities & Cuisines pills */}
+      <div className="space-y-8 pt-8 border-t border-gray-200" id="swiggy-cities-footer-section">
+        {/* Section 1: Best Places to Eat */}
+        <div className="space-y-4">
+          <h3 className="font-display font-black text-lg text-gray-900">
+            Best Places to Eat Across Cities
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {[
+              "Best Restaurants in Bangalore",
+              "Best Restaurants in Pune",
+              "Best Restaurants in Mumbai",
+              "Best Restaurants in Delhi",
+              "Best Restaurants in Hyderabad",
+              "Best Restaurants in Kolkata",
+              "Best Restaurants in Chennai",
+              "Best Restaurants in Chandigarh",
+              "Best Restaurants in Ahmedabad",
+              "Best Restaurants in Jaipur",
+              "Best Restaurants in Nagpur",
+              "Show More Cities ▼",
+            ].map((city, idx) => (
+              <button
+                key={idx}
+                onClick={() => triggerToast(`Browsing ${city}`)}
+                className="p-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition cursor-pointer text-left truncate"
+              >
+                {city}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 2: Best Cuisines Near Me */}
+        <div className="space-y-4">
+          <h3 className="font-display font-black text-lg text-gray-900">
+            Best Cuisines Near Me
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {[
+              "Chinese Restaurant Near Me",
+              "South Indian Restaurant Near Me",
+              "Indian Restaurant Near Me",
+              "Kerala Restaurant Near Me",
+              "Korean Restaurant Near Me",
+              "North Indian Restaurant Near Me",
+              "Seafood Restaurant Near Me",
+              "Bengali Restaurant Near Me",
+              "Punjabi Restaurant Near Me",
+              "Italian Restaurant Near Me",
+              "Bakery Near Me",
+              "Show More Cuisines ▼",
+            ].map((cuis, idx) => (
+              <button
+                key={idx}
+                onClick={() => triggerToast(`Filtering ${cuis}`)}
+                className="p-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition cursor-pointer text-left truncate"
+              >
+                {cuis}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
         {/* Popular Cuisines Row */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">

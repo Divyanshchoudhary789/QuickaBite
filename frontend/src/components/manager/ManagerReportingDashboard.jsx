@@ -141,7 +141,7 @@ export default function ManagerReportingDashboard({ triggerToast }) {
         "================================================================================",
       );
       lines.push(
-        "QUIKABITE KITCHEN MANAGEMENT - EXECUTIVE BI & PERFORMANCE REPORT",
+        "QuikaBITE KITCHEN MANAGEMENT - EXECUTIVE BI & PERFORMANCE REPORT",
       );
       lines.push(
         "================================================================================",
@@ -295,8 +295,8 @@ export default function ManagerReportingDashboard({ triggerToast }) {
           ).toFixed(2);
           const itemSummary = Array.isArray(o.items)
             ? o.items
-                .map((i) => `${i.qty || i.quantity || 1}x ${i.name || i.title}`)
-                .join("; ")
+              .map((i) => `${i.qty || i.quantity || 1}x ${i.name || i.title}`)
+              .join("; ")
             : o.item || "Order Items";
 
           lines.push(
@@ -317,7 +317,7 @@ export default function ManagerReportingDashboard({ triggerToast }) {
       lines.push(
         "================================================================================",
       );
-      lines.push("END OF REPORT - QUIKABITE MANAGER DASHBOARD");
+      lines.push("END OF REPORT - QuikaBITE MANAGER DASHBOARD");
       lines.push(
         "================================================================================",
       );
@@ -473,10 +473,10 @@ export default function ManagerReportingDashboard({ triggerToast }) {
     if (trendData.length === 0) {
       const rev = Number(
         statsData.kpis?.totalRevenue ||
-          statsData.totalRevenue ||
-          brandData.reduce((s, b) => s + b.value, 0) ||
-          topItems.reduce((s, i) => s + i.revenue, 0) ||
-          0,
+        statsData.totalRevenue ||
+        brandData.reduce((s, b) => s + b.value, 0) ||
+        topItems.reduce((s, i) => s + i.revenue, 0) ||
+        0,
       );
       trendData = [
         {
@@ -559,70 +559,70 @@ export default function ManagerReportingDashboard({ triggerToast }) {
     // Calculate category or top items revenue sum if API's kpis.totalRevenue evaluates to 0
     const topCategoriesRevenue = Array.isArray(statsData.topCategories)
       ? statsData.topCategories.reduce(
-          (sum, c) => sum + Number(c.revenue || 0),
-          0,
-        )
+        (sum, c) => sum + Number(c.revenue || 0),
+        0,
+      )
       : 0;
 
     const topItemsRevenue = Array.isArray(statsData.topSellingItems)
       ? statsData.topSellingItems.reduce(
-          (sum, i) => sum + Number(i.revenueGenerated || i.revenue || 0),
-          0,
-        )
+        (sum, i) => sum + Number(i.revenueGenerated || i.revenue || 0),
+        0,
+      )
       : Array.isArray(statsData.topPerformingMenu)
         ? statsData.topPerformingMenu.reduce(
-            (sum, i) => sum + Number(i.revenue || 0),
-            0,
-          )
+          (sum, i) => sum + Number(i.revenue || 0),
+          0,
+        )
         : 0;
 
     const topCustomersSpending = Array.isArray(
       statsData.highestSpendingCustomers,
     )
       ? statsData.highestSpendingCustomers.reduce(
-          (sum, cust) => sum + Number(cust.totalAmountSpent || 0),
-          0,
-        )
+        (sum, cust) => sum + Number(cust.totalAmountSpent || 0),
+        0,
+      )
       : 0;
 
     const rawRevenue = Number(
       rawKpis.totalRevenue ||
-        statsData.totalRevenue ||
-        topCategoriesRevenue ||
-        topItemsRevenue ||
-        topCustomersSpending ||
-        0,
+      statsData.totalRevenue ||
+      topCategoriesRevenue ||
+      topItemsRevenue ||
+      topCustomersSpending ||
+      0,
     );
 
     const totalOrders = Number(
       rawKpis.totalOrders ??
-        statsData.totalOrders ??
-        (Array.isArray(statsData.orders) ? statsData.orders.length : 0),
+      statsData.totalOrders ??
+      (Array.isArray(statsData.orders) ? statsData.orders.length : 0),
     );
 
     const avgOrderValue = Number(
       rawKpis.averageOrderValue ??
-        statsData.averageOrderValue ??
-        (totalOrders > 0 ? rawRevenue / totalOrders : 0),
+      statsData.averageOrderValue ??
+      (totalOrders > 0 ? rawRevenue / totalOrders : 0),
     );
 
     const completedOrders = Number(
       rawKpis.totalDeliveredOrders ??
-        statsData.orderStatusAnalytics?.delivered ??
-        statsData.completedOrders ??
-        0,
+      statsData.orderStatusAnalytics?.delivered ??
+      statsData.completedOrders ??
+      0,
     );
 
     const statusObj = statsData.orderStatusAnalytics || {};
     const activeOrders = Number(
       rawKpis.pendingPreparingOrders ??
-        Number(statusObj.pending || 0) +
-          Number(statusObj.preparing || 0) +
-          Number(statusObj.confirmed || 0) +
-          Number(statusObj.ready || 0) +
-          Number(statusObj.outForDelivery || 0) ??
-        statsData.activeOrders ??
-        0,
+      Number(statusObj.pending || 0) +
+      Number(statusObj.preparing || 0) +
+      Number(statusObj.confirmed || 0) +
+      Number(statusObj.ready || 0) +
+      Number(statusObj.outForDelivery || 0) ??
+      statsData.activeOrders ??
+      0,
     );
 
     return {
@@ -653,11 +653,10 @@ export default function ManagerReportingDashboard({ triggerToast }) {
               Manager Performance & Reporting
             </h1>
             <span
-              className={`px-3 py-1 text-xs font-semibold rounded-full border ${
-                isFallback
-                  ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-              } flex items-center gap-1.5`}
+              className={`px-3 py-1 text-xs font-semibold rounded-full border ${isFallback
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                } flex items-center gap-1.5`}
             >
               <span
                 className={`w-2 h-2 rounded-full ${isFallback ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`}
@@ -724,11 +723,10 @@ export default function ManagerReportingDashboard({ triggerToast }) {
             <button
               key={item.id}
               onClick={() => setActiveFilter(item.id)}
-              className={`px-3.5 py-1.5 text-xs font-medium rounded-xl whitespace-nowrap transition-all border ${
-                activeFilter === item.id
-                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-950/30"
-                  : "bg-neutral-800/60 border-neutral-700/40 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
-              }`}
+              className={`px-3.5 py-1.5 text-xs font-medium rounded-xl whitespace-nowrap transition-all border ${activeFilter === item.id
+                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-950/30"
+                : "bg-neutral-800/60 border-neutral-700/40 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+                }`}
             >
               {item.label}
             </button>

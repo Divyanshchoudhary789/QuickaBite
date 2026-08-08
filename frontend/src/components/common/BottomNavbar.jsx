@@ -115,18 +115,7 @@ export default function BottomNavbar({
                     Marketing Command
                   </div>
                   {[
-                    {
-                      id: "whatsapp",
-                      label: "WhatsApp Console",
-                      icon: MessageSquare,
-                    },
-                    {
-                      id: "campaigns",
-                      label: "Campaigns Blast",
-                      icon: Sparkles,
-                    },
                     { id: "contacts", label: "Diner Directory", icon: Users },
-                    { id: "templates", label: "Message Hub", icon: FileText },
                     { id: "automations", label: "Workflows", icon: Cpu },
                     { id: "leads", label: "Lead CRM", icon: Briefcase },
                     { id: "offers", label: "Brand Offers", icon: Tag },

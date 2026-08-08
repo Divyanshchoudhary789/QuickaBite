@@ -29,21 +29,35 @@ export default function OffersPage({
     const fetchCoupons = async () => {
       try {
         const list = await dinerService.getActiveCoupons();
+        const formatted = (list || []).map((item) => ({
+          id: item._id || item.id || item.code,
+          code: item.code,
+          title: item.title || item.bannerTitle || `${item.code} Coupon`,
+          desc: item.desc || item.policyText || `Get discount on your order using ${item.code}`,
+          discount: item.discount || (item.discountType === "percentage" ? `${item.discountValue}% OFF` : `₹${item.discountValue} OFF`),
+          expiry: item.expiry || "Valid today",
+          category: item.category || "coupon",
+          calc: item.calc || null,
+          discountType: item.discountType,
+          discountValue: item.discountValue,
+          minOrder: item.minimumOrderAmount || item.minOrder || 0,
+          accentColor: item.accentColor || "bg-orange-100 text-brand-orange border border-orange-200",
+        }));
+
         if (isMock) {
-          if (list && list.length > 0) {
-            const merged = [
-              ...list,
-              ...DETAILED_OFFERS.filter(
-                (o) => !list.some((l) => l.code === o.code),
-              ),
-            ];
-            setOffersList(merged);
-          }
+          const merged = [
+            ...formatted,
+            ...DETAILED_OFFERS.filter(
+              (o) => !formatted.some((l) => l.code === o.code),
+            ),
+          ];
+          setOffersList(merged);
         } else {
-          setOffersList(list || []);
+          setOffersList(formatted.length > 0 ? formatted : DETAILED_OFFERS);
         }
       } catch (err) {
         console.error("Failed to fetch coupons on OffersPage:", err);
+        setOffersList(DETAILED_OFFERS);
       }
     };
     fetchCoupons();
@@ -132,7 +146,12 @@ export default function OffersPage({
           (cat) => !selectedOfferCategory || selectedOfferCategory === cat,
         )
         .map((cat) => {
-          const sectionOffers = offersList.filter((o) => o.category === cat);
+          const sectionOffers = offersList.filter(
+            (o) =>
+              o.category === cat ||
+              (cat === "coupon" &&
+                !["bank", "festival", "restaurant", "cashback"].includes(o.category)),
+          );
           if (sectionOffers.length === 0) return null;
 
           const sectionMeta = {

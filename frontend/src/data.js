@@ -1,6 +1,6 @@
 import { dinerService } from "./api/dinerService";
 
-const INITIAL_RESTAURANTS = [
+export const INITIAL_RESTAURANTS = [
   {
     id: "bombay-darling",
     name: "Bombay Darling",

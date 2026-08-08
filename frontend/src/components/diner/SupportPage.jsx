@@ -29,6 +29,7 @@ import {
 import { BsRobot } from "react-icons/bs";
 import { FaUser } from "react-icons/fa";
 import { dinerService } from "../../api/dinerService";
+import { chatService } from "../../api/chatService";
 import { useNotifications } from "../../context/NotificationContext";
 const getTimestamp = () =>
   new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -80,52 +81,105 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
   const debouncedFaqSearch = useDebounce(faqSearch, 300);
   const [activeFaqCategory, setActiveFaqCategory] = useState("all");
   const [expandedFaqIndex, setExpandedFaqIndex] = useState(null);
-  
+
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const [conversation, setConversation] = useState(null);
+  const [chatMode, setChatMode] = useState("BOT");
   const chatEndRef = useRef(null);
   const [tickets, setTickets] = useState([]);
 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     const loadSupportData = async () => {
-      const chat = await dinerService.getSupportChat();
-      if (chat && chat.length > 0) {
-        setChatMessages(chat);
-      } else {
-        setChatMessages([
-          {
-            id: "msg-1",
-            sender: "bot",
-            text: "Hi Vedanshi! Welcome to QuikaBite Gourmet Support. 🌟 I'm your digital concierge agent. How can I assist you with your dining experience today?",
-            timestamp: getTimestamp(),
-          },
-        ]);
+      try {
+        const activeOrdId = orders.length > 0 ? (orders[0].id || orders[0]._id) : "general-order";
+        const conv = await chatService.startConversation(activeOrdId);
+        if (isMounted) {
+          setConversation(conv);
+          setChatMode(conv.status || conv.mode || "BOT");
+          const historyMsgs = await chatService.getMessages(conv._id || conv.id);
+          if (historyMsgs && historyMsgs.length > 0) {
+            setChatMessages(historyMsgs.map(m => ({
+              id: m._id || m.id || `msg-${Date.now()}`,
+              sender: (m.senderType === "USER" || m.sender === "user") ? "user" : (m.senderType === "AGENT" ? "agent" : "bot"),
+              senderType: m.senderType || (m.sender === "user" ? "USER" : "BOT"),
+              text: m.message || m.text || "",
+              timestamp: m.timestamp || (m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : getTimestamp())
+            })));
+          } else {
+            setChatMessages([
+              {
+                id: "msg-1",
+                sender: "bot",
+                senderType: "BOT",
+                text: "Hi! Welcome to QuikaBite Gourmet Support. 🌟 I'm your digital concierge agent. How can I assist you with your order today?",
+                timestamp: getTimestamp(),
+              },
+            ]);
+          }
+        }
+
+        // Initialize Socket Connection & Join Room (Event: join_conversation)
+        const convId = conv._id || conv.id;
+        chatService.connectSocket(convId, (newMsg) => {
+          if (!isMounted) return;
+          setChatMessages((prev) => {
+            const exists = prev.some(m => m.id === (newMsg._id || newMsg.id));
+            if (exists) return prev;
+            return [
+              ...prev,
+              {
+                id: newMsg._id || newMsg.id || `msg-${Date.now()}`,
+                sender: (newMsg.senderType === "USER" || newMsg.sender === "user") ? "user" : (newMsg.senderType === "AGENT" ? "agent" : "bot"),
+                senderType: newMsg.senderType || "BOT",
+                text: newMsg.message || newMsg.text || "",
+                timestamp: newMsg.timestamp || getTimestamp(),
+              }
+            ];
+          });
+        });
+      } catch (err) {
+        console.warn("Support chat load error:", err);
       }
 
-      const tks = await dinerService.getTickets();
-      if (tks && tks.length > 0) {
-        setTickets(tks);
-      } else {
-        setTickets([
-          {
-            id: "TK-84291",
-            category: "Delivery delay",
-            priority: "medium",
-            orderId: "GE-4821",
-            description:
-              "Driver was delayed by heavy traffic on Sheikh Zayed Road. Food arrived slightly cold.",
-            status: "Resolved",
-            timestamp: "2 days ago",
-          },
-        ]);
+      try {
+        const tks = await dinerService.getTickets();
+        if (isMounted) {
+          if (tks && tks.length > 0) setTickets(tks);
+          else {
+            setTickets([
+              {
+                id: "TK-84291",
+                category: "Delivery delay",
+                priority: "medium",
+                orderId: "GE-4821",
+                description: "Driver was delayed by heavy traffic. Food arrived slightly cold.",
+                status: "Resolved",
+                timestamp: "2 days ago",
+              },
+            ]);
+          }
+        }
+      } catch (err) {
+        console.warn("Tickets load error:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-      setIsLoading(false);
     };
     loadSupportData();
-  }, []);
+
+    return () => {
+      isMounted = false;
+      chatService.disconnectSocket();
+    };
+  }, [orders]);
+
   const [ticketCategory, setTicketCategory] = useState("Delivery delay");
   const [ticketPriority, setTicketPriority] = useState("medium");
   const [ticketOrderId, setTicketOrderId] = useState("");
@@ -229,17 +283,20 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
     },
   ]);
   const allAvailableOrders = orders.length > 0 ? orders : mockTemplateOrders;
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     if (chatMessages.length > 0) {
       dinerService.saveSupportChat(chatMessages);
     }
   }, [chatMessages]);
+
   useEffect(() => {
     if (tickets.length > 0) {
       dinerService.saveTickets(tickets);
     }
   }, [tickets]);
+
   useEffect(() => {
     if (isCalling && callStatus === "connected") {
       callIntervalRef.current = setInterval(() => {
@@ -252,11 +309,13 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
       if (callIntervalRef.current) clearInterval(callIntervalRef.current);
     };
   }, [isCalling, callStatus]);
+
   const formatCallTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
+
   const chatChips = [
     { text: "Where is my order? 📍", keyword: "track" },
     { text: "Wrong item received 🍔", keyword: "wrong" },
@@ -264,75 +323,105 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
     { text: "Voucher not working 🏷️", keyword: "voucher" },
     { text: "Connect to live agent 🧑‍💼", keyword: "agent" },
   ];
-  const handleSendChatMessage = (textToSend) => {
+
+  const handleSendChatMessage = (textToSend, quickReplyText = "") => {
     if (!textToSend.trim()) return;
-    const userMsg = {
+
+    const convId = conversation?._id || conversation?.id || `conv-gen-${Date.now()}`;
+    const userMsgObj = {
       id: getMsgId("user"),
       sender: "user",
+      senderType: "USER",
       text: textToSend,
       timestamp: getTimestamp(),
     };
-    setChatMessages((prev) => [...prev, userMsg]);
+
+    setChatMessages((prev) => [...prev, userMsgObj]);
     setChatInput("");
-    setIsBotTyping(true);
-    setTimeout(() => {
-      const lower = textToSend.toLowerCase();
-      let botText =
-        "Thank you for sharing. Let me look that up in your QuikaBite account. Can you select the order related to this request inside the 'Order Issues' tab to help me resolve this instantly?";
-      if (
-        lower.includes("track") ||
-        lower.includes("where") ||
-        lower.includes("status")
-      ) {
-        const activeOrder = orders.find((o) => o.status !== "delivered");
-        if (activeOrder) {
-          botText = `I see your active order #${activeOrder.id} from "${activeOrder.restaurantName}" is currently in "${activeOrder.status.replace(/_/g, " ")}" phase. Estimated delivery in 15-20 minutes. You can also monitor live driver coordinates in the 'Orders' dashboard!`;
-        } else {
+
+    // Emit Socket.io send_message Event
+    chatService.sendMessage({
+      conversationId: convId,
+      message: textToSend,
+      senderType: "USER",
+      sender: "user",
+      quickReplyUsed: quickReplyText || textToSend,
+    });
+
+    const lower = textToSend.toLowerCase();
+
+    // Check Escalation to Live Agent
+    if (lower.includes("agent") || lower.includes("human") || lower.includes("live") || lower.includes("person")) {
+      setChatMode("LIVE_AGENT");
+      setIsBotTyping(true);
+      setTimeout(() => {
+        const agentEscalationMsg = {
+          id: getMsgId("agent"),
+          sender: "agent",
+          senderType: "AGENT",
+          text: "🧑‍💼 Connected to QuikaBite Live Concierge Agent! A manager or support specialist is now connected to your private chat room.",
+          timestamp: getTimestamp(),
+        };
+        setChatMessages((prev) => [...prev, agentEscalationMsg]);
+        setIsBotTyping(false);
+      }, 1000);
+      return;
+    }
+
+    // Bot Automated Reply Logic
+    if (chatMode === "BOT") {
+      setIsBotTyping(true);
+      setTimeout(() => {
+        let botText =
+          "Thank you for sharing. Let me look that up in your QuikaBite account. Can you select the order related to this request inside the 'Order Issues' tab to help me resolve this instantly?";
+        if (
+          lower.includes("track") ||
+          lower.includes("where") ||
+          lower.includes("status")
+        ) {
+          const activeOrder = orders.find((o) => o.status !== "delivered");
+          if (activeOrder) {
+            botText = `I see your active order #${activeOrder.id} from "${activeOrder.restaurantName}" is currently in "${activeOrder.status.replace(/_/g, " ")}" phase. Estimated delivery in 15-20 minutes. You can also monitor live driver coordinates in the 'Orders' dashboard!`;
+          } else {
+            botText =
+              "You don't have any active deliveries at this moment. Your last order was successfully delivered. Let me know if you would like me to report an issue for that order!";
+          }
+        } else if (
+          lower.includes("refund") ||
+          lower.includes("money") ||
+          lower.includes("charge") ||
+          lower.includes("cancel")
+        ) {
           botText =
-            "You don't have any active deliveries at this moment. Your last order from Royal Biryani Palace was successfully delivered. Let me know if you would like me to report an issue for that order!";
+            "I understand you'd like to claim a refund. QuikaBite offers a seamless refund system! Head over to our 'Order Issues & Refunds' tab above, pick the order, check the affected gourmet dishes, and receive instant credits directly to your loyalty wallet.";
+        } else if (
+          lower.includes("wrong") ||
+          lower.includes("cold") ||
+          lower.includes("bad") ||
+          lower.includes("missing")
+        ) {
+          botText =
+            "I am deeply sorry to hear that your food quality was not up to our gourmet standard! 😔 Please open the 'Order Issues & Refunds' panel. Check the specific items that were wrong or cold, and click the 'Claim Instant Wallet Refund' button. We will credit you immediately.";
+        } else if (
+          lower.includes("voucher") ||
+          lower.includes("promo") ||
+          lower.includes("coupon") ||
+          lower.includes("code")
+        ) {
+          botText =
+            "Vouchers might fail if the restaurant is excluded, or if the order subtotal is below the threshold. Copy the GOURMET50 code from your alerts, and ensure your cart value is above ₹ 40 at checkout to unlock your 50% discount!";
         }
-      } else if (
-        lower.includes("refund") ||
-        lower.includes("money") ||
-        lower.includes("charge") ||
-        lower.includes("cancel")
-      ) {
-        botText =
-          "I understand you'd like to claim a refund. QuikaBite offers a seamless refund system! Head over to our 'Order Issues & Refunds' tab above, pick the order, check the affected gourmet dishes, and receive instant credits directly to your loyalty wallet.";
-      } else if (
-        lower.includes("wrong") ||
-        lower.includes("cold") ||
-        lower.includes("bad") ||
-        lower.includes("missing")
-      ) {
-        botText =
-          "I am deeply sorry to hear that your food quality was not up to our gourmet standard! 😔 Please open the 'Order Issues & Refunds' panel. Check the specific items that were wrong or cold, and click the 'Claim Instant Wallet Refund' button. We will credit you immediately.";
-      } else if (
-        lower.includes("voucher") ||
-        lower.includes("promo") ||
-        lower.includes("coupon") ||
-        lower.includes("code")
-      ) {
-        botText =
-          "Vouchers might fail if the restaurant is excluded, or if the order subtotal is below the threshold. Copy the GOURMET50 code from your alerts, and ensure your cart value is above ₹ 40 at checkout to unlock your 50% discount!";
-      } else if (
-        lower.includes("agent") ||
-        lower.includes("human") ||
-        lower.includes("clara") ||
-        lower.includes("person")
-      ) {
-        botText =
-          "Transferring you to an active gourmet concierge specialist... 📞 You are next in queue! Average wait time is under 1 minute. Alternatively, click 'Call Support' to speak with Clara right now!";
-      }
-      const botMsg = {
-        id: getMsgId("bot"),
-        sender: "bot",
-        text: botText,
-        timestamp: getTimestamp(),
-      };
-      setChatMessages((prev) => [...prev, botMsg]);
-      setIsBotTyping(false);
-    }, 1200);
+        const botMsg = {
+          id: getMsgId("bot"),
+          sender: "bot",
+          senderType: "BOT",
+          text: botText,
+          timestamp: getTimestamp(),
+        };
+        setChatMessages((prev) => [...prev, botMsg]);
+        setIsBotTyping(false);
+      }, 1000);
+    }
   };
   const handleInitiateCall = () => {
     setIsCalling(true);
@@ -448,7 +537,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
       const prevWalletStr = await dinerService.getWalletBalance();
       const updatedBalance = parseFloat(prevWalletStr) + finalRefund;
       await dinerService.saveWalletBalance(updatedBalance.toFixed(2));
-      
+
       const refundNotif = {
         id: getRefundId(),
         category: "wallet",
@@ -458,7 +547,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
         isRead: false,
         amount: `₹ ${finalRefund}`,
       };
-      
+
       addNotification(refundNotif);
       const refundTicket = {
         id: ticketId,
@@ -609,24 +698,26 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <div className="h-10 w-10 bg-orange-100 border border-orange-200 rounded-2xl flex items-center justify-center font-black text-brand-orange">
-                      🛎️
+                      {chatMode === "LIVE_AGENT" ? "🧑‍💼" : "🛎️"}
                     </div>
                     <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-500 border-2 border-white rounded-full" />
                   </div>
                   <div>
                     <h4 className="font-display font-black text-sm text-gray-800 flex items-center gap-1">
-                      <span>Gourmet Concierge</span>
+                      <span>{chatMode === "LIVE_AGENT" ? "Live Concierge Agent" : "Gourmet Concierge"}</span>
                       <Sparkles className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
                     </h4>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                      AI Instant Support Bot
+                      {chatMode === "LIVE_AGENT" ? "Direct Agent Session (LIVE_AGENT)" : "AI Instant Support Bot (BOT)"}
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] bg-emerald-50 text-emerald-700 font-extrabold px-2.5 py-1 rounded-full border border-emerald-100 flex items-center gap-1 select-none">
-                  <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                  <span>Agent Online</span>
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border flex items-center gap-1 select-none ${chatMode === "LIVE_AGENT" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-100"}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${chatMode === "LIVE_AGENT" ? "bg-amber-500" : "bg-emerald-500"}`} />
+                    <span>{chatMode === "LIVE_AGENT" ? "Agent Connected" : "Bot Active"}</span>
+                  </span>
+                </div>
               </div>
 
               {/* Chat Message Stream */}
@@ -637,13 +728,15 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
                     className={`flex items-end gap-2.5 max-w-[85%] ${msg.sender === "user" ? "ml-auto flex-row-reverse" : ""}`}
                   >
                     {msg.sender === "bot" ? (
-                      <BsRobot className="h-5 w-5 flex items-center justify-center text-xs shrink-0 select-none"/>
+                      <BsRobot className="h-5 w-5 flex items-center justify-center text-xs shrink-0 select-none text-brand-orange" />
+                    ) : msg.sender === "agent" ? (
+                      <span className="text-sm shrink-0">🧑‍💼</span>
                     ) : (
-                      <FaUser className="h-5 w-5 flex items-center justify-center text-xs shrink-0 select-none"/>
+                      <FaUser className="h-5 w-5 flex items-center justify-center text-xs shrink-0 select-none text-neutral-600" />
                     )}
                     <div className="space-y-0.5 min-w-0">
                       <div
-                        className={`p-3.5 rounded-2xl text-xs leading-relaxed ${msg.sender === "user" ? "bg-brand-orange text-white rounded-br-xs" : "bg-white border border-gray-150 text-gray-800 rounded-bl-xs shadow-xs"}`}
+                        className={`p-3.5 rounded-2xl text-xs leading-relaxed ${msg.sender === "user" ? "bg-brand-orange text-white rounded-br-xs" : msg.sender === "agent" ? "bg-amber-50 border border-amber-200 text-amber-950 rounded-bl-xs shadow-xs font-semibold" : "bg-white border border-gray-150 text-gray-800 rounded-bl-xs shadow-xs"}`}
                       >
                         <p className="whitespace-pre-line font-medium break-words">
                           {msg.text}
@@ -660,7 +753,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
 
                 {isBotTyping && (
                   <div className="flex items-end gap-2.5 max-w-[80%]">
-                    <BsRobot className="h-5 w-5 flex items-center justify-center text-xs shrink-0 select-none"/>
+                    <BsRobot className="h-5 w-5 flex items-center justify-center text-xs shrink-0 select-none" />
                     <div className="bg-white border border-gray-150 p-3 px-4 rounded-2xl rounded-bl-xs flex items-center gap-1 shadow-xs">
                       <span
                         className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-bounce"
@@ -726,7 +819,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
                 <>
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                      <CreditCard className="text-xl text-blue-500"/>
+                      <CreditCard className="text-xl text-blue-500" />
                       <div>
                         <h3 className="font-display font-black text-sm text-gray-800 uppercase tracking-wider">
                           Culinary Refund Center
@@ -785,7 +878,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
                             className="text-[10px] text-brand-orange font-bold hover:underline"
                           >
                             {affectedItems.length ===
-                            selectedRefundOrder.items.length
+                              selectedRefundOrder.items.length
                               ? "Deselect All"
                               : "Select All"}
                           </button>
@@ -806,7 +899,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
                                   checked={affectedItems.includes(
                                     item.menuItem.id,
                                   )}
-                                  onChange={() => {}}
+                                  onChange={() => { }}
                                   className="h-4.5 w-4.5 rounded text-brand-orange border-gray-300 focus:ring-brand-orange"
                                 />
                                 <div>
@@ -965,7 +1058,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
           {activeSubTab === "ticket" && (
             <div className="p-5 space-y-5">
               <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                <Ticket className="text-xl text-red-500"/>
+                <Ticket className="text-xl text-red-500" />
                 <div>
                   <h3 className="font-display font-black text-sm text-gray-800 uppercase tracking-wider">
                     Raise Support Ticket
@@ -1146,7 +1239,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
                 /* INITIATE CALL DASH */
                 <div className="space-y-6 flex-1 flex flex-col justify-center">
                   <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                    <Phone  className="text-xl text-red-500"/>
+                    <Phone className="text-xl text-red-500" />
                     <div>
                       <h3 className="font-display font-black text-sm text-gray-800 uppercase tracking-wider">
                         Direct Hotline Connect
@@ -1343,7 +1436,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
           {activeSubTab === "faqs" && (
             <div className="p-5 space-y-5">
               <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                <BookOpen className="text-xl text-blue-500"/>
+                <BookOpen className="text-xl text-blue-500" />
                 <div>
                   <h3 className="font-display font-black text-sm text-gray-800 uppercase tracking-wider">
                     Self Help Knowledge Base
@@ -1462,7 +1555,7 @@ export default function SupportPage({ orders, triggerToast, setActiveTab }) {
             </div>
 
             <div className="bg-orange-50/45 p-3 rounded-2xl border border-orange-100/50 flex items-center gap-3">
-              <ShieldCheck className="h-15 w-15 text-brand-orange"/>
+              <ShieldCheck className="h-15 w-15 text-brand-orange" />
               <p className="text-[10px] text-gray-600 leading-relaxed font-semibold">
                 Under the QuikaBite{" "}
                 <span className="text-brand-orange font-bold">

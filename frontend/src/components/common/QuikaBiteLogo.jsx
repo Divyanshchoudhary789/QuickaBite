@@ -12,12 +12,12 @@ export default function QuikaBiteLogo({
   return (
     <div
       className={`flex items-center gap-3 select-none ${className}`}
-      id="quikabite-logo-component"
+      id="Quikabite-logo-component"
     >
       {/* SVG Logo Graphic */}
       <div
         className={`${dims.box} shrink-0 relative`}
-        id="quikabite-svg-graphic"
+        id="Quikabite-svg-graphic"
       >
         <svg
           viewBox="0 0 500 500"
@@ -169,12 +169,12 @@ export default function QuikaBiteLogo({
 
       {/* Brand Text Branding */}
       {showText && (
-        <div className="flex flex-col text-left" id="quikabite-brand-text">
+        <div className="flex flex-col text-left" id="Quikabite-brand-text">
           <h1
             className="font-display font-black tracking-tight leading-none text-gray-900"
             style={{ fontSize: "1.25em" }}
           >
-            <span className="text-[#00712D]">Quika</span>
+            <span className="text-[#00712D]">Quicka</span>
             <span className="text-[#D20000] relative">
               Bite
               {/* Little leaf on top of 'i' of Bite */}

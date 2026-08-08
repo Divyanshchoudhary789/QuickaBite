@@ -10,7 +10,7 @@ function buildMockProfile(phone, name, role) {
   return {
     name: name || `User ${phone}`,
     phone,
-    email: phone.replace(/[^0-9+]/g, "") + "@quickabite.ae", // compat field
+    email: phone.replace(/[^0-9+]/g, "") + "@Quikabite.ae", // compat field
     tier:
       role === "admin"
         ? "Global Executive"
@@ -28,7 +28,7 @@ export const authService = {
   // Send an OTP to an existing user's phone number.
   //
   // Payload (real): POST /auth/otp/send  →  { phone, channel, role }
-  //   phone   : string  — e.g. "+91 98765 43210"
+  //   phone   : string  — e.g. "+91 9876543210"
   //   channel : string  — "sms" | "whatsapp" | "call"
   //   role    : string  — "user" | "manager" | "admin"
   //
@@ -88,7 +88,7 @@ export const authService = {
       if (!localStorage.getItem("globaleats_users")) {
         const defaultUsers = [
           { id: "u-1", name: profile.name, phone: profile.phone, role, status: "Active", joined: "Just Now" },
-          { id: "u-2", name: "Vedanshi Bhabhra", phone: "+91 98765 43210", role: "user", status: "Active", joined: "June 2026" },
+          { id: "u-2", name: "Vedanshi Bhabhra", phone: "9876543210", role: "user", status: "Active", joined: "June 2026" },
           { id: "u-3", name: "Chef Sanjay", phone: "+91 88800 12345", role: "manager", status: "Active", joined: "May 2026" },
         ];
         localStorage.setItem("globaleats_users", JSON.stringify(defaultUsers));
@@ -105,7 +105,7 @@ export const authService = {
       const resData = response.data;
       const token = resData.token || resData.data?.token;
       const rawUser = resData.profile || resData.user || resData.data?.user || resData.data?.profile;
-      
+
       if (!token) {
         throw new Error("Token not received from server");
       }
@@ -116,7 +116,7 @@ export const authService = {
         const dbRoleLabel = dbRole === "admin" ? "Admin" : dbRole === "manager" ? "Manager" : "Diner";
         throw new Error(`This phone number is registered as an ${dbRoleLabel}. Please use the ${dbRoleLabel} tab to login.`);
       }
-      
+
       const resObj = typeof rawUser?.restaurant === "object" ? rawUser.restaurant : null;
       const restaurantId = String(
         rawUser?.restaurantId ||
@@ -146,7 +146,7 @@ export const authService = {
         avatarUrl: rawUser?.avatarUrl || "",
         joined: rawUser?.joined || "July 2026",
       };
-      
+
       localStorage.setItem("globaleats_token", token);
       localStorage.setItem("globaleats_is_logged_in", "true");
       localStorage.setItem("globaleats_user_role", userProfile.role);
@@ -199,7 +199,7 @@ export const authService = {
       if (!localStorage.getItem("globaleats_users")) {
         const defaultUsers = [
           { id: "u-1", name: profile.name, phone: profile.phone, role, status: "Active", joined: "Just Now" },
-          { id: "u-2", name: "Vedanshi Bhabhra", phone: "+91 98765 43210", role: "user", status: "Active", joined: "June 2026" },
+          { id: "u-2", name: "Vedanshi Bhabhra", phone: "+91 9876543210", role: "user", status: "Active", joined: "June 2026" },
           { id: "u-3", name: "Chef Sanjay", phone: "+91 88800 12345", role: "manager", status: "Active", joined: "May 2026" },
         ];
         localStorage.setItem("globaleats_users", JSON.stringify(defaultUsers));
@@ -216,14 +216,14 @@ export const authService = {
       const resData = response.data;
       const token = resData.token || resData.data?.token;
       const rawUser = resData.profile || resData.user || resData.data?.user || resData.data?.profile;
-      
+
       if (!token) {
         throw new Error("Token not received from server");
       }
-      
+
       const dbRoleRaw = rawUser?.role || "user";
       const dbRole = (dbRoleRaw === "diner" || dbRoleRaw === "customer") ? "user" : dbRoleRaw;
-      
+
       const userProfile = {
         id: rawUser?.id || rawUser?._id || "",
         name: name || rawUser?.name || rawUser?.fullName || `User ${phone}`,
@@ -234,18 +234,18 @@ export const authService = {
         avatarUrl: rawUser?.avatarUrl || "",
         joined: rawUser?.joined || "July 2026",
       };
-      
+
       localStorage.setItem("globaleats_token", token);
       localStorage.setItem("globaleats_is_logged_in", "true");
       localStorage.setItem("globaleats_user_role", userProfile.role);
-      
+
       // Attempt to save user name to profile
       try {
         await apiClient.patch("/v1/auth/profile", { fullName: userProfile.name });
       } catch (e) {
         console.warn("Failed to update profile name on backend:", e);
       }
-      
+
       return { isLoggedIn: true, role: userProfile.role, profile: userProfile };
     }
   },
@@ -368,8 +368,8 @@ export const authService = {
           (rawUser?.role === "admin"
             ? "Global Executive"
             : rawUser?.role === "manager"
-            ? "Operations Executive"
-            : "Gourmet Master"),
+              ? "Operations Executive"
+              : "Gourmet Master"),
         avatarUrl: rawUser?.avatarUrl || rawUser?.avatar || "",
         joined: rawUser?.joined || rawUser?.createdAt || "July 2026",
       };
@@ -412,8 +412,8 @@ export const authService = {
           (updatedRaw?.role === "admin"
             ? "Global Executive"
             : updatedRaw?.role === "manager"
-            ? "Operations Executive"
-            : "Gourmet Master") ||
+              ? "Operations Executive"
+              : "Gourmet Master") ||
           profile.tier || "Gourmet Master",
         avatarUrl: updatedRaw?.avatarUrl || updatedRaw?.avatar || profile.avatarUrl || "",
         joined: updatedRaw?.joined || updatedRaw?.createdAt || profile.joined || "",
@@ -440,7 +440,7 @@ export const authService = {
           id: "addr-1",
           label: "Home",
           detail: "Flat 402, Prestige Skyline Towers, Indiranagar, Bengaluru, Karnataka 560038",
-          contact: "+91 98765 43210",
+          contact: "9876543210",
           lat: 12.9716,
           lng: 77.6099,
           isDefault: true,
@@ -449,7 +449,7 @@ export const authService = {
           id: "addr-2",
           label: "Work",
           detail: "Floor 14, Google India, Embassy Golf Links Business Park, Bengaluru, Karnataka 560071",
-          contact: "+91 98765 43210",
+          contact: "9876543210",
           lat: 12.9542,
           lng: 77.6942,
           isDefault: false,
@@ -552,7 +552,7 @@ export const authService = {
       if (addressData.label === "Other" && addressData.tagName !== undefined) {
         payload.tagName = addressData.tagName;
       }
-      
+
       const response = await apiClient.patch(`/v1/address/${id}`, payload);
       const updated = response.data?.data || response.data;
       return {
@@ -656,7 +656,7 @@ export const authService = {
         if (cached) {
           try {
             return JSON.parse(cached);
-          } catch {}
+          } catch { }
         }
         return [];
       }
@@ -710,7 +710,7 @@ export const authService = {
         if (cached) {
           try {
             return JSON.parse(cached);
-          } catch {}
+          } catch { }
         }
         return {
           email: true,

@@ -88,7 +88,7 @@ export default function AnalyticsTab({
 
   // Days calculations
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  
+
   // Revenue by day calculation
   const revenueByDay = days.map((day) => {
     if (dashboardData?.weeklyRevenue?.length > 0) {
@@ -183,7 +183,7 @@ export default function AnalyticsTab({
     } else if (typeof setActiveSubTab === "function") {
       setActiveSubTab("users");
     } else {
-      localStorage.setItem("quikabite_admin_subtab", "users");
+      localStorage.setItem("Quikabite_admin_subtab", "users");
       window.dispatchEvent(new Event("storage"));
     }
   };

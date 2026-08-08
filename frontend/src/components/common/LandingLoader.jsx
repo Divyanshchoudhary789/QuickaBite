@@ -92,7 +92,7 @@ export default function LandingLoader({ onComplete }) {
       {/* Footer Branding */}
       <div className="absolute bottom-8 left-0 right-0 text-center pointer-events-none z-10">
         <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-neutral-400 font-bold">
-          © 2026 QuikaBite ae • Quick, Tasty & Always Fresh
+          © 2026 QuickaBite ae • Quick, Tasty & Always Fresh
         </p>
       </div>
     </motion.div>

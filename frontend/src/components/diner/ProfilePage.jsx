@@ -688,8 +688,8 @@ export default function ProfilePage({
                         const defaultLabel = !hasHome
                           ? "Home"
                           : !hasWork
-                          ? "Work"
-                          : "Other";
+                            ? "Work"
+                            : "Other";
 
                         setEditingAddrId(null);
                         setNewAddrLabel(defaultLabel);
@@ -754,13 +754,12 @@ export default function ProfilePage({
                                   if (!isAlreadySaved) setNewAddrLabel(lbl);
                                 }}
                                 title={isAlreadySaved ? `${lbl} address is already saved in profile` : ""}
-                                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                                  isAlreadySaved
-                                    ? "bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed opacity-60 line-through"
-                                    : newAddrLabel === lbl
+                                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${isAlreadySaved
+                                  ? "bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed opacity-60 line-through"
+                                  : newAddrLabel === lbl
                                     ? "bg-brand-orange text-white cursor-pointer"
                                     : "bg-white border border-gray-200 text-gray-500 hover:text-gray-800 cursor-pointer"
-                                }`}
+                                  }`}
                               >
                                 {lbl} {isAlreadySaved ? "(Saved)" : ""}
                               </button>
@@ -786,7 +785,7 @@ export default function ProfilePage({
                       )}
                     </div>
 
-                                   <DeliveryLocationPicker
+                    <DeliveryLocationPicker
                       apiKey={API_KEY}
                       initialLat={newAddrLat}
                       initialLng={newAddrLng}
@@ -823,7 +822,7 @@ export default function ProfilePage({
                           type="text"
                           value={newAddrContact}
                           onChange={(e) => setNewAddrContact(e.target.value)}
-                          placeholder="e.g. +91 98765 43210"
+                          placeholder="e.g. +91 9876543210"
                           className="w-full text-xs p-3.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-brand-orange"
                           required
                         />
