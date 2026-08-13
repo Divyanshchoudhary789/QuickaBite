@@ -693,15 +693,6 @@ export default function CheckoutPage({
       }
     }
 
-    if (paymentMethod === "cod") {
-      if (!codCaptchaVerified) {
-        triggerToast(
-          "Please enter the verification captcha to confirm COD selection.",
-        );
-        return;
-      }
-    }
-
     setIsPlacingOrder(true);
     triggerToast("Initiating order creation...");
 
@@ -1770,59 +1761,14 @@ export default function CheckoutPage({
               </div>
 
               {paymentMethod === "cod" ? (
-                <div className="bg-orange-50/60 border border-orange-100 p-6 rounded-3xl space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">
-                        Human Verification for Cash on Delivery
-                      </h4>
-                      <p className="text-[10px] text-gray-500 font-medium">
-                        Enter the 4-character captcha code below to confirm COD
-                        order.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={generateCaptcha}
-                      className="text-[10px] text-brand-orange font-bold hover:underline flex items-center gap-1"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      <span>Refresh Code</span>
-                    </button>
+                <div className="bg-emerald-50/60 p-6 rounded-3xl border border-emerald-100 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-black text-gray-900 uppercase tracking-wider">
+                    <Truck className="h-4 w-4 text-emerald-600" />
+                    <span>Cash on Delivery (COD)</span>
                   </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gray-900 text-white font-mono font-black text-lg px-4 py-2 rounded-xl tracking-widest select-none border border-gray-700">
-                      {codCaptchaCode || "7A29"}
-                    </div>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      value={codCaptchaInput}
-                      onChange={(e) =>
-                        setCodCaptchaInput(e.target.value.toUpperCase())
-                      }
-                      placeholder="ENTER CAPTCHA"
-                      className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs uppercase font-mono font-bold tracking-widest outline-none focus:border-orange-300"
-                    />
-                    <button
-                      type="button"
-                      onClick={verifyCodCaptcha}
-                      className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${codCaptchaVerified
-                        ? "bg-emerald-600 text-white"
-                        : "bg-brand-orange hover:bg-orange-700 text-white"
-                        }`}
-                    >
-                      {codCaptchaVerified ? (
-                        <>
-                          <Check className="h-4 w-4" />
-                          <span>Verified</span>
-                        </>
-                      ) : (
-                        <span>Verify</span>
-                      )}
-                    </button>
-                  </div>
+                  <p className="text-[11px] text-gray-600 font-medium leading-relaxed">
+                    Pay in cash when your food is delivered to your doorstep. Click <strong>Authorize Payment</strong> below to confirm your order.
+                  </p>
                 </div>
               ) : (
                 <div className="bg-neutral-50 p-6 rounded-3xl border border-neutral-100 space-y-2">

@@ -803,17 +803,6 @@ export default function AuthPage({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setOtpChannel("whatsapp")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "whatsapp"
-                          ? "border-emerald-500 bg-emerald-50/50 text-emerald-700 font-black shadow-xs"
-                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                          }`}
-                      >
-                        <MessageCircle className="h-4 w-4 text-emerald-500" />
-                        <span>WhatsApp</span>
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setOtpChannel("call")}
                         className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "call"
                           ? "border-amber-500 bg-amber-50/50 text-amber-700 font-black shadow-xs"

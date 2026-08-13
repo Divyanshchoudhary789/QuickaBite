@@ -300,16 +300,10 @@ export const dinerService = {
         }
         return remoteOrders;
       } catch (err) {
-        console.error("getOrders API error, returning cached local orders:", err);
-        try {
-          const cached = localStorage.getItem("globaleats_orders");
-          const parsed = cached ? JSON.parse(cached) : [];
-          return Array.isArray(parsed)
-            ? parsed.map(normalizeOrder).filter(Boolean).filter(isPaidOrCodOrder)
-            : [];
-        } catch {
-          return [];
+        if (err?.response?.status !== 403) {
+          console.error("getOrders API error:", err);
         }
+        return [];
       }
     }
   },
@@ -466,8 +460,35 @@ export const dinerService = {
         const cached = localStorage.getItem("globaleats_tickets");
         return cached ? JSON.parse(cached) : [];
       }
-      const response = await apiClient.get("/diner/support/tickets");
-      return response.data;
+      try {
+        const response = await apiClient.get("/v1/support/tickets");
+        const raw = response.data?.data || response.data?.tickets || response.data || [];
+        return Array.isArray(raw) ? raw : [];
+      } catch (err) {
+        console.warn("getTickets API error, using cached/fallback:", err?.message || err);
+        const cached = localStorage.getItem("globaleats_tickets");
+        return cached ? JSON.parse(cached) : [];
+      }
+    }
+  },
+
+  async createTicket(ticketData) {
+    if (USE_MOCK) {
+      const cached = localStorage.getItem("globaleats_tickets");
+      const list = cached ? JSON.parse(cached) : [];
+      const updated = [ticketData, ...list];
+      localStorage.setItem("globaleats_tickets", JSON.stringify(updated));
+      return ticketData;
+    } else {
+      const token = localStorage.getItem("globaleats_token");
+      if (!token) return ticketData;
+      try {
+        const response = await apiClient.post("/v1/support/tickets", ticketData);
+        return response.data?.data || response.data || ticketData;
+      } catch (err) {
+        console.warn("createTicket API error:", err?.message || err);
+        return ticketData;
+      }
     }
   },
 
@@ -477,7 +498,11 @@ export const dinerService = {
     } else {
       const token = localStorage.getItem("globaleats_token");
       if (!token) return;
-      await apiClient.post("/diner/support/tickets", { tickets });
+      try {
+        await apiClient.post("/v1/support/tickets", { tickets });
+      } catch (err) {
+        console.warn("saveTickets API error:", err?.message || err);
+      }
     }
   },
 
@@ -513,8 +538,116 @@ export const dinerService = {
       const cached = localStorage.getItem("globaleats_brands");
       return cached ? JSON.parse(cached) : [];
     } else {
-      const response = await apiClient.get("/diner/brands");
-      return response.data;
+      const response = await apiClient.get("/v1/brands");
+      return response.data?.data || response.data;
+    }
+  },
+
+  async getActiveCoupons(brandId, restaurantId) {
+    if (USE_MOCK) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const cached = localStorage.getItem("globaleats_coupons");
+      const list = cached ? JSON.parse(cached) : [];
+      return list.map(normalizeCoupon).filter(Boolean);
+    } else {
+      const params = {};
+      if (brandId) params.brand = brandId;
+      if (restaurantId) params.restaurant = restaurantId;
+      const response = await apiClient.get("/v1/coupons/active", { params });
+      const rawData = response.data?.data || response.data?.coupons || response.data || [];
+      const list = Array.isArray(rawData) ? rawData : [];
+      return list.map(normalizeCoupon).filter(Boolean);
+    }
+  },
+
+  async applyCoupon(code) {
+    if (USE_MOCK) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return { success: true, message: "Coupon applied successfully" };
+    } else {
+      const response = await apiClient.post("/v1/coupons/apply", { code });
+      return response.data?.data || response.data;
+    }
+  },
+
+  async getCategories() {
+    if (USE_MOCK) {
+      return [
+        { _id: "65f1a2b3c4d5e6f7a8b9c0d1", name: "Biryani & Rice" },
+        { _id: "65f1a2b3c4d5e6f7a8b9c0d2", name: "Pizzas & Italian" },
+        { _id: "65f1a2b3c4d5e6f7a8b9c0d3", name: "Burgers & Fast Food" },
+        { _id: "65f1a2b3c4d5e6f7a8b9c0d4", name: "Desserts & Shakes" },
+      ];
+    } else {
+      try {
+        const response = await apiClient.get("/v1/categories");
+        const raw = response.data?.data || response.data?.categories || response.data;
+        return Array.isArray(raw) ? raw : [];
+      } catch (err) {
+        console.warn("getCategories API error, using default categories:", err?.message || err);
+        return [
+          { _id: "65f1a2b3c4d5e6f7a8b9c0d1", name: "Biryani & Rice" },
+          { _id: "65f1a2b3c4d5e6f7a8b9c0d2", name: "Pizzas & Italian" },
+          { _id: "65f1a2b3c4d5e6f7a8b9c0d3", name: "Burgers & Fast Food" },
+          { _id: "65f1a2b3c4d5e6f7a8b9c0d4", name: "Desserts & Shakes" },
+        ];
+      }
+    }
+  },
+
+  async createBrand(brandData) {
+    const cleanPayload = {
+      name: String(brandData.name || "").trim(),
+      category: String(brandData.category || "").trim(),
+      tagline: String(brandData.tagline || brandData.slogan || "").trim(),
+      description: String(brandData.description || "").trim(),
+      coverImage: String(brandData.coverImage || brandData.bannerImage || "").trim(),
+      logo: String(brandData.logo || "").trim(),
+      averagePrepTime: String(brandData.averagePrepTime || brandData.prepTime || "15-20 mins").trim(),
+      isFreeDelivery: Boolean(brandData.isFreeDelivery),
+      restaurants: Array.isArray(brandData.restaurants) ? brandData.restaurants : [],
+    };
+    const response = await apiClient.post("/v1/brands", cleanPayload);
+    return response.data?.data || response.data;
+  },
+
+  async updateBrand(id, brandData) {
+    const cleanPayload = {
+      name: String(brandData.name || "").trim(),
+      category: String(brandData.category || "").trim(),
+      tagline: String(brandData.tagline || brandData.slogan || "").trim(),
+      description: String(brandData.description || "").trim(),
+      coverImage: String(brandData.coverImage || brandData.bannerImage || "").trim(),
+      logo: String(brandData.logo || "").trim(),
+      averagePrepTime: String(brandData.averagePrepTime || brandData.prepTime || "15-20 mins").trim(),
+      isFreeDelivery: Boolean(brandData.isFreeDelivery),
+      restaurants: Array.isArray(brandData.restaurants) ? brandData.restaurants : [],
+    };
+    const response = await apiClient.patch(`/v1/brands/${id}`, cleanPayload);
+    return response.data?.data || response.data;
+  },
+
+  async getBrandById(id) {
+    if (USE_MOCK) {
+      const cached = localStorage.getItem("globaleats_brands");
+      const list = cached ? JSON.parse(cached) : [];
+      return list.find((b) => String(b.id || b._id) === String(id)) || null;
+    } else {
+      const response = await apiClient.get(`/v1/brands/${id}`);
+      return response.data?.data || response.data;
+    }
+  },
+
+  async deleteBrand(id) {
+    if (USE_MOCK) {
+      const cached = localStorage.getItem("globaleats_brands");
+      let list = cached ? JSON.parse(cached) : [];
+      list = list.filter((b) => String(b.id || b._id) !== String(id));
+      localStorage.setItem("globaleats_brands", JSON.stringify(list));
+      return { success: true };
+    } else {
+      const response = await apiClient.delete(`/v1/brands/${id}`);
+      return response.data?.data || response.data;
     }
   },
 
@@ -522,7 +655,7 @@ export const dinerService = {
     if (USE_MOCK) {
       localStorage.setItem("globaleats_brands", JSON.stringify(brands));
     } else {
-      await apiClient.post("/diner/brands", { brands });
+      await apiClient.post("/v1/brands", { brands });
     }
   },
 
@@ -1166,6 +1299,7 @@ export const normalizeOrder = (raw) => {
   } else if (
     statusStr === "dispatched" ||
     statusStr === "out_for_delivery" ||
+    statusStr === "out-for-delivery" ||
     statusStr === "out for delivery" ||
     statusStr === "out" ||
     statusStr === "delivering" ||
@@ -1198,13 +1332,13 @@ export const normalizeOrder = (raw) => {
   const deliveryObj = orderObj.delivery || {};
 
   const rawDbId = String(orderObj.orderId || orderObj._id || orderObj.id || "");
-  const fallbackDisplayId = orderObj.orderNumber ? String(orderObj.orderNumber) : `GE-${Math.floor(100000 + Math.random() * 900000)}`;
+  const displayId = orderObj.orderNumber || orderObj.orderId || rawDbId || fallbackDisplayId;
 
   return {
     ...orderObj,
-    id: rawDbId || fallbackDisplayId,
+    id: String(displayId),
     _id: rawDbId || fallbackDisplayId,
-    orderNumber: orderObj.orderNumber || rawDbId || "",
+    orderNumber: orderObj.orderNumber || orderObj.orderId || rawDbId || "",
     restaurantName: String(resName),
     restaurantImage: resImage,
     restaurantId: String(resObj?._id || orderObj.restaurantId || (typeof orderObj.restaurant === "string" ? orderObj.restaurant : "") || ""),
@@ -1370,6 +1504,15 @@ export const normalizeCoupon = (coupon) => {
     }
   }
 
+  let imageUrl = "";
+  if (coupon.image) {
+    if (typeof coupon.image === "object") {
+      imageUrl = coupon.image.url || "";
+    } else if (typeof coupon.image === "string") {
+      imageUrl = coupon.image;
+    }
+  }
+
   return {
     id: coupon._id || coupon.id,
     code: coupon.code,
@@ -1391,6 +1534,8 @@ export const normalizeCoupon = (coupon) => {
     usedCount: coupon.usedCount || 0,
     isActive: coupon.isActive !== undefined ? coupon.isActive : true,
     restaurant: coupon.restaurant || null,
+    image: imageUrl,
+    rawImageObj: coupon.image,
   };
 };
 

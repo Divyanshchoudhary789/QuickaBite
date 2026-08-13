@@ -619,49 +619,7 @@ export const authService = {
   // -------------------------------------------------------------------------
   // PAYMENTS
   // -------------------------------------------------------------------------
-  async getPayments() {
-    if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const cached = localStorage.getItem("globaleats_payments");
-      if (cached) {
-        try {
-          return JSON.parse(cached);
-        } catch {
-          // ignore JSON errors
-        }
-      }
-      return [
-        {
-          id: "pay-1",
-          type: "Visa",
-          number: "•••• •••• •••• 4820",
-          expiry: "09/29",
-          holder: "VEDANSHI BHABHRA",
-        },
-        {
-          id: "pay-2",
-          type: "Mastercard",
-          number: "•••• •••• •••• 9104",
-          expiry: "04/31",
-          holder: "VEDANSHI BHABHRA",
-        },
-      ];
-    } else {
-      try {
-        const response = await apiClient.get("/auth/payments");
-        return response.data;
-      } catch (err) {
-        console.warn("getPayments endpoint unavailable, using cached fallback:", err?.message);
-        const cached = localStorage.getItem("globaleats_payments");
-        if (cached) {
-          try {
-            return JSON.parse(cached);
-          } catch { }
-        }
-        return [];
-      }
-    }
-  },
+
 
   async savePayments(payments) {
     if (USE_MOCK) {
@@ -682,46 +640,6 @@ export const authService = {
   // -------------------------------------------------------------------------
   // NOTIFICATION PREFERENCES
   // -------------------------------------------------------------------------
-  async getNotificationPrefs() {
-    if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const cached = localStorage.getItem("globaleats_notif_prefs");
-      if (cached) {
-        try {
-          return JSON.parse(cached);
-        } catch {
-          // ignore JSON errors
-        }
-      }
-      return {
-        email: true,
-        push: true,
-        sms: false,
-        offers: true,
-        orders: true,
-      };
-    } else {
-      try {
-        const response = await apiClient.get("/auth/notifications/preferences");
-        return response.data;
-      } catch (err) {
-        console.warn("getNotificationPrefs endpoint unavailable, using default preferences:", err?.message);
-        const cached = localStorage.getItem("globaleats_notif_prefs");
-        if (cached) {
-          try {
-            return JSON.parse(cached);
-          } catch { }
-        }
-        return {
-          email: true,
-          push: true,
-          sms: false,
-          offers: true,
-          orders: true,
-        };
-      }
-    }
-  },
 
   async saveNotificationPrefs(prefs) {
     if (USE_MOCK) {

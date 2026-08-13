@@ -25,6 +25,114 @@ export const ICON_MAP = {
   Utensils,
   Award
 };
+
+export const PALETTE_MAP = {
+  Flame: {
+    text: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    button: "bg-amber-600 hover:bg-amber-700",
+    gradient: "from-amber-600 to-yellow-500",
+    glow: "shadow-amber-500/10",
+    ring: "ring-amber-500",
+  },
+  Pizza: {
+    text: "text-rose-600",
+    bg: "bg-rose-50",
+    border: "border-rose-200",
+    button: "bg-rose-600 hover:bg-rose-700",
+    gradient: "from-rose-600 to-orange-500",
+    glow: "shadow-rose-500/10",
+    ring: "ring-rose-500",
+  },
+  Soup: {
+    text: "text-emerald-600",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    button: "bg-emerald-600 hover:bg-emerald-700",
+    gradient: "from-emerald-600 to-teal-500",
+    glow: "shadow-emerald-500/10",
+    ring: "ring-emerald-500",
+  },
+  ChefHat: {
+    text: "text-orange-600",
+    bg: "bg-orange-50",
+    border: "border-orange-200",
+    button: "bg-orange-600 hover:bg-orange-700",
+    gradient: "from-orange-600 to-amber-500",
+    glow: "shadow-orange-500/10",
+    ring: "ring-orange-500",
+  },
+  Utensils: {
+    text: "text-blue-600",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    button: "bg-blue-600 hover:bg-blue-700",
+    gradient: "from-blue-600 to-indigo-500",
+    glow: "shadow-blue-500/10",
+    ring: "ring-blue-500",
+  },
+  Award: {
+    text: "text-purple-600",
+    bg: "bg-purple-50",
+    border: "border-purple-200",
+    button: "bg-purple-600 hover:bg-purple-700",
+    gradient: "from-purple-600 to-pink-500",
+    glow: "shadow-purple-500/10",
+    ring: "ring-purple-500",
+  },
+};
+
+export const normalizeBrand = (brand) => {
+  if (!brand) return null;
+
+  const rawIcon = String(brand.icon || brand.iconName || "utensils").toLowerCase();
+  const iconName = rawIcon.charAt(0).toUpperCase() + rawIcon.slice(1);
+  const themeColor = (brand.themeColor && typeof brand.themeColor === "object" && brand.themeColor.gradient)
+    ? brand.themeColor
+    : (PALETTE_MAP[iconName] || PALETTE_MAP.Utensils);
+
+  const categoryName = typeof brand.category === "object" && brand.category?.name
+    ? brand.category.name
+    : (typeof brand.category === "string" ? brand.category : "Gourmet");
+
+  const restaurantsList = Array.isArray(brand.restaurants) ? brand.restaurants : [];
+  const primaryRestaurant = restaurantsList.length > 0 && typeof restaurantsList[0] === "object"
+    ? restaurantsList[0]
+    : null;
+
+  return {
+    ...brand,
+    id: String(brand._id || brand.id || `brand-${Math.random()}`),
+    _id: String(brand._id || brand.id || ""),
+    name: brand.name || "Virtual Brand",
+    slogan: brand.tagline || brand.slogan || "Gourmet Kitchen Concept",
+    tagline: brand.tagline || brand.slogan || "Gourmet Kitchen Concept",
+    description: brand.description || "Artisanal culinary concept.",
+    category: brand.category,
+    categoryName: categoryName,
+    rating: Number(brand.averageRating !== undefined ? brand.averageRating : (brand.rating || 4.8)),
+    reviewsCount: Number(brand.totalReviews !== undefined ? brand.totalReviews : (brand.reviewsCount || 0)),
+    prepTime: brand.averagePrepTime || brand.prepTime || "20 mins",
+    averagePrepTime: brand.averagePrepTime || brand.prepTime || "20 mins",
+    deliveryFee: brand.deliveryFee !== undefined ? (brand.deliveryFee === 0 ? "Free" : `₹${brand.deliveryFee}`) : (brand.isFreeDelivery ? "Free" : "₹40"),
+    isFreeDelivery: brand.isFreeDelivery !== undefined ? Boolean(brand.isFreeDelivery) : true,
+    promoBadgeText: brand.promoBadgeText || "50% OFF",
+    iconName: iconName,
+    icon: rawIcon,
+    themeColor: themeColor,
+    bannerImage: brand.coverImage || brand.bannerImage || brand.logo || brand.image?.url || (typeof brand.image === "string" ? brand.image : "") || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
+    coverImage: brand.coverImage || brand.bannerImage || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
+    keyNotes: Array.isArray(brand.features) && brand.features.length > 0 ? brand.features : (Array.isArray(brand.keyNotes) ? brand.keyNotes : [categoryName, "100% Hygiene Certified", "Express Delivery"]),
+    status: brand.isActive !== undefined ? (brand.isActive ? "Active" : "Disabled") : (brand.status || "Active"),
+    isActive: brand.isActive !== undefined ? Boolean(brand.isActive) : true,
+    isVisible: brand.isVisibleOnHome !== undefined ? Boolean(brand.isVisibleOnHome) : (brand.isVisible !== undefined ? Boolean(brand.isVisible) : true),
+    isVisibleOnHome: brand.isVisibleOnHome !== undefined ? Boolean(brand.isVisibleOnHome) : true,
+    restaurants: restaurantsList,
+    primaryRestaurant: primaryRestaurant,
+    specialties: Array.isArray(brand.specialties) ? brand.specialties : (Array.isArray(brand.items) ? brand.items : []),
+  };
+};
 export const INITIAL_BRANDS = [
   {
     id: "globaleats-biryani",
@@ -205,13 +313,20 @@ export default function CloudKitchenSection({
   const [activeBrandId, setActiveBrandId] = useState("globaleats-biryani");
   useEffect(() => {
     const fetchBrands = async () => {
-      const saved = await dinerService.getBrands();
-      if (saved && saved.length > 0) {
-        setBrands(saved);
-      } else {
-        setBrands(INITIAL_BRANDS);
+      try {
+        const saved = await dinerService.getBrands();
+        const rawList = Array.isArray(saved) ? saved : (saved?.brands || saved?.data || []);
+        if (rawList && rawList.length > 0) {
+          setBrands(rawList.map(normalizeBrand).filter(Boolean));
+        } else {
+          setBrands(INITIAL_BRANDS.map(normalizeBrand));
+        }
+      } catch (err) {
+        console.error("Failed to fetch brands in CloudKitchenSection:", err);
+        setBrands(INITIAL_BRANDS.map(normalizeBrand));
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     fetchBrands();
   }, []);

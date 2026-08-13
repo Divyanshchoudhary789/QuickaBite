@@ -92,8 +92,11 @@ export default function AnalyticsTab({
   // Revenue by day calculation
   const revenueByDay = days.map((day) => {
     if (dashboardData?.weeklyRevenue?.length > 0) {
-      const match = dashboardData.weeklyRevenue.find((wr) => wr.day?.toLowerCase().startsWith(day.toLowerCase()));
-      return match ? Number(match.val || match.revenue || 0) : 0;
+      const match = dashboardData.weeklyRevenue.find((wr) => 
+        (wr.day && wr.day.toLowerCase().startsWith(day.toLowerCase())) ||
+        (wr.week && wr.week.toLowerCase().includes(day.toLowerCase()))
+      );
+      if (match) return Number(match.revenue || match.val || 0);
     }
     const dayOrders = effectiveOrders.filter((o) => {
       const t = o.timeline || o.timestamp || o.createdAt;
@@ -146,20 +149,33 @@ export default function AnalyticsTab({
   });
 
   // Dynamic Restaurant Market Share Breakdown
-  const restaurantShareMap = {};
-  effectiveOrders.forEach((o) => {
-    const name = o.restaurantName || o.restaurant || "Restaurant";
-    if (!restaurantShareMap[name]) {
-      restaurantShareMap[name] = { name, orders: 0, revenue: 0 };
-    }
-    restaurantShareMap[name].orders += 1;
-    restaurantShareMap[name].revenue += Number(o.amount || o.total || 0);
-  });
-  const restaurantShareList = Object.values(restaurantShareMap);
+  const restaurantShareList = dashboardData?.restaurantRevenueShare?.length > 0
+    ? dashboardData.restaurantRevenueShare.map(r => ({
+        name: r.restaurantName || r.name || "Restaurant",
+        orders: r.orders || 0,
+        revenue: Number(r.revenue || 0),
+      }))
+    : Object.values(
+        effectiveOrders.reduce((acc, o) => {
+          const name = o.restaurantName || o.restaurant || "Restaurant";
+          if (!acc[name]) acc[name] = { name, orders: 0, revenue: 0 };
+          acc[name].orders += 1;
+          acc[name].revenue += Number(o.amount || o.total || 0);
+          return acc;
+        }, {})
+      );
+
   const totalShareRevenue = restaurantShareList.reduce((sum, r) => sum + r.revenue, 0);
 
-  // Top Customer List (strictly from API or real data, no seed fallback)
-  const topCustomersList = dashboardData?.topCustomers || [];
+  // Top Customer List (supports customerName & totalAmountSpent)
+  const rawTopCustomers = dashboardData?.topCustomers || [];
+  const topCustomersList = rawTopCustomers.map(c => ({
+    id: c._id || c.id || c.email || c.customerName,
+    name: c.customerName || c.name || "Customer",
+    email: c.email || `${(c.customerName || "user").toLowerCase().replace(/\s+/g, "")}@gmail.com`,
+    totalSpent: c.totalAmountSpent ?? c.totalSpent ?? 0,
+    ordersCount: c.totalOrders ?? c.ordersCount ?? 0,
+  }));
 
   const modifyStatus = async (orderId, status) => {
     if (setOrders && triggerToast) {
@@ -320,16 +336,26 @@ export default function AnalyticsTab({
                 <path d={pathD} fill="none" stroke="#0B8A3E" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
 
                 {points.map((p, idx) => (
-                  <g key={idx}>
+                  <g key={idx} className="group cursor-pointer">
+                    {/* Invisible larger hit target circle */}
                     <circle
                       cx={p.x}
                       cy={p.y}
-                      r="4.5"
+                      r="14"
+                      fill="transparent"
+                      onMouseEnter={() => setHoveredNode({ x: p.day, y: p.val, label: `₹ ${Number(p.val).toFixed(2)}` })}
+                      onMouseLeave={() => setHoveredNode(null)}
+                    />
+                    {/* Visible circle */}
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r="5"
                       fill="white"
                       stroke="#0B8A3E"
                       strokeWidth="3"
-                      className="cursor-pointer transition hover:scale-125"
-                      onMouseEnter={() => setHoveredNode({ x: p.day, y: p.val, label: `₹ ${p.val}` })}
+                      className="transition-transform duration-200 group-hover:scale-150"
+                      onMouseEnter={() => setHoveredNode({ x: p.day, y: p.val, label: `₹ ${Number(p.val).toFixed(2)}` })}
                       onMouseLeave={() => setHoveredNode(null)}
                     />
                     <text x={p.x} y={height - padding + 15} textAnchor="middle" className="text-[10px] font-bold text-gray-400 font-mono">
@@ -346,14 +372,16 @@ export default function AnalyticsTab({
                 </defs>
               </svg>
 
-              <div className="h-6 mt-1 flex justify-center">
+              <div className="h-7 mt-1 flex justify-center items-center">
                 {hoveredNode ? (
-                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-[9px] font-black bg-neutral-900 text-white px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm">
-                    <span className="text-orange-400">{hoveredNode.x}:</span>
-                    <span>{hoveredNode.label}</span>
+                  <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-[10px] font-black bg-gray-900 text-white px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md border border-gray-700">
+                    <span className="text-emerald-400">{hoveredNode.x}:</span>
+                    <span className="font-mono text-amber-300">{hoveredNode.label}</span>
                   </motion.div>
                 ) : (
-                  <span className="text-[9px] text-gray-400 italic">Hover nodes for revenue details</span>
+                  <span className="text-[9px] text-gray-400 font-semibold tracking-wide uppercase">
+                    Hover on points for daily revenue
+                  </span>
                 )}
               </div>
             </div>

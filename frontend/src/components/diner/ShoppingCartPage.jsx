@@ -148,11 +148,11 @@ export default function ShoppingCartPage({
   const isMock = import.meta.env.VITE_USE_MOCK !== "false";
   const mergedCoupons = isMock
     ? [
-        ...couponsList,
-        ...availableCoupons.filter(
-          (ac) => !couponsList.some((lc) => lc.code === ac.code),
-        ),
-      ]
+      ...couponsList,
+      ...availableCoupons.filter(
+        (ac) => !couponsList.some((lc) => lc.code === ac.code),
+      ),
+    ]
     : couponsList;
 
   const getCouponDiscount = (coupon, sub) => {
@@ -197,7 +197,7 @@ export default function ShoppingCartPage({
         (acc, curr) =>
           acc +
           Number(curr?.menuItem?.price ?? curr?.price ?? 0) *
-            Number(curr?.quantity ?? 1),
+          Number(curr?.quantity ?? 1),
         0,
       );
       const coupon = mergedCoupons.find((c) => c.code === code);
@@ -223,7 +223,7 @@ export default function ShoppingCartPage({
     (acc, curr) =>
       acc +
       Number(curr?.menuItem?.price ?? curr?.price ?? 0) *
-        Number(curr?.quantity ?? 1),
+      Number(curr?.quantity ?? 1),
     0,
   );
   const restaurantDeliveryFee =
@@ -235,8 +235,8 @@ export default function ShoppingCartPage({
 
   const deliveryFee =
     appliedCoupon?.code === "FREEDEL" ||
-    appliedCoupon?.discountType === "free-delivery" ||
-    isFreeDelivery
+      appliedCoupon?.discountType === "free-delivery" ||
+      isFreeDelivery
       ? 0
       : restaurantDeliveryFee;
   const taxesAndService = Math.round(subtotal * 0.05);
@@ -389,19 +389,6 @@ export default function ShoppingCartPage({
             <span>Shopping Cart Page</span>
           </h1>
         </div>
-
-        {cartItems.length > 0 && (
-          <button
-            onClick={() => {
-              onClearCart();
-              triggerToast("Cart cleared.");
-            }}
-            className="self-start md:self-auto text-xs text-rose-600 hover:text-rose-800 font-extrabold flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 transition border border-rose-100"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span>Clear Entire Cart</span>
-          </button>
-        )}
       </div>
 
       {cartItems.length > 0 ? (
@@ -527,117 +514,6 @@ export default function ShoppingCartPage({
                 rows={3}
                 className="w-full bg-gray-50 border border-gray-100 focus:border-orange-200 focus:bg-white rounded-2xl p-4 text-xs outline-none focus:ring-2 focus:ring-orange-100 transition resize-none leading-relaxed"
               />
-            </div>
-
-            {/* Tip delivery partner */}
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 space-y-5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Coins className="h-5 w-5 text-brand-orange" />
-                  <h3 className="font-display font-extrabold text-base text-gray-800">
-                    Tip Delivery Partner
-                  </h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  {currentTip > 0 && (
-                    <button
-                      onClick={handleRemoveTip}
-                      className="text-xs text-red-500 hover:text-red-600 font-bold underline transition"
-                    >
-                      Remove Tip
-                    </button>
-                  )}
-                  <div className="bg-orange-50 text-brand-orange text-[10px] font-black uppercase px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <Heart className="h-3 w-3 fill-current" />
-                    <span>100% of tip goes to driver</span>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-xs text-gray-400 leading-normal">
-                Support our diligent riders who brave weather and traffic to
-                deliver warm meals. Any amount is highly appreciated!
-              </p>
-
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                {[5, 10, 15, 20].map((amt) => {
-                  const isSelected = Number(tipAmount) === amt;
-                  return (
-                    <button
-                      key={amt}
-                      onClick={() => handleTipSelect(amt)}
-                      className={`py-3 rounded-2xl text-xs font-black transition border ${
-                        isSelected
-                          ? "bg-brand-orange border-brand-orange text-white shadow-md shadow-orange-600/15"
-                          : "bg-gray-50 hover:bg-gray-100 text-gray-600 border-transparent"
-                      }`}
-                    >
-                      ₹ {amt}
-                    </button>
-                  );
-                })}
-
-                {(() => {
-                  const isCustomActive =
-                    showCustomTipInput ||
-                    (tipAmount !== null &&
-                      tipAmount > 0 &&
-                      ![5, 10, 15, 20].includes(Number(tipAmount)));
-                  return (
-                    <button
-                      onClick={handleCustomButtonClick}
-                      className={`py-3 rounded-2xl text-xs font-black transition border ${
-                        isCustomActive
-                          ? "bg-brand-orange border-brand-orange text-white shadow-md shadow-orange-600/15"
-                          : "bg-gray-50 hover:bg-gray-100 text-gray-600 border-transparent"
-                      }`}
-                    >
-                      Custom
-                    </button>
-                  );
-                })()}
-              </div>
-
-              {showCustomTipInput && (
-                <form
-                  onSubmit={handleCustomTipSubmit}
-                  className="flex gap-2 animate-fade-in pt-1 max-w-sm"
-                >
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-gray-400">
-                      ₹
-                    </span>
-                    <input
-                      type="number"
-                      placeholder="Enter custom tip amount..."
-                      value={customTip}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val.replace(/[^0-9]/g, "").length <= 4) {
-                          setCustomTip(val);
-                          const parsed = parseFloat(val);
-                          if (!isNaN(parsed) && parsed > 0) {
-                            setTipAmount(parsed);
-                            updateTip(parsed);
-                          } else if (!val) {
-                            setTipAmount(null);
-                            updateTip(0);
-                          }
-                        }
-                      }}
-                      min="0"
-                      max="9999"
-                      className="w-full pl-14 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs outline-none focus:bg-white focus:border-orange-200 focus:ring-2 focus:ring-orange-100"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="bg-gray-800 hover:bg-black text-white font-extrabold text-xs px-4 rounded-xl transition"
-                  >
-                    Add Tip
-                  </button>
-                </form>
-              )}
             </div>
           </div>
 

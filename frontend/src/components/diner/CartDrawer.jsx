@@ -325,12 +325,6 @@ export default function CartDrawer({
                 >
                   Home Delivery
                 </button>
-                <button
-                  onClick={() => setDeliveryType("pickup")}
-                  className={`py-2 text-xs font-bold rounded-lg transition ${deliveryType === "pickup" ? "bg-white text-brand-orange shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
-                >
-                  Self Pickup
-                </button>
               </div>
 
               {/* Restaurant title card */}

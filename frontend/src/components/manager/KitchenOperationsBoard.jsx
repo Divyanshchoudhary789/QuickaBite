@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChefHat,
   Check,
+  Clock,
   X,
   MapPin,
   ShoppingBag,
@@ -16,11 +17,13 @@ import {
   CheckCircle2,
   Move,
   Play,
-  Plus,
   Radio,
   RotateCw,
   MessageSquare,
+  Award,
+  Layers,
 } from "lucide-react";
+import BrandManagementTab from "../admin/BrandManagementTab";
 import { managerService } from "../../api/managerService";
 import { adminService } from "../../api/adminService";
 import { chatService } from "../../api/chatService";
@@ -37,7 +40,7 @@ const PARTNER_PRESETS = {
   },
   Ola: {
     driverName: "Rajesh Kumar",
-    driverPhone: "98765 43210",
+    driverPhone: "9876543210",
     vehicleDetails: "White Maruti Dzire (KA-01-MJ-4321)",
     deliveryRemarks: "Drive carefully. Keep thermal case sealed.",
   },
@@ -67,12 +70,14 @@ export default function KitchenOperationsBoard({
   setHideBottomNavbar,
 }) {
   const { profile } = useAuth();
+  const [activeManagerTab, setActiveManagerTab] = useState("orders"); // 'orders' | 'brands'
+  const managerOutletId = profile?.restaurant?._id || profile?.restaurant?.id || profile?.restaurantId || "";
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState(null);
   const isMockMode = import.meta.env.VITE_USE_MOCK !== "false";
-  const [isLiveSimulating, setIsLiveSimulating] = useState(isMockMode);
+  const [isLiveSimulating, setIsLiveSimulating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [assigningOrder, setAssigningOrder] = useState(null);
   const [assignmentPartner, setAssignmentPartner] = useState("Ola");
@@ -210,10 +215,11 @@ export default function KitchenOperationsBoard({
     setChatOrder(order);
     playKitchenBeep(1200, 0.05);
     try {
-      const orderId = order.id || order._id;
-      const conv = await chatService.startConversation(orderId);
+      const orderDbId = order._id || order.id;
+      const conv = await chatService.startConversation(orderDbId);
       setManagerChatConv(conv);
-      const msgs = await chatService.getMessages(conv._id || conv.id);
+      const convId = conv?._id || conv?.id || orderDbId;
+      const msgs = await chatService.getMessages(convId);
       if (msgs && msgs.length > 0) {
         setManagerChatMessages(
           msgs.map((m) => ({
@@ -242,14 +248,13 @@ export default function KitchenOperationsBoard({
             id: "msg-1",
             sender: "bot",
             senderType: "BOT",
-            text: `Conversation initialized for Order #${orderId}. Live support room connected.`,
+            text: `Support room connected for Order ${getDisplayOrderId(order)}. You can now type direct messages to the customer.`,
             timestamp: "Just now",
           },
         ]);
       }
 
       // Connect Socket.io and Join Room (Event: join_conversation)
-      const convId = conv._id || conv.id;
       chatService.connectSocket(convId, (newMsg) => {
         setManagerChatMessages((prev) => {
           const exists = prev.some((m) => m.id === (newMsg._id || newMsg.id));
@@ -276,13 +281,35 @@ export default function KitchenOperationsBoard({
     }
   };
 
-  const handleSendManagerReply = () => {
+  const handleSendManagerReply = async () => {
     if (!managerChatInput.trim() || !chatOrder) return;
-    const convId =
-      managerChatConv?._id ||
-      managerChatConv?.id ||
-      `conv-${chatOrder.id || chatOrder._id}`;
+
+    let conv = managerChatConv;
+    if (!conv || !conv._id) {
+      const orderDbId = chatOrder._id || chatOrder.id;
+      conv = await chatService.startConversation(orderDbId);
+      if (conv) setManagerChatConv(conv);
+    }
+
+    const convId = conv?._id || conv?.id || chatOrder._id || chatOrder.id;
     const text = managerChatInput.trim();
+
+    let managerId = "";
+    try {
+      const userStr = localStorage.getItem("globaleats_user");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        const uid = u._id || u.id;
+        if (uid && /^[0-9a-fA-F]{24}$/.test(String(uid))) {
+          managerId = String(uid);
+        }
+      }
+    } catch {
+      // ignore parse error
+    }
+    if (!managerId && profile?._id && /^[0-9a-fA-F]{24}$/.test(String(profile._id))) {
+      managerId = String(profile._id);
+    }
 
     const agentMsg = {
       id: `msg-agent-${Date.now()}`,
@@ -298,12 +325,11 @@ export default function KitchenOperationsBoard({
     setManagerChatMessages((prev) => [...prev, agentMsg]);
     setManagerChatInput("");
 
-    // Emit Socket.io send_message Event (senderType: "AGENT")
     chatService.sendMessage({
       conversationId: convId,
       message: text,
       senderType: "AGENT",
-      sender: "manager",
+      ...(managerId ? { sender: managerId } : {}),
     });
   };
 
@@ -316,10 +342,32 @@ export default function KitchenOperationsBoard({
       if (Array.isArray(incoming)) {
         if (setOrdersRef.current) {
           setOrdersRef.current((prev) => {
-            if (JSON.stringify(prev) === JSON.stringify(incoming)) {
+            if (!Array.isArray(prev) || prev.length === 0) {
+              return incoming;
+            }
+            if (incoming.length === 0) {
               return prev;
             }
-            return incoming;
+            const incomingMap = new Map();
+            incoming.forEach((o) => {
+              const idKey = String(o.id || o._id || "");
+              if (idKey) incomingMap.set(idKey, o);
+            });
+            const updatedPrev = prev.map((o) => {
+              const idKey = String(o.id || o._id || "");
+              if (idKey && incomingMap.has(idKey)) {
+                const newObj = incomingMap.get(idKey);
+                incomingMap.delete(idKey);
+                return { ...o, ...newObj };
+              }
+              return o;
+            });
+            const brandNewOrders = Array.from(incomingMap.values());
+            const merged = [...brandNewOrders, ...updatedPrev];
+            if (JSON.stringify(prev) === JSON.stringify(merged)) {
+              return prev;
+            }
+            return merged;
           });
         }
       }
@@ -377,9 +425,9 @@ export default function KitchenOperationsBoard({
     if (s === "received" || s === "placed" || s === "pending" || s === "paid")
       return "received";
     if (s === "accepted" || s === "confirmed") return "accepted";
-    if (s === "preparing") return "preparing";
-    if (s === "ready" || s === "ready-for-pickup") return "ready";
-    if (s === "dispatched" || s === "out_for_delivery" || s === "out")
+    if (s === "preparing" || s === "cooking") return "preparing";
+    if (s === "ready" || s === "ready-for-pickup" || s === "packed") return "ready";
+    if (s === "dispatched" || s === "out_for_delivery" || s === "out-for-delivery" || s === "out for delivery" || s === "out" || s === "outfordelivery")
       return "dispatched";
     if (s === "delivered" || s === "completed") return "delivered";
     if (s === "rejected" || s === "cancelled") return "rejected";
@@ -466,28 +514,28 @@ export default function KitchenOperationsBoard({
       }
       if (nextStatus === "accepted" || nextStatus === "confirmed") {
         playKitchenBeep(523.25, 0.2);
-        triggerToast(`Order #${String(orderId).slice(-5)} ACCEPTED & queued.`);
+        triggerToast(`Order ${getDisplayOrderId(orderId)} ACCEPTED & queued.`);
       } else if (nextStatus === "preparing") {
         playKitchenBeep(587.33, 0.2);
         triggerToast(
-          `Order #${String(orderId).slice(-5)} entered PREPARING/COOKING.`,
+          `Order ${getDisplayOrderId(orderId)} entered PREPARING/COOKING.`,
         );
       } else if (nextStatus === "ready" || nextStatus === "ready-for-pickup") {
         playKitchenBeep(659.25, 0.25);
         triggerToast(
-          `Order #${String(orderId).slice(-5)} is READY for dispatch!`,
+          `Order ${getDisplayOrderId(orderId)} is READY for dispatch!`,
         );
       } else if (nextStatus === "dispatched") {
         playKitchenBeep(783.99, 0.15);
         triggerToast(
-          `Order #${String(orderId).slice(-5)} DISPATCHED with courier.`,
+          `Order ${getDisplayOrderId(orderId)} DISPATCHED with courier.`,
         );
       } else if (nextStatus === "delivered") {
         playKitchenBeep(1046.5, 0.3);
-        triggerToast(`Order #${String(orderId).slice(-5)} DELIVERED.`);
+        triggerToast(`Order ${getDisplayOrderId(orderId)} DELIVERED.`);
       } else if (nextStatus === "rejected") {
         playKitchenBeep(220, 0.35);
-        triggerToast(`Order #${String(orderId).slice(-5)} REJECTED.`);
+        triggerToast(`Order ${getDisplayOrderId(orderId)} REJECTED.`);
       }
       if (
         selectedOrder &&
@@ -527,7 +575,7 @@ export default function KitchenOperationsBoard({
       setOrders(updated);
       playKitchenBeep(783.99, 0.35);
       triggerToast(
-        `Order #${String(orderId).slice(-5)} DISPATCHED to rider ${name}!`,
+        `Order ${getDisplayOrderId(orderId)} DISPATCHED to rider ${name}!`,
       );
       setAssigningOrder(null);
       setSelectedOrder(null);
@@ -599,10 +647,10 @@ export default function KitchenOperationsBoard({
       "Sneha Iyer",
     ];
     const phones = [
-      "62046 76330",
-      "98765 43210",
-      "87654 32109",
-      "76543 21098",
+      "6204676330",
+      "9876543210",
+      "8765432109",
+      "7654321098",
     ];
     const addresses = [
       "phulwariy keshri tola, saran Bihar",
@@ -617,6 +665,34 @@ export default function KitchenOperationsBoard({
       paymentMethod: "Cash on Delivery (COD)",
     };
   };
+
+  const getDisplayOrderId = (orderInput) => {
+    if (!orderInput) return "";
+    let rawStr = "";
+    if (typeof orderInput === "string") {
+      rawStr = orderInput.trim();
+    } else if (typeof orderInput === "object" && orderInput !== null) {
+      rawStr = String(
+        orderInput.orderNumber ||
+          orderInput.orderId ||
+          orderInput.id ||
+          orderInput._id ||
+          ""
+      ).trim();
+    }
+
+    if (!rawStr) return "";
+
+    if (/^(GE|ORD)-\d+$/i.test(rawStr)) {
+      return rawStr.toUpperCase();
+    }
+    if (/^\d{3,8}$/.test(rawStr)) {
+      return `#${rawStr}`;
+    }
+    const cleanStr = rawStr.replace(/^GE-/, "");
+    const lastSix = cleanStr.length > 6 ? cleanStr.slice(-6).toUpperCase() : cleanStr.toUpperCase();
+    return `#${lastSix}`;
+  };
   const searchLower = (debouncedSearchTerm || "").toLowerCase();
   const safeOrdersList = Array.isArray(orders)
     ? orders.filter((o) => {
@@ -628,7 +704,9 @@ export default function KitchenOperationsBoard({
         pStatus === "failed" ||
         pStatus === "cancelled" ||
         oStatus === "rejected" ||
-        oStatus === "cancelled"
+        oStatus === "cancelled" ||
+        oStatus === "delivered" ||
+        oStatus === "completed"
       ) {
         return false;
       }
@@ -725,6 +803,26 @@ export default function KitchenOperationsBoard({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
+            {/* MANAGER SUBTAB SWITCHER */}
+            <div className="bg-neutral-900 border border-neutral-800 p-1.5 rounded-2xl flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveManagerTab("orders")}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${activeManagerTab === "orders" ? "bg-brand-orange text-white shadow-md" : "text-neutral-400 hover:text-white hover:bg-neutral-800"}`}
+              >
+                <ChefHat className="h-4 w-4" />
+                <span>Live Orders</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveManagerTab("brands")}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${activeManagerTab === "brands" ? "bg-brand-orange text-white shadow-md" : "text-neutral-400 hover:text-white hover:bg-neutral-800"}`}
+              >
+                <Award className="h-4 w-4" />
+                <span>Virtual Brand Labs</span>
+              </button>
+            </div>
+
             <button
               onClick={handleManualRefresh}
               disabled={isRefreshing}
@@ -740,13 +838,6 @@ export default function KitchenOperationsBoard({
               <div className="space-y-0.5">
                 <span className="block text-[8px] font-bold text-neutral-500 uppercase tracking-widest">
                   Real-time Order Feed
-                </span>
-                <span className="text-xs font-black text-neutral-300">
-                  {isMockMode
-                    ? isLiveSimulating
-                      ? "⚡ SIMULATING LIVE (45s)"
-                      : "⏸️ SIMULATOR PAUSED"
-                    : "🟢 LIVE BACKEND ACTIVE"}
                 </span>
               </div>
               {isMockMode && (
@@ -787,26 +878,39 @@ export default function KitchenOperationsBoard({
           </div>
         </div>
         <div className="mt-6 pt-4 border-t border-neutral-900/80 flex flex-col md:flex-row items-center gap-4">
-          <div className="relative w-full md:flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="SEARCH BY ORDER ID, CUSTOMER NAME, OR RECIPE (E.G., 'PIZZA', 'BIRYANI')"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-neutral-900 border-2 border-neutral-800 rounded-xl pl-12 pr-4 py-3.5 text-xs font-bold tracking-wide uppercase placeholder-neutral-500 outline-none focus:border-brand-orange text-white"
-            />
-          </div>
-          <div className="hidden lg:flex items-center gap-2 bg-neutral-900/40 border border-neutral-800 px-4 py-3 rounded-xl text-[10px] font-bold text-neutral-400 uppercase">
-            <Move className="h-4 w-4 text-brand-orange shrink-0 animate-pulse" />
-            <span>DRAG & DROP CARDS TO RAPIDLY DISPATCH RECIPES</span>
-          </div>
+          {activeManagerTab === "orders" ? (
+            <div className="relative w-full md:flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="SEARCH BY ORDER ID, CUSTOMER NAME, OR RECIPE (E.G., 'PIZZA', 'BIRYANI')"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-neutral-900 border-2 border-neutral-800 rounded-xl pl-12 pr-4 py-3.5 text-xs font-bold tracking-wide uppercase placeholder-neutral-500 outline-none focus:border-brand-orange text-white"
+              />
+            </div>
+          ) : (
+            <div className="text-xs font-semibold text-neutral-400">
+              Manage virtual kitchen brands for your outlet. Launch new virtual brands, update logos, taglines, prep times, and menu assignments.
+            </div>
+          )}
         </div>
       </div>
-      <div
-        className="grid grid-cols-1 lg:grid-cols-5 gap-4"
-        id="kitchen-kanban-board"
-      >
+
+      {activeManagerTab === "brands" ? (
+        <div className="bg-white rounded-3xl p-6 shadow-soft border border-gray-100">
+          <BrandManagementTab
+            orders={orders}
+            triggerToast={triggerToast}
+            managerOutletId={managerOutletId}
+          />
+        </div>
+      ) : (
+        <>
+          <div
+            className="grid grid-cols-1 lg:grid-cols-5 gap-4"
+            id="kitchen-kanban-board"
+          >
         {columnsData.map((col) => {
           const colOrders = matchedOrders.filter(
             (o) => getOrderColumn(o.status) === col.id,
@@ -847,11 +951,31 @@ export default function KitchenOperationsBoard({
                 ) : (
                   colOrders.map((order) => {
                     const customer = getCustomerInfo(order);
-                    const timeDisplay =
-                      typeof order.timestamp === "string" &&
-                        order.timestamp.includes("T")
-                        ? order.timestamp.split("T")[1]?.slice(0, 5)
-                        : order.timestamp || "Just now";
+                    const timeDisplay = (() => {
+                      if (!order) return "Just now";
+                      const raw = order.createdAt || order.timestamp || order.date;
+                      if (!raw) return "Just now";
+                      try {
+                        const d = new Date(raw);
+                        if (!isNaN(d.getTime())) {
+                          return d.toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                          });
+                        }
+                      } catch {
+                        // ignore
+                      }
+                      const str = String(raw);
+                      if (str.includes(",")) {
+                        return str.split(",").pop().trim();
+                      }
+                      return str;
+                    })();
+
+                    const totalAmount = Number(order.total || order.totalAmount || 0);
+
                     return (
                       <motion.div
                         layoutId={`order-card-${order.id}`}
@@ -859,56 +983,83 @@ export default function KitchenOperationsBoard({
                         draggable
                         onDragStart={(e) => handleDragStart(e, order.id)}
                         onClick={() => handleSelectOrder(order)}
-                        className="bg-white border border-neutral-200 hover:border-neutral-400 p-4 rounded-2xl shadow-xs hover:shadow-md transition cursor-grab active:cursor-grabbing space-y-3 relative group"
+                        className="bg-white border-2 border-neutral-200/90 hover:border-neutral-900 p-4 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-200 cursor-grab active:cursor-grabbing space-y-3 relative group overflow-hidden"
                       >
                         <div className="absolute top-3.5 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Move className="h-3.5 w-3.5 text-neutral-400" />
                         </div>
-                        <div className="flex items-center justify-between pr-4">
-                          <span className="text-[10px] font-black tracking-widest text-neutral-700 uppercase">
-                            #{String(order.id || "").slice(-6)}
+
+                        {/* Card Header: Order ID + Time Badge */}
+                        <div className="flex items-center justify-between gap-1.5 min-w-0 pr-4">
+                          <span className="text-[10px] font-black tracking-wider text-neutral-900 uppercase truncate bg-neutral-100 px-2.5 py-1 rounded-lg border border-neutral-200 shrink">
+                            {getDisplayOrderId(order)}
                           </span>
-                          <span className="text-[9px] font-bold text-neutral-400">
-                            {timeDisplay}
+                          <div className="flex items-center gap-1 shrink-0 bg-neutral-900 text-white px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold shadow-xs">
+                            <Clock className="h-3 w-3 text-brand-orange" />
+                            <span>{timeDisplay}</span>
+                          </div>
+                        </div>
+
+                        {/* Customer & Payment Bar */}
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-neutral-100">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="w-6 h-6 rounded-full bg-brand-orange/10 flex items-center justify-center shrink-0">
+                              <User className="h-3 w-3 text-brand-orange" />
+                            </div>
+                            <span className="text-xs font-black text-neutral-900 truncate">
+                              {customer.name}
+                            </span>
+                          </div>
+                          <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-600 border border-neutral-200 shrink-0">
+                            {customer.paymentMethod?.includes("COD") ? "COD" : "PAID"}
                           </span>
                         </div>
-                        <div>
-                          <h4 className="font-black text-neutral-900 text-sm leading-tight uppercase tracking-tight">
-                            {order.restaurantName || "Gourmet Kitchen"}
-                          </h4>
-                          <span className="text-[9px] text-neutral-400 font-extrabold uppercase block mt-0.5">
-                            Client: {customer.name}
-                          </span>
-                        </div>
-                        <div className="bg-neutral-50 rounded-xl p-2.5 space-y-1.5 border border-neutral-100">
-                          {(Array.isArray(order.items) ? order.items : []).map(
-                            (it, idx) => {
-                              const itemName =
-                                it?.menuItem?.name || it?.name || "Item";
-                              const qty = it?.quantity ?? 1;
-                              return (
-                                <div
-                                  key={idx}
-                                  className="flex justify-between items-start text-xs font-bold text-neutral-800"
-                                >
-                                  <span className="text-brand-orange font-black text-xs shrink-0 bg-brand-orange/10 px-1 rounded">
-                                    {qty}x
-                                  </span>
-                                  <span className="flex-1 ml-2 text-left truncate leading-tight">
-                                    {itemName}
-                                  </span>
-                                </div>
-                              );
-                            },
+
+                        {/* Items Container */}
+                        <div className="bg-neutral-50 rounded-xl p-3 space-y-2 border border-neutral-150">
+                          <div className="space-y-1.5">
+                            {(Array.isArray(order.items) ? order.items : []).map(
+                              (it, idx) => {
+                                const itemName =
+                                  it?.menuItem?.name || it?.name || "Gourmet Dish";
+                                const qty = it?.quantity ?? 1;
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="flex justify-between items-center text-xs font-bold text-neutral-800 gap-2"
+                                  >
+                                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                      <span className="text-brand-orange font-black text-[11px] shrink-0 bg-brand-orange/15 px-1.5 py-0.5 rounded-md font-mono">
+                                        {qty}x
+                                      </span>
+                                      <span className="truncate leading-tight text-neutral-900">
+                                        {itemName}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              },
+                            )}
+                          </div>
+                          {totalAmount > 0 && (
+                            <div className="pt-2 border-t border-neutral-200/80 flex justify-between items-center text-[11px] font-black text-neutral-900">
+                              <span className="text-neutral-400 uppercase tracking-wider text-[9px]">Total</span>
+                              <span className="text-brand-orange font-mono text-xs">₹ {totalAmount.toFixed(2)}</span>
+                            </div>
                           )}
                         </div>
+
+                        {/* Customer Instructions (if present) */}
                         {customer.instructions && (
-                          <div className="text-[9px] text-neutral-600 bg-neutral-50 border border-neutral-200/60 p-2 rounded-lg font-semibold line-clamp-1">
-                            💡 {customer.instructions}
+                          <div className="text-[9px] text-amber-800 bg-amber-50 border border-amber-200 p-2 rounded-xl font-bold line-clamp-1 flex items-center gap-1">
+                            <span>💡</span>
+                            <span className="truncate">{customer.instructions}</span>
                           </div>
                         )}
+
+                        {/* Action Buttons Row */}
                         <div
-                          className="pt-2 border-t border-neutral-100 flex gap-1.5 items-center"
+                          className="pt-2.5 border-t border-neutral-100 flex gap-1.5 items-center"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
@@ -923,7 +1074,7 @@ export default function KitchenOperationsBoard({
                           {col.id === "received" && (
                             <button
                               onClick={() =>
-                                handleUpdateStatus(order.id, "accepted")
+                                handleUpdateStatus(order._id || order.id, "accepted")
                               }
                               className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
                             >
@@ -933,7 +1084,7 @@ export default function KitchenOperationsBoard({
                           {col.id === "accepted" && (
                             <button
                               onClick={() =>
-                                handleUpdateStatus(order.id, "preparing")
+                                handleUpdateStatus(order._id || order.id, "preparing")
                               }
                               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
                             >
@@ -944,7 +1095,7 @@ export default function KitchenOperationsBoard({
                           {col.id === "preparing" && (
                             <button
                               onClick={() =>
-                                handleUpdateStatus(order.id, "ready")
+                                handleUpdateStatus(order._id || order.id, "ready")
                               }
                               className="flex-1 bg-amber-500 hover:bg-amber-650 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
                             >
@@ -955,7 +1106,7 @@ export default function KitchenOperationsBoard({
                           {col.id === "ready" && (
                             <button
                               onClick={() =>
-                                handleUpdateStatus(order.id, "dispatched")
+                                handleUpdateStatus(order._id || order.id, "dispatched")
                               }
                               className="flex-1 bg-emerald-600 hover:bg-emerald-750 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
                             >
@@ -965,7 +1116,7 @@ export default function KitchenOperationsBoard({
                           {col.id === "dispatched" && (
                             <button
                               onClick={() =>
-                                handleUpdateStatus(order.id, "delivered")
+                                handleUpdateStatus(order._id || order.id, "delivered")
                               }
                               className="flex-1 bg-neutral-900 hover:bg-neutral-950 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition shadow-xs"
                             >
@@ -1008,7 +1159,7 @@ export default function KitchenOperationsBoard({
                           Operational Ticket
                         </span>
                         <h2 className="text-2xl font-black uppercase mt-2">
-                          Order #{selectedOrder.id.slice(-6)}
+                          Order {getDisplayOrderId(selectedOrder)}
                         </h2>
                         <p className="text-neutral-400 text-xs font-bold uppercase mt-0.5">
                           Brand: {selectedOrder.restaurantName}
@@ -1108,28 +1259,10 @@ export default function KitchenOperationsBoard({
                     <span className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block">
                       Update Order State
                     </span>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <button
                         onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "received");
-                          setSelectedOrder(null);
-                        }}
-                        className={`py-3 rounded-xl text-[10px] font-black uppercase transition cursor-pointer ${currentLane === "received" ? "bg-indigo-600 text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-100"}`}
-                      >
-                        New
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "accepted");
-                          setSelectedOrder(null);
-                        }}
-                        className={`py-3 rounded-xl text-[10px] font-black uppercase transition cursor-pointer ${currentLane === "accepted" ? "bg-blue-600 text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-100"}`}
-                      >
-                        Accepted
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "preparing");
+                          handleUpdateStatus(selectedOrder._id || selectedOrder.id, "preparing");
                           setSelectedOrder(null);
                         }}
                         className={`py-3 rounded-xl text-[10px] font-black uppercase transition cursor-pointer ${currentLane === "preparing" ? "bg-amber-500 text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-100"}`}
@@ -1138,7 +1271,7 @@ export default function KitchenOperationsBoard({
                       </button>
                       <button
                         onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "ready");
+                          handleUpdateStatus(selectedOrder._id || selectedOrder.id, "ready");
                           setSelectedOrder(null);
                         }}
                         className={`py-3 rounded-xl text-[10px] font-black uppercase transition cursor-pointer ${currentLane === "ready" ? "bg-emerald-600 text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-100"}`}
@@ -1147,7 +1280,7 @@ export default function KitchenOperationsBoard({
                       </button>
                       <button
                         onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "dispatched");
+                          handleUpdateStatus(selectedOrder._id || selectedOrder.id, "dispatched");
                           setSelectedOrder(null);
                         }}
                         className={`py-3 rounded-xl text-[10px] font-black uppercase transition cursor-pointer ${currentLane === "dispatched" ? "bg-sky-600 text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-100"}`}
@@ -1158,7 +1291,7 @@ export default function KitchenOperationsBoard({
                     <div className="flex gap-2 pt-2 border-t border-neutral-200">
                       <button
                         onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "delivered");
+                          handleUpdateStatus(selectedOrder._id || selectedOrder.id, "delivered");
                           setSelectedOrder(null);
                         }}
                         className="flex-1 py-3 bg-neutral-900 hover:bg-neutral-950 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition cursor-pointer"
@@ -1167,7 +1300,7 @@ export default function KitchenOperationsBoard({
                       </button>
                       <button
                         onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "rejected");
+                          handleUpdateStatus(selectedOrder._id || selectedOrder.id, "rejected");
                           setSelectedOrder(null);
                         }}
                         className="flex-1 py-3 bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition cursor-pointer"
@@ -1180,6 +1313,11 @@ export default function KitchenOperationsBoard({
               </div>
             );
           })()}
+        </AnimatePresence>
+      </>
+    )}
+
+      <AnimatePresence>
         {assigningOrder &&
           (() => {
             const orderCustomer = getCustomerInfo(assigningOrder.id);

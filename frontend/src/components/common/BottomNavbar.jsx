@@ -118,7 +118,6 @@ export default function BottomNavbar({
                     { id: "contacts", label: "Diner Directory", icon: Users },
                     { id: "automations", label: "Workflows", icon: Cpu },
                     { id: "leads", label: "Lead CRM", icon: Briefcase },
-                    { id: "offers", label: "Brand Offers", icon: Tag },
                     { id: "coupons", label: "Promo Coupons", icon: Ticket },
                   ].map((item) => {
                     const Icon = item.icon;

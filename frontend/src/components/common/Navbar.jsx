@@ -311,12 +311,12 @@ export default function Navbar({
               {/* Profile Menu */}
               {!isLoggedIn ? (
                 <button
-                  onClick={() => setActiveTab("login")}
+                  onClick={() => setActiveTab("profile")}
                   className="bg-brand-orange hover:bg-orange-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-full transition shadow-md cursor-pointer flex items-center gap-1.5"
                   id="navbar-signin-btn"
                 >
                   <User className="h-4 w-4" />
-                  <span>Sign In</span>
+                  <span>Profile / Sign In</span>
                 </button>
               ) : (
                 <div className="relative">

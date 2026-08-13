@@ -24,18 +24,81 @@ export const normalizeUser = (u) => {
 };
 
 export const adminService = {
-  // Users management
-  async getUsers() {
+  // Categories management (/api/v1/categories)
+  async getCategories() {
     if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      const cached = localStorage.getItem("globaleats_users");
-      const list = cached ? JSON.parse(cached) : [];
-      return list.map(normalizeUser).filter(Boolean);
+      const cached = localStorage.getItem("globaleats_categories");
+      return cached ? JSON.parse(cached) : [
+        { _id: "64f1a2b3c4d5e6f7a8b9c0d1", name: "Burgers", slug: "burgers", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd", description: "Juicy gourmet burgers and crispy fries", displayOrder: 1, isActive: true },
+        { _id: "64f1a2b3c4d5e6f7a8b9c0d2", name: "Biryani & Rice", slug: "biryani-rice", image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8", description: "Authentic dum biryani and fragrant rice items", displayOrder: 2, isActive: true },
+        { _id: "64f1a2b3c4d5e6f7a8b9c0d3", name: "Pizzas", slug: "pizzas", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591", description: "Handcrafted wood-fired pizzas", displayOrder: 3, isActive: true },
+        { _id: "64f1a2b3c4d5e6f7a8b9c0d4", name: "Desserts & Shakes", slug: "desserts-shakes", image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699", description: "Sweet delights, ice creams, and thick shakes", displayOrder: 4, isActive: true },
+      ];
     } else {
-      const response = await apiClient.get("/v1/users");
-      const rawData = response.data?.data || response.data?.users || response.data || [];
-      const list = Array.isArray(rawData) ? rawData : [];
-      return list.map(normalizeUser).filter(Boolean);
+      const response = await apiClient.get("/v1/categories");
+      return response.data?.data || response.data;
+    }
+  },
+
+  async getCategoryById(id) {
+    if (USE_MOCK) {
+      const list = await this.getCategories();
+      return list.find((c) => c._id === id || c.id === id) || null;
+    } else {
+      const response = await apiClient.get(`/v1/categories/${id}`);
+      return response.data?.data || response.data;
+    }
+  },
+
+  async createCategory(categoryPayload) {
+    const payload = {
+      name: String(categoryPayload.name || "").trim(),
+      image: String(categoryPayload.image || "").trim(),
+      description: String(categoryPayload.description || "").trim(),
+      displayOrder: Number(categoryPayload.displayOrder) || 0,
+      isActive: categoryPayload.isActive !== undefined ? Boolean(categoryPayload.isActive) : true,
+    };
+    if (USE_MOCK) {
+      const list = await this.getCategories();
+      const newCat = {
+        _id: `cat-${Date.now()}`,
+        slug: payload.name.toLowerCase().replace(/\s+/g, "-"),
+        ...payload,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const updated = [newCat, ...list];
+      localStorage.setItem("globaleats_categories", JSON.stringify(updated));
+      return newCat;
+    } else {
+      const response = await apiClient.post("/v1/categories", payload);
+      return response.data?.data || response.data;
+    }
+  },
+
+  async updateCategory(id, categoryPayload) {
+    if (USE_MOCK) {
+      const list = await this.getCategories();
+      const updated = list.map((c) =>
+        c._id === id || c.id === id ? { ...c, ...categoryPayload, updatedAt: new Date().toISOString() } : c
+      );
+      localStorage.setItem("globaleats_categories", JSON.stringify(updated));
+      return updated.find((c) => c._id === id || c.id === id);
+    } else {
+      const response = await apiClient.patch(`/v1/categories/${id}`, categoryPayload);
+      return response.data?.data || response.data;
+    }
+  },
+
+  async deleteCategory(id) {
+    if (USE_MOCK) {
+      const list = await this.getCategories();
+      const updated = list.filter((c) => c._id !== id && c.id !== id);
+      localStorage.setItem("globaleats_categories", JSON.stringify(updated));
+      return { success: true };
+    } else {
+      const response = await apiClient.delete(`/v1/categories/${id}`);
+      return response.data?.data || response.data;
     }
   },
 
@@ -682,6 +745,18 @@ export const adminService = {
     }
   },
 
+  async getMenuFiltered(restaurantId, brandId) {
+    if (USE_MOCK) {
+      return this.getAllMenu();
+    } else {
+      const params = {};
+      if (restaurantId) params.restaurant = restaurantId;
+      if (brandId) params.brand = brandId;
+      const response = await apiClient.get("/v1/menu", { params });
+      return response.data?.data || response.data;
+    }
+  },
+
   async createMenu(menuData) {
     if (USE_MOCK) {
       await new Promise((resolve) => setTimeout(resolve, 150));
@@ -748,16 +823,44 @@ export const adminService = {
   },
 
   async createCoupon(couponData) {
-    validateCouponData(couponData);
     if (USE_MOCK) {
       await new Promise((resolve) => setTimeout(resolve, 150));
       const cached = localStorage.getItem("globaleats_coupons");
       const list = cached ? JSON.parse(cached) : [];
-      const newCoupon = { _id: `coupon-${Date.now()}`, ...couponData };
+      let newObj = {};
+      if (couponData instanceof FormData) {
+        couponData.forEach((val, key) => {
+          if (key !== "image") newObj[key] = val;
+        });
+        newObj.image = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=600";
+      } else {
+        newObj = { ...couponData };
+      }
+      const newCoupon = { _id: `coupon-${Date.now()}`, ...newObj };
       localStorage.setItem("globaleats_coupons", JSON.stringify([newCoupon, ...list]));
       return normalizeCoupon(newCoupon);
     } else {
-      const response = await apiClient.post("/v1/coupons", couponData);
+      let payload = couponData;
+      let headers = {};
+      if (couponData instanceof FormData) {
+        payload = couponData;
+        headers = { "Content-Type": "multipart/form-data" };
+      } else if (couponData.imageFile) {
+        const formData = new FormData();
+        Object.keys(couponData).forEach((key) => {
+          if (key === "imageFile") {
+            if (couponData.imageFile) formData.append("image", couponData.imageFile);
+          } else if (couponData[key] !== undefined && couponData[key] !== null) {
+            formData.append(key, couponData[key]);
+          }
+        });
+        payload = formData;
+        headers = { "Content-Type": "multipart/form-data" };
+      } else {
+        validateCouponData(couponData);
+      }
+
+      const response = await apiClient.post("/v1/coupons", payload, { headers });
       const rawData = response.data?.data || response.data;
       return normalizeCoupon(rawData);
     }

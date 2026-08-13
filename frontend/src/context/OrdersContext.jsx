@@ -19,18 +19,42 @@ export function OrdersProvider({ children }) {
     if (!isMock && !token) {
       return;
     }
+
+    try {
+      const userStr = localStorage.getItem("globaleats_user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        const role = String(user.role || "").toLowerCase().trim();
+        if (role === "manager" || role === "admin" || role === "driver" || role === "rider") {
+          return;
+        }
+      }
+    } catch {
+      // ignore parse error
+    }
+
     try {
       const data = await dinerService.getOrders();
       if (Array.isArray(data)) {
         setOrders((prev) => {
-          if (JSON.stringify(prev) === JSON.stringify(data)) {
+          if (!Array.isArray(prev) || prev.length === 0) {
+            return data;
+          }
+          const dinerIds = new Set(data.map((o) => String(o._id || o.id)));
+          const managerOrdersToKeep = prev.filter(
+            (o) => o && !dinerIds.has(String(o._id || o.id))
+          );
+          const merged = [...data, ...managerOrdersToKeep];
+          if (JSON.stringify(prev) === JSON.stringify(merged)) {
             return prev;
           }
-          return data;
+          return merged;
         });
       }
     } catch (e) {
-      console.error("Error loading orders in OrdersContext:", e);
+      if (e?.response?.status !== 403) {
+        console.error("Error loading orders in OrdersContext:", e);
+      }
     }
   }, []);
 

@@ -17,230 +17,193 @@ import {
   Image as ImageIcon,
   CheckCircle2,
 } from "lucide-react";
-import { INITIAL_BRANDS, ICON_MAP } from "../diner/CloudKitchenSection";
+import { INITIAL_BRANDS, ICON_MAP, normalizeBrand } from "../diner/CloudKitchenSection";
 import { dinerService } from "../../api/dinerService";
 
-export default function BrandManagementTab({ orders, triggerToast }) {
+export default function BrandManagementTab({ orders, triggerToast, managerOutletId }) {
   const [brands, setBrands] = useState([]);
+  const [availableRestaurants, setAvailableRestaurants] = useState([]);
+  const [availableCategories, setAvailableCategories] = useState([]);
 
   useEffect(() => {
-    const loadBrands = async () => {
+    const loadBrandsAndData = async () => {
       try {
-        const saved = await dinerService.getBrands();
-        if (saved && saved.length > 0) {
-          setBrands(saved);
-        } else {
-          setBrands(INITIAL_BRANDS);
+        const [savedBrands, restaurantsList, categoriesList] = await Promise.all([
+          dinerService.getBrands(),
+          dinerService.getRestaurants(),
+          dinerService.getCategories(),
+        ]);
+        let rawList = Array.isArray(savedBrands) ? savedBrands : (savedBrands?.brands || savedBrands?.data || []);
+        let normalizedList = rawList && rawList.length > 0 ? rawList.map(normalizeBrand).filter(Boolean) : INITIAL_BRANDS.map(normalizeBrand);
+
+        if (managerOutletId) {
+          normalizedList = normalizedList.filter((b) => {
+            if (!b.restaurants || b.restaurants.length === 0) return true;
+            return b.restaurants.some((r) => {
+              const rId = typeof r === "object" ? (r._id || r.id) : r;
+              return String(rId) === String(managerOutletId);
+            });
+          });
+        }
+
+        setBrands(normalizedList);
+
+        if (Array.isArray(restaurantsList)) {
+          setAvailableRestaurants(
+            managerOutletId
+              ? restaurantsList.filter((r) => String(r._id || r.id) === String(managerOutletId))
+              : restaurantsList
+          );
+        }
+        if (Array.isArray(categoriesList)) {
+          setAvailableCategories(categoriesList);
         }
       } catch (e) {
-        console.error("Failed to load brands:", e);
-        setBrands(INITIAL_BRANDS);
+        console.error("Failed to load brands/restaurants/categories:", e);
+        setBrands(INITIAL_BRANDS.map(normalizeBrand));
       }
     };
-    loadBrands();
-  }, []);
+    loadBrandsAndData();
+  }, [managerOutletId]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
   const [formName, setFormName] = useState("");
-  const [formSlogan, setFormSlogan] = useState("");
+  const [formTagline, setFormTagline] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formIconName, setFormIconName] = useState("Utensils");
-  const [formBannerImage, setFormBannerImage] = useState("");
-  const [formPrepTime, setFormPrepTime] = useState("20 mins");
-  const [formDeliveryFee, setFormDeliveryFee] = useState("Free");
-  const [formStatus, setFormStatus] = useState("Active");
-  const [formIsVisible, setFormIsVisible] = useState(true);
-  const [formCuisineType, setFormCuisineType] = useState("Biryani");
+  const [formCoverImage, setFormCoverImage] = useState("");
+  const [formLogo, setFormLogo] = useState("");
+  const [formPrepTime, setFormPrepTime] = useState("15-20 mins");
+  const [formIsFreeDelivery, setFormIsFreeDelivery] = useState(true);
+  const [formCategoryId, setFormCategoryId] = useState("");
+  const [formSelectedRestaurants, setFormSelectedRestaurants] = useState([]);
 
-  useEffect(() => {
-    const syncBrands = async () => {
-      if (brands && brands.length > 0) {
-        await dinerService.saveBrands(brands);
-        window.dispatchEvent(new Event("storage"));
-      }
-    };
-    syncBrands();
-  }, [brands]);
   const openAddModal = () => {
     setEditingBrand(null);
     setFormName("");
-    setFormSlogan("");
+    setFormTagline("");
     setFormDescription("");
-    setFormIconName("Utensils");
-    setFormBannerImage(
-      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
+    setFormCoverImage("https://images.unsplash.com/photo-1571091718767-18b5b1457add?auto=format&fit=crop&q=80&w=800");
+    setFormLogo("https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=200");
+    setFormPrepTime("15-20 mins");
+    setFormIsFreeDelivery(true);
+    setFormCategoryId(availableCategories.length > 0 ? (availableCategories[0]._id || availableCategories[0].id) : "64f1a2b3c4d5e6f7a8b9c0d1");
+    setFormSelectedRestaurants(
+      managerOutletId
+        ? [managerOutletId]
+        : availableRestaurants.length > 0
+          ? [availableRestaurants[0]._id || availableRestaurants[0].id]
+          : ["64f1a2b3c4d5e6f7a8b9c0d2"]
     );
-    setFormPrepTime("20 mins");
-    setFormDeliveryFee("Free");
-    setFormStatus("Active");
-    setFormIsVisible(true);
-    setFormCuisineType("Biryani");
     setIsModalOpen(true);
   };
-  const openEditModal = (brand) => {
-    setEditingBrand(brand);
-    setFormName(brand.name);
-    setFormSlogan(brand.slogan);
-    setFormDescription(brand.description);
-    setFormIconName(brand.iconName);
-    setFormBannerImage(brand.bannerImage);
-    setFormPrepTime(brand.prepTime);
-    setFormDeliveryFee(brand.deliveryFee);
-    setFormStatus(brand.status || "Active");
-    setFormIsVisible(brand.isVisible !== void 0 ? brand.isVisible : true);
-    setFormCuisineType(brand.specialties?.[0]?.category || "Biryani");
-    setIsModalOpen(true);
+
+  const openEditModal = async (brand) => {
+    const brandId = brand._id || brand.id;
+    try {
+      console.log(`[GET /api/v1/brands/${brandId}] Fetching brand details...`);
+      const freshData = await dinerService.getBrandById(brandId);
+      const b = freshData || brand;
+      setEditingBrand(b);
+      setFormName(b.name || "");
+      setFormTagline(b.tagline || b.slogan || "");
+      setFormDescription(b.description || "");
+      setFormCoverImage(b.coverImage || b.bannerImage || "");
+      setFormLogo(b.logo || "");
+      setFormPrepTime(b.averagePrepTime || b.prepTime || "15-20 mins");
+      setFormIsFreeDelivery(b.isFreeDelivery !== undefined ? Boolean(b.isFreeDelivery) : true);
+      setFormCategoryId(
+        typeof b.category === "object"
+          ? (b.category?._id || b.category?.id || "64f1a2b3c4d5e6f7a8b9c0d1")
+          : (b.category || (availableCategories.length > 0 ? (availableCategories[0]._id || availableCategories[0].id) : "64f1a2b3c4d5e6f7a8b9c0d1"))
+      );
+      setFormSelectedRestaurants(
+        Array.isArray(b.restaurants) && b.restaurants.length > 0
+          ? b.restaurants.map((r) => typeof r === "object" ? (r._id || r.id) : r)
+          : (availableRestaurants.length > 0 ? [availableRestaurants[0]._id || availableRestaurants[0].id] : ["64f1a2b3c4d5e6f7a8b9c0d2"])
+      );
+      setIsModalOpen(true);
+    } catch (err) {
+      console.warn(`getBrandById failed for ${brandId}, using current brand state:`, err?.message || err);
+      setEditingBrand(brand);
+      setFormName(brand.name || "");
+      setFormTagline(brand.tagline || brand.slogan || "");
+      setFormDescription(brand.description || "");
+      setFormCoverImage(brand.coverImage || brand.bannerImage || "");
+      setFormLogo(brand.logo || "");
+      setFormPrepTime(brand.averagePrepTime || brand.prepTime || "15-20 mins");
+      setFormIsFreeDelivery(brand.isFreeDelivery !== undefined ? Boolean(brand.isFreeDelivery) : true);
+      setFormCategoryId(
+        typeof brand.category === "object"
+          ? (brand.category?._id || brand.category?.id || "64f1a2b3c4d5e6f7a8b9c0d1")
+          : (brand.category || (availableCategories.length > 0 ? (availableCategories[0]._id || availableCategories[0].id) : "64f1a2b3c4d5e6f7a8b9c0d1"))
+      );
+      setFormSelectedRestaurants(
+        Array.isArray(brand.restaurants) && brand.restaurants.length > 0
+          ? brand.restaurants.map((r) => typeof r === "object" ? (r._id || r.id) : r)
+          : (availableRestaurants.length > 0 ? [availableRestaurants[0]._id || availableRestaurants[0].id] : ["64f1a2b3c4d5e6f7a8b9c0d2"])
+      );
+      setIsModalOpen(true);
+    }
   };
-  const handleSaveBrand = (e) => {
+
+  const handleToggleRestaurantSelection = (restId) => {
+    setFormSelectedRestaurants((prev) =>
+      prev.includes(restId)
+        ? prev.filter((id) => id !== restId)
+        : [...prev, restId]
+    );
+  };
+
+  const handleSaveBrand = async (e) => {
     e.preventDefault();
     if (!formName.trim()) {
       triggerToast("Please enter a brand name");
       return;
     }
-    const paletteMap = {
-      Flame: {
-        text: "text-amber-600",
-        bg: "bg-amber-50",
-        border: "border-amber-200",
-        button: "bg-amber-600 hover:bg-amber-700",
-        gradient: "from-amber-600 to-yellow-500",
-        glow: "shadow-amber-500/10",
-        ring: "ring-amber-500",
-      },
-      Pizza: {
-        text: "text-rose-600",
-        bg: "bg-rose-50",
-        border: "border-rose-200",
-        button: "bg-rose-600 hover:bg-rose-700",
-        gradient: "from-rose-600 to-orange-500",
-        glow: "shadow-rose-500/10",
-        ring: "ring-rose-500",
-      },
-      Soup: {
-        text: "text-emerald-600",
-        bg: "bg-emerald-50",
-        border: "border-emerald-200",
-        button: "bg-emerald-600 hover:bg-emerald-700",
-        gradient: "from-emerald-600 to-teal-500",
-        glow: "shadow-emerald-500/10",
-        ring: "ring-emerald-500",
-      },
-      ChefHat: {
-        text: "text-orange-600",
-        bg: "bg-orange-50",
-        border: "border-orange-200",
-        button: "bg-orange-600 hover:bg-orange-700",
-        gradient: "from-orange-600 to-amber-500",
-        glow: "shadow-orange-500/10",
-        ring: "ring-orange-500",
-      },
-      Utensils: {
-        text: "text-blue-600",
-        bg: "bg-blue-50",
-        border: "border-blue-200",
-        button: "bg-blue-600 hover:bg-blue-700",
-        gradient: "from-blue-600 to-indigo-500",
-        glow: "shadow-blue-500/10",
-        ring: "ring-blue-500",
-      },
-      Award: {
-        text: "text-purple-600",
-        bg: "bg-purple-50",
-        border: "border-purple-200",
-        button: "bg-purple-600 hover:bg-purple-700",
-        gradient: "from-purple-600 to-pink-500",
-        glow: "shadow-purple-500/10",
-        ring: "ring-purple-500",
-      },
+
+    const selectedRestaurantsList = formSelectedRestaurants.length > 0
+      ? formSelectedRestaurants
+      : (availableRestaurants.length > 0 ? [availableRestaurants[0]._id || availableRestaurants[0].id] : ["64f1a2b3c4d5e6f7a8b9c0d2"]);
+
+    const resolvedCategoryId = formCategoryId || (availableCategories.length > 0 ? (availableCategories[0]._id || availableCategories[0].id) : "64f1a2b3c4d5e6f7a8b9c0d1");
+
+    const apiBrandPayload = {
+      name: formName.trim(),
+      category: resolvedCategoryId,
+      tagline: formTagline.trim() || "Juicy Gourmet Burgers",
+      description: formDescription.trim() || "Premium handcrafted burgers and crispy fries.",
+      coverImage: formCoverImage.trim() || "https://images.unsplash.com/photo-1571091718767-18b5b1457add?auto=format&fit=crop&q=80&w=800",
+      logo: formLogo.trim() || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=200",
+      averagePrepTime: formPrepTime.trim() || "15-20 mins",
+      isFreeDelivery: Boolean(formIsFreeDelivery),
+      restaurants: selectedRestaurantsList,
     };
-    const themeColor = paletteMap[formIconName] || paletteMap.Utensils;
-    if (editingBrand) {
-      setBrands((prev) =>
-        prev.map((b) =>
-          b.id === editingBrand.id
-            ? {
-              ...b,
-              name: formName,
-              slogan: formSlogan || `${formCuisineType} Gastronomy`,
-              description: formDescription,
-              iconName: formIconName,
-              bannerImage:
-                formBannerImage ||
-                "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
-              prepTime: formPrepTime,
-              deliveryFee: formDeliveryFee,
-              status: formStatus,
-              isVisible: formIsVisible,
-              themeColor,
-              // Update category of any Specialties to match updated Cuisine Type
-              specialties: b.specialties.map((s) => ({
-                ...s,
-                category: formCuisineType,
-              })),
-            }
-            : b,
-        ),
-      );
-      triggerToast(`Brand "${formName}" updated successfully!`);
-    } else {
-      const newBrandId = `globaleats-${formName.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
-      const seedSpecialties = [
-        {
-          id: `cb-spec-1-${Date.now()}`,
-          name: `Signature ${formCuisineType} Platter`,
-          price: 45,
-          description: `Our premier chef-crafted ${formCuisineType} platter served hot with premium dips & dynamic garnishes.`,
-          image:
-            formBannerImage ||
-            "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400",
-          isVeg: true,
-          isBestseller: true,
-          category: formCuisineType,
-        },
-        {
-          id: `cb-spec-2-${Date.now()}`,
-          name: `Fiery ${formCuisineType} Delight`,
-          price: 39,
-          description: `A hot & mildly spicy rendition of our signature ${formCuisineType} using fresh garden-picked organic chilies.`,
-          image:
-            "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=400",
-          isVeg: false,
-          isBestseller: false,
-          category: formCuisineType,
-        },
-      ];
-      const newBrand = {
-        id: newBrandId,
-        name: formName,
-        slogan: formSlogan || `Artisanal Premium ${formCuisineType}`,
-        description:
-          formDescription ||
-          `Decadent, gourmet multi-brand kitchen specialty prepared with professional hygiene and express delivery logs.`,
-        rating: 4.8,
-        reviewsCount: 1,
-        prepTime: formPrepTime,
-        deliveryFee: formDeliveryFee,
-        iconName: formIconName,
-        themeColor,
-        bannerImage:
-          formBannerImage ||
-          "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
-        keyNotes: [
-          `Gourmet ${formCuisineType}`,
-          "100% Chef Authoritative",
-          "Temperature-Lock Delivery",
-        ],
-        status: formStatus,
-        isVisible: formIsVisible,
-        specialties: seedSpecialties,
-      };
-      setBrands((prev) => [...prev, newBrand]);
-      triggerToast(
-        `Brand "${formName}" successfully launched into multi-brand grid!`,
-      );
+
+    try {
+      if (editingBrand) {
+        const brandId = editingBrand._id || editingBrand.id;
+        console.log(`[PATCH /api/v1/brands/${brandId}] Updating brand payload:`, apiBrandPayload);
+        await dinerService.updateBrand(brandId, apiBrandPayload);
+        triggerToast(`Brand "${formName}" updated successfully!`);
+      } else {
+        console.log("[POST /api/v1/brands] Creating brand payload:", apiBrandPayload);
+        await dinerService.createBrand(apiBrandPayload);
+        triggerToast(`Brand "${formName}" created successfully!`);
+      }
+
+      // Re-fetch fresh brands list from backend server
+      const freshBrands = await dinerService.getBrands();
+      const rawList = Array.isArray(freshBrands) ? freshBrands : (freshBrands?.brands || freshBrands?.data || []);
+      if (rawList && rawList.length > 0) {
+        setBrands(rawList.map(normalizeBrand).filter(Boolean));
+      }
+    } catch (err) {
+      console.error("Failed to update/create brand on backend:", err);
+      triggerToast(err.response?.data?.message || err.message || "Failed to save brand on backend server.", "error");
+    } finally {
+      setIsModalOpen(false);
     }
-    setIsModalOpen(false);
   };
   const handleToggleVisibility = (id, currentVal) => {
     setBrands((prev) =>
@@ -248,21 +211,30 @@ export default function BrandManagementTab({ orders, triggerToast }) {
     );
     triggerToast(`Visibility toggled for brand`);
   };
-  const handleToggleStatus = (id, currentStatus) => {
-    const nextStatus = currentStatus === "Active" ? "Disabled" : "Active";
-    setBrands((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, status: nextStatus } : b)),
-    );
-    triggerToast(`Brand status set to ${nextStatus.toUpperCase()}`);
-  };
-  const handleDeleteBrand = (id, name) => {
+
+  const handleDeleteBrand = async (id, name) => {
     if (
       confirm(
         `Are you sure you want to delete the kitchen brand "${name}"? This will withdraw all menu items and recipes.`,
       )
     ) {
-      setBrands((prev) => prev.filter((b) => b.id !== id));
-      triggerToast(`Chef brand "${name}" completely decommissioned.`);
+      try {
+        await dinerService.deleteBrand(id);
+        triggerToast(`Brand "${name}" deleted successfully.`);
+        // Re-fetch fresh brands list from backend server
+        const freshBrands = await dinerService.getBrands();
+        const rawList = Array.isArray(freshBrands) ? freshBrands : (freshBrands?.brands || freshBrands?.data || []);
+        if (rawList && rawList.length > 0) {
+          setBrands(rawList.map(normalizeBrand).filter(Boolean));
+        } else {
+          setBrands((prev) => prev.filter((b) => (b.id !== id && b._id !== id)));
+        }
+      } catch (err) {
+        console.error("Failed to delete brand on backend:", err);
+        triggerToast(err.response?.data?.message || err.message || "Failed to delete brand.", "error");
+        // Fallback local update if offline/mock
+        setBrands((prev) => prev.filter((b) => (b.id !== id && b._id !== id)));
+      }
     }
   };
   const handleResetBrands = () => {
@@ -419,8 +391,9 @@ export default function BrandManagementTab({ orders, triggerToast }) {
           return (
             <motion.div
               layout
-              key={brand.id}
-              className={`bg-white rounded-3xl border border-neutral-100 shadow-soft hover:shadow-lg transition relative overflow-hidden flex flex-col justify-between group ${brand.status === "Disabled" ? "opacity-70 bg-neutral-50/50" : ""}`}
+              key={brand.id || brand._id}
+              onClick={() => openEditModal(brand)}
+              className={`bg-white rounded-3xl border border-neutral-100 shadow-soft hover:shadow-lg transition relative overflow-hidden flex flex-col justify-between group cursor-pointer ${brand.status === "Disabled" ? "opacity-70 bg-neutral-50/50" : ""}`}
             >
               <div>
                 {/* Banner image representation */}
@@ -433,39 +406,10 @@ export default function BrandManagementTab({ orders, triggerToast }) {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
 
-                  {/* Floating Action Bar */}
-                  <div className="absolute top-3 right-3 flex gap-1 z-10">
-                    <button
-                      onClick={() =>
-                        handleToggleVisibility(brand.id, brand.isVisible)
-                      }
-                      className={`h-7 w-7 rounded-lg flex items-center justify-center transition border ${brand.isVisible ? "bg-emerald-500 border-emerald-400 text-white" : "bg-gray-800 border-gray-750 text-gray-400 hover:text-white"}`}
-                      title={
-                        brand.isVisible
-                          ? "Visible to customers"
-                          : "Hidden from customers"
-                      }
-                    >
-                      {brand.isVisible ? (
-                        <Eye className="h-4 w-4" />
-                      ) : (
-                        <EyeOff className="h-4 w-4" />
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => handleToggleStatus(brand.id, brand.status)}
-                      className={`px-2.5 h-7 rounded-lg flex items-center justify-center text-[9px] font-black uppercase tracking-wider transition border ${brand.status === "Active" ? "bg-emerald-500 border-emerald-400 text-white" : "bg-red-500 border-red-400 text-white"}`}
-                      title="Toggle Status"
-                    >
-                      {brand.status}
-                    </button>
-                  </div>
-
                   {/* Brand Meta on Banner */}
                   <div className="absolute bottom-3 left-4 right-4 flex items-end gap-3">
                     <div
-                      className={`h-11 w-11 rounded-xl bg-gradient-to-br ${brand.themeColor.gradient} text-white flex items-center justify-center shadow-lg shrink-0`}
+                      className={`h-11 w-11 rounded-xl bg-gradient-to-br ${brand.themeColor?.gradient || "from-orange-600 to-amber-500"} text-white flex items-center justify-center shadow-lg shrink-0`}
                     >
                       {renderIconWithClass(
                         brand.iconName,
@@ -545,29 +489,23 @@ export default function BrandManagementTab({ orders, triggerToast }) {
                 </div>
               </div>
 
-              {/* Card Footer Actions */}
+              {/* Card Footer Actions - ONLY ONE DELETE BUTTON FOR VIRTUAL BRAND */}
               <div className="p-4 bg-neutral-50/50 border-t border-neutral-100 flex items-center justify-between">
                 <span className="text-[10px] font-extrabold text-gray-400">
                   Prep: <span className="text-gray-700">{brand.prepTime}</span>
                 </span>
 
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => openEditModal(brand)}
-                    className="p-1.5 bg-white text-neutral-600 hover:text-brand-orange hover:bg-orange-50 border border-neutral-200 rounded-lg transition cursor-pointer"
-                    title="Edit Brand details"
-                  >
-                    <Edit className="h-3.5 w-3.5" />
-                  </button>
-
-                  <button
-                    onClick={() => handleDeleteBrand(brand.id, brand.name)}
-                    className="p-1.5 bg-white text-neutral-400 hover:text-red-600 hover:bg-red-50 border border-neutral-200 rounded-lg transition cursor-pointer"
-                    title="Decommission Concept"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteBrand(brand._id || brand.id, brand.name);
+                  }}
+                  className="p-1.5 bg-white text-neutral-400 hover:text-red-600 hover:bg-red-50 border border-neutral-200 rounded-lg transition cursor-pointer flex items-center gap-1 text-[10px] font-bold"
+                  title="Delete Brand"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                  <span className="text-red-600 font-extrabold">Delete</span>
+                </button>
               </div>
             </motion.div>
           );
@@ -589,7 +527,7 @@ export default function BrandManagementTab({ orders, triggerToast }) {
                 <span>
                   {editingBrand
                     ? "Edit Virtual Brand Lab"
-                    : "Launch New Brand Concept"}
+                    : "Launch New Brand"}
                 </span>
               </h4>
               <p className="text-[10px] text-gray-400 font-semibold">
@@ -607,7 +545,7 @@ export default function BrandManagementTab({ orders, triggerToast }) {
 
           {/* Modal Body */}
           <form onSubmit={handleSaveBrand} className="p-6 space-y-4">
-            {/* Row 1: Name and Cuisine */}
+            {/* Row 1: Brand Name & Category Dropdown */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
@@ -617,109 +555,90 @@ export default function BrandManagementTab({ orders, triggerToast }) {
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g. QuikaBite Indian"
+                  placeholder="e.g. Burger Express"
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
                   required
                 />
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                  Cuisine Specialty
+                  Category (Select Name)
                 </label>
                 <select
-                  value={formCuisineType}
-                  onChange={(e) => setFormCuisineType(e.target.value)}
+                  value={formCategoryId}
+                  onChange={(e) => setFormCategoryId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange bg-white"
                 >
-                  <option value="Biryani">Biryani</option>
-                  <option value="Pizza">Pizza</option>
-                  <option value="Chinese">Chinese</option>
-                  <option value="Indian">Indian</option>
-                  <option value="Italian">Italian</option>
-                  <option value="Burgers">Burgers</option>
-                  <option value="Desserts">Desserts</option>
+                  {availableCategories.length > 0 ? (
+                    availableCategories.map((cat) => (
+                      <option key={cat._id || cat.id} value={cat._id || cat.id}>
+                        {cat.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="64f1a2b3c4d5e6f7a8b9c0d1">Indian / Fast Food</option>
+                  )}
                 </select>
               </div>
             </div>
 
-            {/* Slogan */}
+            {/* Tagline */}
             <div>
               <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                Slogan / Tagline
+                Tagline
               </label>
               <input
                 type="text"
-                value={formSlogan}
-                onChange={(e) => setFormSlogan(e.target.value)}
-                placeholder="e.g. Authentic Wood-Fired Masterpieces"
+                value={formTagline}
+                onChange={(e) => setFormTagline(e.target.value)}
+                placeholder="e.g. Juicy Gourmet Burgers"
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
               />
             </div>
 
-            {/* Description */}
+            {/* Concept Description */}
             <div>
               <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                Concept Description
+                Description
               </label>
               <textarea
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="Provide a detailed, mouth-watering description of the food concept, sourcing, hygiene, etc."
+                placeholder="e.g. Premium handcrafted burgers and crispy fries."
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
               />
             </div>
 
-            {/* Row 3: Logo (Icon) Select */}
-            <div>
-              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                Dynamic Theme Icon
-              </label>
-              <div className="grid grid-cols-6 gap-2">
-                {Object.keys(ICON_MAP).map((iconName) => {
-                  const Icon = ICON_MAP[iconName];
-                  const isSelected = formIconName === iconName;
-                  return (
-                    <button
-                      key={iconName}
-                      type="button"
-                      onClick={() => setFormIconName(iconName)}
-                      className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition ${isSelected ? "border-brand-orange bg-orange-50 text-brand-orange font-black" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="text-[8px] font-black uppercase leading-none">
-                        {iconName}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Banner Image URL */}
-            <div>
-              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                Banner Image URL
-              </label>
-              <div className="flex gap-2">
-                <span className="px-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 shrink-0">
-                  <ImageIcon className="h-4 w-4" />
-                </span>
+            {/* Image URLs: Cover & Logo */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                  Cover Image URL
+                </label>
                 <input
                   type="text"
-                  value={formBannerImage}
-                  onChange={(e) => setFormBannerImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
+                  value={formCoverImage}
+                  onChange={(e) => setFormCoverImage(e.target.value)}
+                  placeholder="https://example.com/images/burger-cover.jpg"
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
                 />
               </div>
-              <span className="text-[9px] text-gray-400 font-semibold block mt-1">
-                Provide a landscape Unsplash image URL for beautiful layout
-                rendering.
-              </span>
+              <div>
+                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                  Logo Image URL
+                </label>
+                <input
+                  type="text"
+                  value={formLogo}
+                  onChange={(e) => setFormLogo(e.target.value)}
+                  placeholder="https://example.com/images/burger-logo.jpg"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
+                />
+              </div>
             </div>
 
-            {/* Prep time & Delivery fee */}
+            {/* Prep time & Free Delivery Toggle */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
@@ -729,64 +648,58 @@ export default function BrandManagementTab({ orders, triggerToast }) {
                   type="text"
                   value={formPrepTime}
                   onChange={(e) => setFormPrepTime(e.target.value)}
-                  placeholder="e.g. 25 mins"
+                  placeholder="e.g. 15-20 mins"
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
                 />
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
-                  Delivery Fee
+                  Free Delivery Status
                 </label>
-                <input
-                  type="text"
-                  value={formDeliveryFee}
-                  onChange={(e) => setFormDeliveryFee(e.target.value)}
-                  placeholder="e.g. Free"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
-                />
+                <button
+                  type="button"
+                  onClick={() => setFormIsFreeDelivery((prev) => !prev)}
+                  className={`w-full py-2 rounded-xl text-xs font-black uppercase transition border ${formIsFreeDelivery ? "bg-emerald-500 border-emerald-500 text-white" : "bg-neutral-100 border-neutral-300 text-gray-700"}`}
+                >
+                  {formIsFreeDelivery ? "Free Delivery Enabled" : "Paid Delivery"}
+                </button>
               </div>
             </div>
 
-            {/* Status & Visibility Row */}
-            <div className="grid grid-cols-2 gap-4 bg-neutral-50 p-3 rounded-2xl border border-neutral-150">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-black uppercase text-gray-800 block">
-                    Brand Status
-                  </span>
-                  <span className="text-[9px] text-gray-400 font-semibold leading-tight">
-                    Disable if out of stock
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormStatus((prev) =>
-                      prev === "Active" ? "Disabled" : "Active",
-                    )
-                  }
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${formStatus === "Active" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}
-                >
-                  {formStatus}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between border-l border-neutral-200 pl-4">
-                <div>
-                  <span className="text-[10px] font-black uppercase text-gray-800 block">
-                    Home Visibility
-                  </span>
-                  <span className="text-[9px] text-gray-400 font-semibold leading-tight">
-                    Hide on consumer grid
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFormIsVisible((prev) => !prev)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${formIsVisible ? "bg-emerald-500 text-white" : "bg-neutral-300 text-neutral-700"}`}
-                >
-                  {formIsVisible ? "Visible" : "Hidden"}
-                </button>
+            {/* Hosting Physical Kitchen Outlets (Select Restaurants by Name) */}
+            <div>
+              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                Hosting Physical Kitchen Outlets (Select Restaurant Names)
+              </label>
+              <div className="bg-neutral-50 p-3 rounded-2xl border border-neutral-200 max-h-36 overflow-y-auto space-y-2">
+                {availableRestaurants.length > 0 ? (
+                  availableRestaurants.map((rest) => {
+                    const restId = rest._id || rest.id;
+                    const isChecked = formSelectedRestaurants.includes(restId);
+                    return (
+                      <label
+                        key={restId}
+                        className={`flex items-center justify-between p-2 rounded-xl border text-xs cursor-pointer transition ${isChecked ? "bg-orange-50 border-brand-orange text-gray-900 font-bold" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100"}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleRestaurantSelection(restId)}
+                            className="rounded text-brand-orange focus:ring-brand-orange h-4 w-4"
+                          />
+                          <div>
+                            <span className="block font-semibold">{rest.name || "Kitchen Outlet"}</span>
+                            <span className="text-[9px] text-gray-400 block">{rest.city || "Jaipur"}</span>
+                          </div>
+                        </div>
+                        {isChecked && <span className="text-[10px] font-black text-brand-orange uppercase">Selected</span>}
+                      </label>
+                    );
+                  })
+                ) : (
+                  <div className="text-[11px] text-gray-400 italic">No physical kitchen outlets found. Default outlet ID will be assigned.</div>
+                )}
               </div>
             </div>
 
@@ -801,11 +714,11 @@ export default function BrandManagementTab({ orders, triggerToast }) {
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-md"
+                className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-orange-500/20"
               >
                 <Save className="h-4 w-4" />
                 <span>
-                  {editingBrand ? "Save Changes" : "Launch Brand"}
+                  {editingBrand ? "Update Virtual Brand" : "Launch Brand"}
                 </span>
               </button>
             </div>

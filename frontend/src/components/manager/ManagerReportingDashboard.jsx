@@ -1,5 +1,5 @@
 // src/components/manager/ManagerReportingDashboard.jsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDebounce } from "../../hooks/useDebounce";
 import {
   TrendingUp,
@@ -18,6 +18,13 @@ import {
   BarChart3,
   Search,
   FileSpreadsheet,
+  X,
+  User,
+  Phone,
+  MapPin,
+  CreditCard,
+  Clock,
+  Loader2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -72,6 +79,28 @@ export default function ManagerReportingDashboard({ triggerToast }) {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderDetailsLoading, setOrderDetailsLoading] = useState(false);
+  const [detailedOrderData, setDetailedOrderData] = useState(null);
+
+  const handleOpenOrderDetails = async (order) => {
+    if (!order) return;
+    setSelectedOrder(order);
+    setDetailedOrderData(order);
+    setOrderDetailsLoading(true);
+    const orderId = order._id || order.id;
+    try {
+      const fullDetails = await managerService.getOrderDetails(orderId);
+      if (fullDetails) {
+        setDetailedOrderData(fullDetails);
+      }
+    } catch (err) {
+      console.error("Error fetching order details:", err);
+    } finally {
+      setOrderDetailsLoading(false);
+    }
+  };
 
   const fetchStats = async (filterToUse = activeFilter) => {
     setLoading(true);
@@ -283,7 +312,7 @@ export default function ManagerReportingDashboard({ triggerToast }) {
       } else {
         orders.forEach((o) => {
           const id = o.id || o._id || "N/A";
-          const customer = o.customerName || o.customer || "Guest Customer";
+          const customer = o.customerName || o.customer || o.user?.name || o.userName || "Customer";
           const date =
             o.date ||
             (o.createdAt ? new Date(o.createdAt).toLocaleString() : "Recent");
@@ -404,7 +433,7 @@ export default function ManagerReportingDashboard({ triggerToast }) {
     ) {
       trendData = statsData.dailySales.map((d) => ({
         date: d.date || d.day || "Day",
-        revenue: Number(d.revenue || d.totalSales || 0),
+        revenue: Number(d.sales !== undefined ? d.sales : (d.revenue || d.totalSales || 0)),
         orders: Number(d.orders || d.totalOrders || 0),
       }));
     } else if (
@@ -501,6 +530,86 @@ export default function ManagerReportingDashboard({ triggerToast }) {
     };
   }, [statsData]);
 
+  const getCustomerName = useCallback((o) => {
+    if (!o) return "Valued Diner";
+    if (typeof o.customerName === "string" && o.customerName.trim()) return o.customerName.trim();
+    if (typeof o.customer === "string" && o.customer.trim()) return o.customer.trim();
+    if (o.customer && typeof o.customer === "object") {
+      if (typeof o.customer.name === "string") return o.customer.name;
+      if (typeof o.customer.fullName === "string") return o.customer.fullName;
+      if (typeof o.customer.firstName === "string") return `${o.customer.firstName} ${o.customer.lastName || ""}`.trim();
+    }
+    if (typeof o.userName === "string" && o.userName.trim()) return o.userName.trim();
+    if (o.user && typeof o.user === "object") {
+      if (typeof o.user.name === "string") return o.user.name;
+      if (typeof o.user.fullName === "string") return o.user.fullName;
+    }
+    if (o.deliveryAddress && typeof o.deliveryAddress === "object" && typeof o.deliveryAddress.name === "string") {
+      return o.deliveryAddress.name;
+    }
+    if (o.address && typeof o.address === "object" && typeof o.address.name === "string") {
+      return o.address.name;
+    }
+    if (typeof o.name === "string" && o.name.trim()) return o.name.trim();
+    return "Valued Diner";
+  }, []);
+
+  const formatAddress = useCallback((addr) => {
+    if (!addr) return "Downtown, Dubai";
+    if (typeof addr === "string") return addr;
+    if (typeof addr === "object") {
+      return (
+        (typeof addr.fullAddress === "string" && addr.fullAddress) ||
+        (typeof addr.street === "string" && addr.street) ||
+        (typeof addr.address === "string" && addr.address) ||
+        (typeof addr.label === "string" && addr.label) ||
+        (typeof addr.city === "string" ? `${addr.city}, ${addr.country || ""}` : "Downtown, Dubai")
+      );
+    }
+    return "Downtown, Dubai";
+  }, []);
+
+  const formatPhone = useCallback((phone) => {
+    if (!phone) return "N/A";
+    if (typeof phone === "string" || typeof phone === "number") return String(phone);
+    if (typeof phone === "object") {
+      return (
+        (typeof phone.number === "string" && phone.number) ||
+        (typeof phone.phone === "string" && phone.phone) ||
+        (typeof phone.mobile === "string" && phone.mobile) ||
+        "N/A"
+      );
+    }
+    return "N/A";
+  }, []);
+
+  const formatEmail = useCallback((email) => {
+    if (!email) return "N/A";
+    if (typeof email === "string") return email;
+    if (typeof email === "object") {
+      return (typeof email.email === "string" && email.email) || "N/A";
+    }
+    return "N/A";
+  }, []);
+
+  const formatOrderDate = useCallback((rawDate) => {
+    if (!rawDate) return "N/A";
+    try {
+      const d = new Date(rawDate);
+      if (isNaN(d.getTime())) return String(rawDate);
+      return d.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch {
+      return String(rawDate);
+    }
+  }, []);
+
   // Filtered order list for table display
   const filteredOrders = useMemo(() => {
     if (!statsData) return [];
@@ -514,24 +623,23 @@ export default function ManagerReportingDashboard({ triggerToast }) {
       statsData.highestSpendingCustomers.length > 0
     ) {
       ordersList = statsData.highestSpendingCustomers.map((cust, idx) => ({
-        id: `API-CUST-${idx + 1}`,
-        customerName: cust.customerName || "Customer",
+        id: `ORD-${Date.now().toString().slice(-4)}-${idx + 1}`,
+        customerName: cust.customerName || cust.name || "Customer",
         date: "Recent Activity",
-        status: "delivered",
-        total: cust.totalAmountSpent || 0,
+        status: "outForDelivery",
+        total: cust.totalAmountSpent || cust.total || 0,
         restaurantName: "QuikaBite Partner Kitchen",
       }));
     }
 
     return ordersList.filter((o) => {
+      const custName = getCustomerName(o);
       const matchesSearch =
         debouncedSearchQuery.trim() === "" ||
         String(o.id || o._id || "")
           .toLowerCase()
           .includes(debouncedSearchQuery.toLowerCase()) ||
-        String(o.customerName || o.customer || "")
-          .toLowerCase()
-          .includes(debouncedSearchQuery.toLowerCase()) ||
+        custName.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
         String(o.restaurantName || o.brand || "")
           .toLowerCase()
           .includes(debouncedSearchQuery.toLowerCase());
@@ -541,7 +649,7 @@ export default function ManagerReportingDashboard({ triggerToast }) {
         String(o.status).toLowerCase() === statusFilter.toLowerCase();
       return matchesSearch && matchesStatus;
     });
-  }, [statsData, debouncedSearchQuery, statusFilter]);
+  }, [statsData, debouncedSearchQuery, statusFilter, getCustomerName]);
 
   const kpis = useMemo(() => {
     if (!statsData) {
@@ -586,12 +694,13 @@ export default function ManagerReportingDashboard({ triggerToast }) {
       : 0;
 
     const rawRevenue = Number(
-      rawKpis.totalRevenue ||
-      statsData.totalRevenue ||
-      topCategoriesRevenue ||
-      topItemsRevenue ||
-      topCustomersSpending ||
-      0,
+      (rawKpis.totalRevenue && rawKpis.totalRevenue > 0)
+        ? rawKpis.totalRevenue
+        : statsData.totalRevenue ||
+        topCategoriesRevenue ||
+        topItemsRevenue ||
+        topCustomersSpending ||
+        0,
     );
 
     const totalOrders = Number(
@@ -616,11 +725,11 @@ export default function ManagerReportingDashboard({ triggerToast }) {
     const statusObj = statsData.orderStatusAnalytics || {};
     const activeOrders = Number(
       rawKpis.pendingPreparingOrders ??
-      Number(statusObj.pending || 0) +
-      Number(statusObj.preparing || 0) +
-      Number(statusObj.confirmed || 0) +
-      Number(statusObj.ready || 0) +
-      Number(statusObj.outForDelivery || 0) ??
+      (Number(statusObj.pending || 0) +
+        Number(statusObj.preparing || 0) +
+        Number(statusObj.confirmed || 0) +
+        Number(statusObj.ready || 0) +
+        Number(statusObj.outForDelivery || 0)) ??
       statsData.activeOrders ??
       0,
     );
@@ -652,17 +761,7 @@ export default function ManagerReportingDashboard({ triggerToast }) {
             <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
               Manager Performance & Reporting
             </h1>
-            <span
-              className={`px-3 py-1 text-xs font-semibold rounded-full border ${isFallback
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                } flex items-center gap-1.5`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${isFallback ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`}
-              />
-              {isFallback ? "Local Fallback Data" : "Live API Connected"}
-            </span>
+
           </div>
           <p className="text-sm text-neutral-400">
             Real-time analytics, revenue trends, and filterable reporting
@@ -978,11 +1077,17 @@ export default function ManagerReportingDashboard({ triggerToast }) {
                     </Pie>
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#171717",
-                        borderColor: "#404040",
-                        borderRadius: "12px",
-                        color: "#fff",
+                        backgroundColor: "#0f172a",
+                        borderColor: "#334155",
+                        borderRadius: "16px",
+                        color: "#ffffff",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                        padding: "10px 14px",
+                        fontSize: "12px",
+                        fontWeight: "600",
                       }}
+                      itemStyle={{ color: "#38bdf8", fontWeight: "bold" }}
+                      formatter={(val, name) => [`₹${Number(val).toLocaleString("en-IN")}`, name]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -1149,13 +1254,20 @@ export default function ManagerReportingDashboard({ triggerToast }) {
                         return (
                           <tr
                             key={o.id || o._id}
-                            className="hover:bg-neutral-800/40 transition-colors"
+                            onClick={() => handleOpenOrderDetails(o)}
+                            className="hover:bg-neutral-800/80 transition-colors cursor-pointer group"
+                            title="Click to view full order details"
                           >
-                            <td className="p-3 font-mono font-medium text-neutral-300">
+                            <td className="p-3 font-mono font-medium text-neutral-300 group-hover:text-purple-400 transition-colors">
                               #{String(o.id || o._id).slice(-8)}
                             </td>
                             <td className="p-3 font-medium text-neutral-200">
-                              {o.customerName || o.customer || "Guest Customer"}
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px] flex items-center justify-center shrink-0 border border-emerald-500/30">
+                                  {getCustomerName(o).charAt(0).toUpperCase()}
+                                </div>
+                                <span className="truncate">{getCustomerName(o)}</span>
+                              </div>
                             </td>
                             <td className="p-3 text-neutral-400">
                               {o.date ||
@@ -1191,6 +1303,236 @@ export default function ManagerReportingDashboard({ triggerToast }) {
             </div>
           </div>
         </>
+      )}
+
+      {/* Order Details Modal Popup */}
+      {selectedOrder && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => {
+            setSelectedOrder(null);
+            setDetailedOrderData(null);
+          }}
+        >
+          <div
+            className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 text-white shadow-2xl animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20">
+                    Order #{String(detailedOrderData?._id || detailedOrderData?.id || selectedOrder.id || selectedOrder._id).slice(-8)}
+                  </span>
+                  <span
+                    className="px-2.5 py-1 text-xs font-bold rounded-full capitalize"
+                    style={{
+                      backgroundColor: `${STATUS_COLORS[String(detailedOrderData?.status || selectedOrder.status).toLowerCase()] || "#10b981"}20`,
+                      color: STATUS_COLORS[String(detailedOrderData?.status || selectedOrder.status).toLowerCase()] || "#10b981",
+                      border: `1px solid ${STATUS_COLORS[String(detailedOrderData?.status || selectedOrder.status).toLowerCase()] || "#10b981"}40`,
+                    }}
+                  >
+                    {detailedOrderData?.status || selectedOrder.status || "Completed"}
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-neutral-400">
+                  <p>
+                    Full ID: <span className="font-mono text-neutral-300 select-all">{detailedOrderData?._id || detailedOrderData?.id || selectedOrder._id || selectedOrder.id}</span>
+                  </p>
+                  <span className="hidden sm:inline">•</span>
+                  <p className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Placed On: <strong className="text-purple-300">{formatOrderDate(detailedOrderData?.createdAt || selectedOrder?.createdAt || selectedOrder?.date)}</strong></span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedOrder(null);
+                  setDetailedOrderData(null);
+                }}
+                className="p-2 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {orderDetailsLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+                <p className="text-xs text-neutral-400 font-medium">Loading order details...</p>
+              </div>
+            ) : (
+              <div className="space-y-5 text-xs">
+                {/* Customer & Restaurant Information */}
+                <div className="bg-neutral-800/50 border border-neutral-800 p-4 rounded-2xl space-y-3">
+                  <h4 className="font-bold text-sm text-neutral-200 flex items-center gap-2">
+                    <User className="w-4 h-4 text-purple-400" /> Customer &amp; Kitchen Details
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-neutral-300">
+                    <div>
+                      <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Customer Name</span>
+                      <span className="font-semibold text-white">{getCustomerName(detailedOrderData || selectedOrder)}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Order Placed Date &amp; Time</span>
+                      <span className="font-semibold text-purple-300">{formatOrderDate(detailedOrderData?.createdAt || selectedOrder?.createdAt || selectedOrder?.date)}</span>
+                    </div>
+                    {detailedOrderData?.actualDeliveredAt && (
+                      <div>
+                        <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Actual Delivered Date &amp; Time</span>
+                        <span className="font-semibold text-emerald-400">{formatOrderDate(detailedOrderData.actualDeliveredAt)}</span>
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Phone</span>
+                      <span className="font-semibold text-white">{formatPhone(detailedOrderData?.contactPhone || detailedOrderData?.user?.phone || detailedOrderData?.customerPhone || detailedOrderData?.phone)}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Email</span>
+                      <span className="font-semibold text-white">{formatEmail(detailedOrderData?.contactEmail || detailedOrderData?.user?.email || detailedOrderData?.customerEmail || detailedOrderData?.email)}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Restaurant</span>
+                      <span className="font-semibold text-white">{detailedOrderData?.restaurant?.name || detailedOrderData?.restaurantName || "Rominus"} ({detailedOrderData?.restaurant?.city || "Jaipur"})</span>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Delivery Address</span>
+                      <span className="font-semibold text-white block">{formatAddress(detailedOrderData?.address || detailedOrderData?.deliveryAddress)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Logistics Information */}
+                {Boolean(detailedOrderData?.delivery || detailedOrderData?.driverName) && (
+                  <div className="bg-neutral-800/50 border border-neutral-800 p-4 rounded-2xl space-y-3">
+                    <h4 className="font-bold text-sm text-neutral-200 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-purple-400" /> Delivery Logistics &amp; Driver
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-neutral-300">
+                      <div>
+                        <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Delivery Partner</span>
+                        <span className="font-semibold text-white">{detailedOrderData?.delivery?.partner || detailedOrderData?.deliveryPartner || "Gold Partner"}</span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Driver Name</span>
+                        <span className="font-semibold text-white">{detailedOrderData?.delivery?.driverName || detailedOrderData?.driverName || "N/A"}</span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Driver Phone</span>
+                        <span className="font-semibold text-white">{detailedOrderData?.delivery?.driverPhone || detailedOrderData?.driverPhone || "N/A"}</span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Vehicle Details</span>
+                        <span className="font-semibold text-white truncate block">{detailedOrderData?.delivery?.vehicleDetails || detailedOrderData?.vehicleDetails || "N/A"}</span>
+                      </div>
+                      {detailedOrderData?.delivery?.deliveryRemarks && (
+                        <div className="sm:col-span-2">
+                          <span className="text-neutral-500 block text-[10px] uppercase font-semibold">Delivery Remarks</span>
+                          <span className="font-semibold text-amber-400 block">{detailedOrderData.delivery.deliveryRemarks}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Items Ordered List */}
+                <div className="bg-neutral-800/50 border border-neutral-800 p-4 rounded-2xl space-y-3">
+                  <h4 className="font-bold text-sm text-neutral-200 flex items-center gap-2">
+                    <ShoppingBag className="w-4 h-4 text-purple-400" /> Order Items ({Array.isArray(detailedOrderData?.items || detailedOrderData?.orderItems) ? (detailedOrderData?.items || detailedOrderData?.orderItems).length : 1})
+                  </h4>
+                  <div className="divide-y divide-neutral-800">
+                    {(Array.isArray(detailedOrderData?.items) && detailedOrderData.items.length > 0
+                      ? detailedOrderData.items
+                      : Array.isArray(detailedOrderData?.orderItems) && detailedOrderData.orderItems.length > 0
+                      ? detailedOrderData.orderItems
+                      : [
+                          {
+                            itemName: detailedOrderData?.itemNames || "Gourmet Dish Item",
+                            quantity: detailedOrderData?.quantity || 1,
+                            unitPrice: Number(detailedOrderData?.total || detailedOrderData?.totalAmount || selectedOrder.total || 0),
+                          },
+                        ]
+                    ).map((item, idx) => {
+                      const name = item.itemName || item.name || item.title || item.menuItem?.name || "Gourmet Dish";
+                      const qty = item.quantity || item.qty || 1;
+                      const price = Number(item.unitPrice ?? item.price ?? item.menuItem?.price ?? 0);
+                      const totalItemPrice = Number(item.totalPrice ?? (price * qty));
+                      const isVeg = item.isVegetarian !== undefined ? item.isVegetarian : (item.itemType === "veg");
+
+                      return (
+                        <div key={idx} className="py-2.5 flex items-center justify-between text-neutral-300">
+                          <div className="flex items-center gap-3">
+                            <span className="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-[11px]">
+                              {qty}x
+                            </span>
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-white">{name}</span>
+                                <span className={`h-2 w-2 rounded-full ${isVeg ? "bg-emerald-500" : "bg-red-500"}`} />
+                              </div>
+                              {item.category && <span className="text-[10px] text-neutral-500 block">{item.category}</span>}
+                            </div>
+                          </div>
+                          <span className="font-mono font-bold text-white">
+                            ₹{totalItemPrice.toFixed(2)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Payment & Bill Summary */}
+                <div className="bg-neutral-800/50 border border-neutral-800 p-4 rounded-2xl space-y-2">
+                  <h4 className="font-bold text-sm text-neutral-200 flex items-center gap-2 pb-1 border-b border-neutral-800">
+                    <CreditCard className="w-4 h-4 text-purple-400" /> Payment &amp; Bill Breakdown
+                  </h4>
+                  <div className="flex justify-between text-neutral-400 pt-1">
+                    <span>Payment Method &amp; Status</span>
+                    <span className="font-mono text-neutral-200 uppercase">{String(detailedOrderData?.paymentMethod || "COD")} • <span className="text-emerald-400 font-bold">{String(detailedOrderData?.paymentStatus || "Paid").toUpperCase()}</span></span>
+                  </div>
+                  <div className="flex justify-between text-neutral-400">
+                    <span>Subtotal</span>
+                    <span className="font-mono text-neutral-200">₹{Number(detailedOrderData?.subtotal || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-400">
+                    <span>Delivery Fee</span>
+                    <span className="font-mono text-neutral-200">₹{Number(detailedOrderData?.deliveryFee || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-400">
+                    <span>Taxes &amp; Service</span>
+                    <span className="font-mono text-neutral-200">₹{Number(detailedOrderData?.tax || 0).toFixed(2)}</span>
+                  </div>
+                  {Boolean(detailedOrderData?.discount > 0) && (
+                    <div className="flex justify-between text-emerald-400">
+                      <span>Discount</span>
+                      <span className="font-mono">- ₹{Number(detailedOrderData.discount).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-white font-bold text-sm pt-2 border-t border-neutral-800">
+                    <span>Total Amount</span>
+                    <span className="font-mono text-emerald-400">₹{Number(detailedOrderData?.totalAmount || detailedOrderData?.total || selectedOrder.total || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => {
+                  setSelectedOrder(null);
+                  setDetailedOrderData(null);
+                }}
+                className="px-5 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

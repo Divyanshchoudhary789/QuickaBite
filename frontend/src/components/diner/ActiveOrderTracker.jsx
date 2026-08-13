@@ -317,13 +317,6 @@ export default function ActiveOrderTracker({ order, onClose, triggerToast }) {
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={() => setIsChatOpen(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white border border-gray-100 hover:bg-gray-100 font-extrabold text-xs text-gray-700 px-5 py-3.5 rounded-2xl transition shadow-xs"
-          >
-            <MessageSquare className="h-4 w-4 text-brand-orange" />
-            <span>Chat Rider</span>
-          </button>
 
           <a
             href={`tel:${order.driverPhone || "+919876543210"}`}

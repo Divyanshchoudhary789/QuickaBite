@@ -10,11 +10,12 @@ import {
   SlidersHorizontal,
   Sparkles,
   Users,
-  Bike,
   Image,
   Upload,
   Loader2,
   AlertCircle,
+  Grid,
+  Ticket,
 } from "lucide-react";
 import {
   RESTAURANTS,
@@ -32,6 +33,7 @@ import MarketingTab from "./MarketingTab";
 import UsersTab from "./UsersTab";
 import DriversTab from "./DriversTab";
 import BannersTab from "./BannersTab";
+import CategoryManagementTab from "./CategoryManagementTab";
 import { adminService } from "../../api/adminService";
 import { parseApiError } from "../../api/apiClient";
 import {
@@ -107,7 +109,9 @@ export default function AdminDashboard({
         console.error("Failed to load drivers in AdminDashboard:", e);
       }
     };
-    loadDrivers();
+    if (activeSubTab === "drivers") {
+      loadDrivers();
+    }
   }, [activeSubTab]);
 
   useEffect(() => {
@@ -119,7 +123,7 @@ export default function AdminDashboard({
         console.error("Failed to load coupons in AdminDashboard:", e);
       }
     };
-    if (import.meta.env.VITE_USE_MOCK === "false") {
+    if (import.meta.env.VITE_USE_MOCK === "false" && (activeSubTab === "marketing" || activeSubTab === "offers")) {
       loadCoupons();
     }
   }, [activeSubTab]);
@@ -170,10 +174,10 @@ export default function AdminDashboard({
         setIsLoadingKitchens(false);
       }
     };
-    if (import.meta.env.VITE_USE_MOCK === "false") {
+    if (import.meta.env.VITE_USE_MOCK === "false" && (activeSubTab === "restaurants" || activeSubTab === "menu" || activeSubTab === "overview" || !activeSubTab)) {
       loadRestaurants();
     }
-  }, []);
+  }, [activeSubTab]);
   const [showAddResModal, setShowAddResModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null);
   const [isSubmittingRes, setIsSubmittingRes] = useState(false);
@@ -1052,25 +1056,24 @@ export default function AdminDashboard({
       return;
     }
 
-    const couponPayload = {
-      code: newCouponCode.toUpperCase().replace(/\s+/g, ""),
-      campaignCategory: newCouponCategory === "bank" ? "BANK" : newCouponCategory === "festival" ? "FESTIVAL" : "STANDARD",
-      bannerTitle: newCouponTitle,
-      discountLabel: newCouponDiscount,
-      discountType: newCouponDiscount.includes("%") ? "percentage" : "flat",
-      discountValue: parseFloat(newCouponDiscount.replace(/\D/g, "")) || 50,
-      maximumDiscount: 100,
-      minimumOrderAmount: Number(newCouponMinOrder) || 200,
-      policyText: newCouponDesc || `Valid on orders above ₹${newCouponMinOrder || 200}`,
-      usageLimit: 100,
-      usageLimitPerUser: 1,
-      validFrom: new Date().toISOString(),
-      validTill: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      isActive: true,
-    };
+    const formData = new FormData();
+    formData.append("code", newCouponCode.toUpperCase().replace(/\s+/g, ""));
+    formData.append("campaignCategory", newCouponCategory === "bank" ? "BANK" : newCouponCategory === "festival" ? "FESTIVAL" : "STANDARD");
+    formData.append("bannerTitle", newCouponTitle);
+    formData.append("discountLabel", newCouponDiscount);
+    formData.append("discountType", newCouponDiscount.includes("%") ? "percentage" : "flat");
+    formData.append("discountValue", String(parseFloat(newCouponDiscount.replace(/\D/g, "")) || 50));
+    formData.append("maximumDiscount", "100");
+    formData.append("minimumOrderAmount", String(Number(newCouponMinOrder) || 200));
+    if (newCouponDesc) formData.append("policyText", newCouponDesc);
+    formData.append("usageLimit", "100");
+    formData.append("usageLimitPerUser", "1");
+    formData.append("validFrom", new Date().toISOString());
+    formData.append("validTill", new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+    formData.append("isActive", "true");
 
     try {
-      const created = await adminService.createCoupon(couponPayload);
+      const created = await adminService.createCoupon(formData);
       const updated = [created, ...couponsList];
       setCouponsList(updated);
       saveOffersToStorage(updated);
@@ -1186,18 +1189,31 @@ export default function AdminDashboard({
                 icon: Sparkles,
               },
               {
+                id: "brands",
+                label: "Virtual Brands",
+                icon: Award,
+              },
+              {
+                id: "marketing",
+                label: "Promo Coupons",
+                icon: Ticket,
+              },
+              {
                 id: "orders",
-                label: `Rider Dispatch Logistics (${orders.length})`,
+                label: `Orders`,
                 icon: Clock,
               },
-              // { id: "brands", label: "Virtual Brand Labs", icon: Award },
+              {
+                id: "categories",
+                label: "Categories",
+                icon: Grid,
+              },
               {
                 id: "restaurants",
                 label: "Menu Management",
                 icon: SlidersHorizontal,
               },
               { id: "users", label: "Users Directory", icon: Users },
-              { id: "drivers", label: "Riders Directory", icon: Bike },
               { id: "banners", label: "Promo Banners", icon: Image },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -1244,6 +1260,11 @@ export default function AdminDashboard({
                   orders={orders}
                   triggerToast={triggerToast}
                 />
+              )}
+
+              {/* CATEGORIES MANAGEMENT TAB */}
+              {activeSubTab === "categories" && (
+                <CategoryManagementTab triggerToast={triggerToast} />
               )}
 
               {/* 1.5 VIRTUAL KITCHEN BRANDS */}
@@ -1318,14 +1339,6 @@ export default function AdminDashboard({
               {activeSubTab === "users" && (
                 <UsersTab
                   onUsersChange={setUsersCount}
-                  triggerToast={triggerToast}
-                />
-              )}
-
-              {/* 6. RIDERS DIRECTORY */}
-              {activeSubTab === "drivers" && (
-                <DriversTab
-                  onDriversChange={setDriversCount}
                   triggerToast={triggerToast}
                 />
               )}

@@ -39,14 +39,10 @@ export function AuthProvider({ children }) {
           if (serverProfile) {
             setProfile(serverProfile);
           }
-          const addrs = await authService.getAddresses();
-          setAddresses(addrs);
-          const pays = await authService.getPayments();
-          setPayments(pays);
-          const balance = await dinerService.getWalletBalance();
-          setWalletBalance(balance);
-          const prefs = await authService.getNotificationPrefs();
-          setNotifPrefs(prefs);
+          if (user.role === "user" || user.role === "customer" || !user.role) {
+            const addrs = await authService.getAddresses();
+            setAddresses(addrs);
+          }
         } catch (e) {
           console.error("Failed to load context preferences:", e);
         }

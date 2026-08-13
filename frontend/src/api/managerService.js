@@ -21,7 +21,10 @@ export const managerService = {
 
       return remoteOrders;
     } catch (err) {
-      console.warn("getIncomingOrders API error, falling back to cached local orders:", err?.message || err);
+      console.warn("getIncomingOrders API error:", err?.message || err);
+      if (!USE_MOCK) {
+        return [];
+      }
       try {
         const cached = localStorage.getItem("globaleats_orders");
         const parsed = cached ? JSON.parse(cached) : [];
@@ -206,16 +209,83 @@ export const managerService = {
     };
   },
 
+  // Helper to resolve 24-hex Mongo _id from orderId / order object / display order number
+  async _resolveDbOrderId(orderId) {
+    if (!orderId) return "";
+    let raw = orderId;
+    if (typeof raw === "object" && raw !== null) {
+      raw = raw._id || raw.id || raw.orderId || "";
+    }
+    const strId = String(raw || "").trim();
+    const clean = strId.replace(/^GE-/, "");
+
+    if (/^[0-9a-fA-F]{24}$/.test(clean)) {
+      return clean;
+    }
+
+    try {
+      const cached = localStorage.getItem("globaleats_orders");
+      const list = cached ? JSON.parse(cached) : [];
+      if (Array.isArray(list)) {
+        const found = list.find(
+          (o) =>
+            String(o.orderNumber) === clean ||
+            String(o.orderId) === clean ||
+            String(o.id) === clean ||
+            String(o._id) === clean ||
+            String(o.orderNumber) === strId ||
+            String(o.id) === strId ||
+            String(o._id) === strId
+        );
+        if (found) {
+          const dbId = found._id || found.orderId || found.id;
+          if (dbId && /^[0-9a-fA-F]{24}$/.test(String(dbId))) {
+            return String(dbId);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore parse error
+    }
+
+    try {
+      const incoming = await this.getIncomingOrders();
+      if (Array.isArray(incoming)) {
+        const found = incoming.find(
+          (o) =>
+            String(o.orderNumber) === clean ||
+            String(o.orderId) === clean ||
+            String(o.id) === clean ||
+            String(o._id) === clean ||
+            String(o.orderNumber) === strId ||
+            String(o.id) === strId ||
+            String(o._id) === strId
+        );
+        if (found) {
+          const dbId = found._id || found.orderId || found.id;
+          if (dbId && /^[0-9a-fA-F]{24}$/.test(String(dbId))) {
+            return String(dbId);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore error
+    }
+
+    return clean;
+  },
+
   // 3. Fetch Single Order Details (GET /v1/orders/:orderId)
   async getOrderDetails(orderId) {
+    const cleanId = await this._resolveDbOrderId(orderId);
     if (USE_MOCK) {
       const cached = localStorage.getItem("globaleats_orders");
       const list = cached ? JSON.parse(cached) : [];
-      const found = list.find((o) => String(o.id) === String(orderId) || String(o._id) === String(orderId));
+      const found = list.find((o) => String(o.id) === String(orderId) || String(o._id) === String(orderId) || String(o._id) === String(cleanId));
       return found ? normalizeOrder(found) : null;
     } else {
       try {
-        const response = await apiClient.get(`/v1/orders/${orderId}`);
+        const response = await apiClient.get(`/v1/orders/${cleanId}`);
         const raw = response.data?.data || response.data?.order || response.data;
         return raw ? normalizeOrder(raw) : null;
       } catch (err) {
@@ -252,7 +322,7 @@ export const managerService = {
 
   // 7. Courier Assigned and Dispatched (PATCH /v1/orders/:orderId/dispatch)
   async dispatchOrder(orderId, deliveryDetails = {}) {
-    const cleanId = String(orderId || "").replace(/^GE-/, "");
+    const cleanId = await this._resolveDbOrderId(orderId);
     const payload = {
       partner: deliveryDetails.partner || "Ola",
       driverName: deliveryDetails.driverName || "Rajesh Kumar",
@@ -305,7 +375,7 @@ export const managerService = {
 
   // Internal helper to handle PATCH /v1/orders/:orderId/status
   async _patchOrderStatus(orderId, payload) {
-    const cleanId = String(orderId || "").replace(/^GE-/, "");
+    const cleanId = await this._resolveDbOrderId(orderId);
     try {
       await apiClient.patch(`/v1/orders/${cleanId}/status`, payload);
       return await this.getIncomingOrders();

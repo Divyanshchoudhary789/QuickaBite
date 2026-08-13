@@ -56,20 +56,6 @@ const DEFAULT_SLIDES = [
   },
 ];
 
-// Swiggy-style quick cuisine chips with professional vector food icons
-const QUICK_CUISINES = [
-  { label: "Biryani", icon: FaBowlRice, badge: "Hot", bg: "from-amber-500/10 to-orange-500/10 text-amber-900 border-amber-300 hover:bg-amber-500 hover:text-white" },
-  { label: "Pizza", icon: FaPizzaSlice, badge: "40% OFF", bg: "from-red-500/10 to-rose-500/10 text-red-900 border-red-300 hover:bg-red-500 hover:text-white" },
-  { label: "Burgers", icon: FaBurger, badge: "Smash", bg: "from-yellow-500/10 to-amber-500/10 text-yellow-900 border-yellow-300 hover:bg-yellow-500 hover:text-white" },
-  { label: "Chinese", icon: FaUtensils, badge: "Spicy", bg: "from-orange-500/10 to-red-500/10 text-orange-900 border-orange-300 hover:bg-orange-500 hover:text-white" },
-  { label: "Desserts", icon: FaCakeCandles, badge: "Sweet", bg: "from-pink-500/10 to-rose-500/10 text-pink-900 border-pink-300 hover:bg-pink-500 hover:text-white" },
-  { label: "Healthy", icon: FaCarrot, badge: "Fresh", bg: "from-emerald-500/10 to-green-500/10 text-emerald-900 border-emerald-300 hover:bg-emerald-500 hover:text-white" },
-  { label: "Shawarma", icon: FaDrumstickBite, badge: "BOGO", bg: "from-lime-500/10 to-emerald-500/10 text-lime-900 border-lime-300 hover:bg-lime-500 hover:text-white" },
-  { label: "Sushi", icon: FaFishFins, badge: "Fresh", bg: "from-sky-500/10 to-blue-500/10 text-sky-900 border-sky-300 hover:bg-sky-500 hover:text-white" },
-  { label: "Pasta", icon: FaBacon, badge: "Cheese", bg: "from-purple-500/10 to-indigo-500/10 text-purple-900 border-purple-300 hover:bg-purple-500 hover:text-white" },
-  { label: "Rolls", icon: FaCookieBite, badge: "Wrap", bg: "from-teal-500/10 to-cyan-500/10 text-teal-900 border-teal-300 hover:bg-teal-500 hover:text-white" },
-];
-
 export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSelect }) {
   const { isLoggedIn } = useAuth();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -190,53 +176,24 @@ export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSe
           </div>
         </div>
 
-        {/* ── HERO BOTTOM FEATURE BAR ── */}
-        <div className="mt-auto w-full relative z-20 border-t border-white/20 bg-black/30 backdrop-blur-xl py-3.5 px-4 sm:px-8 lg:px-12">
-          <div className="max-w-7xl mx-auto flex items-center gap-4 sm:gap-6 overflow-x-auto no-scrollbar">
-            {[
-              {title: "Superfast 20 Min", sub: "On-time or free" },
-              {title: "50% OFF First Order", sub: "Use WELCOME50" },
-              {title: "Free Delivery > ₹199", sub: "Zero hidden charges" },
-              {title: "4.8★ Rated Kitchens", sub: "100% Quality checked" },
-              {title: "Daily Hot Deals", sub: "Fresh offers hourly" },
-              {title: "Instant UPI Cashback", sub: "Extra ₹30 back" },
-              { title: "Late Night Delivery", sub: "Open till 3 AM" },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-md px-4 py-2 rounded-2xl shrink-0 transition-all duration-300 transform hover:scale-105 shadow-xs group cursor-pointer"
-              >
-                <div>
-                  <p className="font-display font-black text-xs sm:text-s text-white leading-tight drop-shadow-sm">
-                    {item.title}
-                  </p>
-                  <p className="text-[10px] sm:text-[11px] font-bold text-yellow-300 mt-0.5">
-                    {item.sub}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Slider controls */}
         <button
           onClick={handlePrev}
-          className="absolute left-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition"
+          className="absolute left-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition cursor-pointer"
           aria-label="Previous"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
         <button
           onClick={handleNext}
-          className="absolute right-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition"
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition cursor-pointer"
           aria-label="Next"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
 
         {/* Dot indicators */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
           {slides.map((_, idx) => (
             <button
               key={idx}

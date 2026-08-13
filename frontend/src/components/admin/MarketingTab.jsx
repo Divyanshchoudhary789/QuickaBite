@@ -46,7 +46,7 @@ export default function MarketingTab({
   setCouponsList,
   saveOffersToStorage,
 }) {
-  const [localActiveSubTab, setLocalActiveSubTab] = useState("whatsapp");
+  const [localActiveSubTab, setLocalActiveSubTab] = useState("coupons");
   const activeSubTab = propActiveSubTab || localActiveSubTab;
   const setActiveSubTab = propSetActiveSubTab || setLocalActiveSubTab;
 
@@ -76,6 +76,11 @@ export default function MarketingTab({
   const [newCouponIsActive, setNewCouponIsActive] = useState(true);
   const [newCouponIsLoyaltyReward, setNewCouponIsLoyaltyReward] =
     useState(false);
+
+  const [newCouponBrandId, setNewCouponBrandId] = useState("");
+  const [newCouponRestaurantId, setNewCouponRestaurantId] = useState("");
+  const [newCouponImageFile, setNewCouponImageFile] = useState(null);
+  const [newCouponImageUrl, setNewCouponImageUrl] = useState("");
 
   const handleUpdateRestaurantOffer = async (e) => {
     e.preventDefault();
@@ -132,45 +137,54 @@ export default function MarketingTab({
       return;
     }
 
-    // Determine campaign category
+    // Determine campaign category (Options: BRAND, RESTAURANT, BANK, FESTIVAL, STANDARD, CASHBACK)
     let campaignCategory = "STANDARD";
     if (newCouponCategory === "bank") {
       campaignCategory = "BANK";
     } else if (newCouponCategory === "restaurant") {
       campaignCategory = "RESTAURANT";
+    } else if (newCouponCategory === "brand") {
+      campaignCategory = "BRAND";
+    } else if (newCouponCategory === "festival") {
+      campaignCategory = "FESTIVAL";
     } else if (newCouponCategory === "cashback") {
       campaignCategory = "CASHBACK";
-    } else if (newCouponCategory === "payment") {
-      campaignCategory = "PAYMENT";
-    } else {
+    } else if (newCouponCategory.toUpperCase() in { BRAND: 1, RESTAURANT: 1, BANK: 1, FESTIVAL: 1, STANDARD: 1, CASHBACK: 1 }) {
       campaignCategory = newCouponCategory.toUpperCase();
     }
 
-    const payload = {
-      code: newCouponCode.toUpperCase().replace(/\s+/g, ""),
-      campaignCategory,
-      bannerTitle: newCouponTitle,
-      discountLabel: newCouponDiscount,
-      discountType: newCouponDiscountType,
-      discountValue: Number(newCouponDiscountValue) || 0,
-      maximumDiscount: Number(newCouponMaxDiscount) || 0,
-      minimumOrderAmount: Number(newCouponMinOrder) || 0,
-      policyText: newCouponDesc || "No conditions set.",
-      isLoyaltyReward: newCouponIsLoyaltyReward,
-      usageLimit: Number(newCouponUsageLimit) || 100,
-      usageLimitPerUser: Number(newCouponUsageLimitPerUser) || 1,
-      validFrom: new Date(newCouponValidFrom).toISOString(),
-      validTill: new Date(newCouponValidTill).toISOString(),
-      isActive: newCouponIsActive,
-    };
+    // Build multipart/form-data FormData
+    const formData = new FormData();
+    formData.append("code", newCouponCode.toUpperCase().replace(/\s+/g, ""));
+    formData.append("campaignCategory", campaignCategory);
+    if (newCouponBrandId) formData.append("brand", newCouponBrandId);
+    if (newCouponRestaurantId) formData.append("restaurant", newCouponRestaurantId);
+    formData.append("bannerTitle", newCouponTitle);
+    formData.append("discountLabel", newCouponDiscount);
+    formData.append("discountType", newCouponDiscountType);
+    formData.append("discountValue", String(Number(newCouponDiscountValue) || 0));
+    formData.append("maximumDiscount", String(Number(newCouponMaxDiscount) || 0));
+    formData.append("minimumOrderAmount", String(Number(newCouponMinOrder) || 0));
+    formData.append("validFrom", new Date(newCouponValidFrom).toISOString());
+    formData.append("validTill", new Date(newCouponValidTill).toISOString());
+    if (newCouponDesc) formData.append("policyText", newCouponDesc);
+    formData.append("usageLimit", String(Number(newCouponUsageLimit) || 100));
+    formData.append("usageLimitPerUser", String(Number(newCouponUsageLimitPerUser) || 1));
+    formData.append("isActive", String(newCouponIsActive));
+
+    if (newCouponImageFile) {
+      formData.append("image", newCouponImageFile);
+    } else if (newCouponImageUrl) {
+      formData.append("image", newCouponImageUrl);
+    }
 
     try {
-      const created = await adminService.createCoupon(payload);
+      const created = await adminService.createCoupon(formData);
       const updated = [created, ...couponsList];
       setCouponsList(updated);
       saveOffersToStorage(updated);
       triggerToast(
-        `Promo Code "${newCouponCode.toUpperCase()}" published live!`,
+        `Promo Code "${newCouponCode.toUpperCase()}" published live with image!`,
       );
       setNewCouponCode("");
       setNewCouponTitle("");
@@ -183,6 +197,10 @@ export default function MarketingTab({
       setNewCouponUsageLimitPerUser("1");
       setNewCouponIsActive(true);
       setNewCouponIsLoyaltyReward(false);
+      setNewCouponBrandId("");
+      setNewCouponRestaurantId("");
+      setNewCouponImageFile(null);
+      setNewCouponImageUrl("");
     } catch (err) {
       console.error("Failed to create coupon:", err);
       triggerToast(
@@ -544,51 +562,19 @@ export default function MarketingTab({
       },
     ];
   });
-  const [logs, setLogs] = useState(() => {
-    if (!USE_MOCK) return [];
-    return [
-      {
-        id: "l_1",
-        direction: "system",
-        phone: "System",
-        message: "WhatsApp Business API Server Connection Established.",
-        status: "connected",
-        timestamp: "10:02:14",
-      },
-      {
-        id: "l_2",
-        direction: "outgoing",
-        phone: "9876543210",
-        message: "Template: ORDER_CONFIRMATION_V1 to Ananya Singh",
-        status: "read",
-        timestamp: "10:15:32",
-      },
-      {
-        id: "l_3",
-        direction: "incoming",
-        phone: "+91 9876543210",
-        message: 'Button Clicked: "Track Order Live 📍"',
-        status: "received",
-        timestamp: "10:16:01",
-      },
-      {
-        id: "l_4",
-        direction: "outgoing",
-        phone: "+91 87654 32109",
-        message: "Template: DELIVERY_FEEDBACK to Kabir Verma",
-        status: "delivered",
-        timestamp: "10:45:12",
-      },
-      {
-        id: "l_5",
-        direction: "incoming",
-        phone: "+91 87654 32109",
-        message: 'Button Clicked: "⭐⭐⭐⭐⭐ Loved It!"',
-        status: "received",
-        timestamp: "10:46:19",
-      },
-    ];
-  });
+  const [selectedCouponForDetail, setSelectedCouponForDetail] = useState(null);
+
+  const handleOpenCouponDetail = async (c) => {
+    setSelectedCouponForDetail(c);
+    try {
+      const fresh = await adminService.getCouponById(c.id || c._id);
+      if (fresh) {
+        setSelectedCouponForDetail(fresh);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch fresh coupon detail, using list item:", err?.message || err);
+    }
+  };
   useEffect(() => {
     const loadMarketingData = async () => {
       const data = await adminService.getMarketingData();
@@ -5367,15 +5353,36 @@ ${newTemplateBody}`
                           onChange={(e) => setNewCouponCategory(e.target.value)}
                           className="w-full bg-white border border-neutral-200 rounded-xl p-3 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 cursor-pointer text-neutral-800"
                         >
-                          <option value="coupon">🏷️ Coupon Card</option>
-                          <option value="bank">🏦 Bank Offer</option>
-                          <option value="festival">✨ Festival Offer</option>
-                          <option value="restaurant">
-                            🍔 Restaurant Offer
-                          </option>
-                          <option value="cashback">👛 Instant Cashback</option>
+                          <option value="BRAND">🏷️ BRAND</option>
+                          <option value="RESTAURANT">🍔 RESTAURANT</option>
+                          <option value="BANK">🏦 BANK</option>
+                          <option value="FESTIVAL">✨ FESTIVAL</option>
+                          <option value="STANDARD">⭐ STANDARD</option>
+                          <option value="CASHBACK">👛 CASHBACK</option>
                         </select>
                       </div>
+                    </div>
+
+                    {/* Image Upload for Promocode */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
+                        Banner Image File (Multipart Upload)
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setNewCouponImageFile(e.target.files[0]);
+                          }
+                        }}
+                        className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs font-semibold outline-none focus:border-brand-orange cursor-pointer"
+                      />
+                      {newCouponImageFile && (
+                        <p className="text-[9px] font-bold text-emerald-600">
+                          File selected: {newCouponImageFile.name}
+                        </p>
+                      )}
                     </div>
 
                     {/* Banner Title & Discount Label */}
@@ -5591,7 +5598,8 @@ ${newTemplateBody}`
                   {couponsList?.map((c) => (
                     <div
                       key={c.id}
-                      className="p-4 rounded-xl border border-neutral-150 bg-neutral-50/50 hover:shadow-xs transition flex justify-between items-center"
+                      onClick={() => handleOpenCouponDetail(c)}
+                      className="p-4 rounded-xl border border-neutral-150 bg-neutral-50/50 hover:bg-orange-50/30 hover:border-orange-200 hover:shadow-xs transition flex justify-between items-center cursor-pointer group"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -5599,29 +5607,45 @@ ${newTemplateBody}`
                             {c.code}
                           </span>
                           <span className="text-[8px] font-black uppercase bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">
-                            {c.category}
+                            {c.category || c.campaignCategory}
                           </span>
                         </div>
-                        <h4 className="font-black text-neutral-900 text-xs">
-                          {c.title}
+                        <h4 className="font-black text-neutral-900 text-xs group-hover:text-brand-orange transition">
+                          {c.title || c.bannerTitle}
                         </h4>
                         <p className="text-[10px] font-bold text-brand-orange">
-                          {c.discount}
+                          {c.discount || c.discountLabel}
                         </p>
                         <p className="text-[10px] font-semibold text-neutral-400">
-                          {c.desc || "No conditions set."} • Min Order: ₹{" "}
-                          {c.minOrder}
+                          {c.desc || c.policyText || "No conditions set."} • Min Order: ₹{" "}
+                          {c.minOrder ?? c.minimumOrderAmount ?? 0}
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCoupon(c.id, c.code)}
-                        className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
-                        title="Revoke Coupon"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenCouponDetail(c);
+                          }}
+                          className="p-1.5 text-neutral-400 hover:text-brand-orange hover:bg-orange-100 rounded-lg transition cursor-pointer"
+                          title="View Coupon Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCoupon(c.id, c.code);
+                          }}
+                          className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                          title="Revoke Coupon"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -5630,6 +5654,134 @@ ${newTemplateBody}`
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* --- COUPON DETAIL VIEW MODAL --- */}
+      <Modal isOpen={Boolean(selectedCouponForDetail)} onClose={() => setSelectedCouponForDetail(null)} maxWidth="max-w-lg">
+        {selectedCouponForDetail && (
+          <div>
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h4 className="font-display font-black text-base text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Ticket className="h-5 w-5 text-brand-orange" />
+                  <span>Promo Coupon Details</span>
+                </h4>
+                <p className="text-[10px] text-gray-400 font-semibold">
+                  Complete voucher specification &amp; campaign configurations
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedCouponForDetail(null)}
+                className="h-8 w-8 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center text-gray-500 transition focus:outline-none"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-4">
+              {/* Image Preview Banner */}
+              {(selectedCouponForDetail.image || selectedCouponForDetail.rawImageObj) && (
+                <div className="h-36 w-full rounded-2xl overflow-hidden relative bg-neutral-100 border border-neutral-200">
+                  <img
+                    src={typeof selectedCouponForDetail.image === "string" ? selectedCouponForDetail.image : (selectedCouponForDetail.image?.url || "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80")}
+                    alt={selectedCouponForDetail.code}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
+                    <span className="font-mono text-sm font-black text-amber-400 uppercase tracking-wider">
+                      {selectedCouponForDetail.code}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Code & Category Grid */}
+              <div className="grid grid-cols-2 gap-3 bg-neutral-50 p-3 rounded-2xl border border-neutral-100">
+                <div>
+                  <span className="text-[9px] font-black uppercase text-gray-400 block">Promocode</span>
+                  <span className="font-mono font-black text-sm text-brand-orange uppercase">{selectedCouponForDetail.code}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-gray-400 block">Campaign Category</span>
+                  <span className="font-black text-xs text-gray-800 uppercase">{selectedCouponForDetail.campaignCategory || selectedCouponForDetail.category || "STANDARD"}</span>
+                </div>
+              </div>
+
+              {/* Title & Discount Label */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-[9px] font-black uppercase text-gray-400 block">Banner Title</span>
+                  <p className="font-black text-xs text-gray-900">{selectedCouponForDetail.bannerTitle || selectedCouponForDetail.title || "-"}</p>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-gray-400 block">Discount Display Label</span>
+                  <p className="font-black text-xs text-brand-orange">{selectedCouponForDetail.discountLabel || selectedCouponForDetail.discount || "-"}</p>
+                </div>
+              </div>
+
+              {/* Discount Details Matrix */}
+              <div className="grid grid-cols-3 gap-2 bg-neutral-50 p-3 rounded-2xl border border-neutral-100 text-center">
+                <div>
+                  <span className="text-[8px] font-black text-gray-400 uppercase block">Type</span>
+                  <span className="text-xs font-black text-gray-800 capitalize">{selectedCouponForDetail.discountType || "Percentage"}</span>
+                </div>
+                <div>
+                  <span className="text-[8px] font-black text-gray-400 uppercase block">Discount Value</span>
+                  <span className="text-xs font-black text-gray-800">{selectedCouponForDetail.discountValue || 0}</span>
+                </div>
+                <div>
+                  <span className="text-[8px] font-black text-gray-400 uppercase block">Max Cap</span>
+                  <span className="text-xs font-black text-emerald-600">₹ {selectedCouponForDetail.maximumDiscount || 0}</span>
+                </div>
+              </div>
+
+              {/* Min Order & Limits Matrix */}
+              <div className="grid grid-cols-3 gap-2 bg-neutral-50 p-3 rounded-2xl border border-neutral-100 text-center">
+                <div>
+                  <span className="text-[8px] font-black text-gray-400 uppercase block">Min Order</span>
+                  <span className="text-xs font-black text-gray-800">₹ {selectedCouponForDetail.minimumOrderAmount ?? selectedCouponForDetail.minOrder ?? 0}</span>
+                </div>
+                <div>
+                  <span className="text-[8px] font-black text-gray-400 uppercase block">Usage Limit</span>
+                  <span className="text-xs font-black text-gray-800">{selectedCouponForDetail.usageLimit || 100}</span>
+                </div>
+                <div>
+                  <span className="text-[8px] font-black text-gray-400 uppercase block">Limit / User</span>
+                  <span className="text-xs font-black text-gray-800">{selectedCouponForDetail.usageLimitPerUser || 1}</span>
+                </div>
+              </div>
+
+              {/* Policy & Terms */}
+              <div>
+                <span className="text-[9px] font-black uppercase text-gray-400 block mb-1">Policy &amp; Terms</span>
+                <p className="text-xs font-medium text-gray-600 bg-neutral-50 p-3 rounded-xl border border-neutral-150 leading-relaxed">
+                  {selectedCouponForDetail.policyText || selectedCouponForDetail.desc || "No special terms set."}
+                </p>
+              </div>
+
+              {/* Dates & Status */}
+              <div className="flex items-center justify-between text-[10px] font-bold text-gray-400 pt-2 border-t border-gray-100">
+                <span>Valid: {selectedCouponForDetail.validFrom ? new Date(selectedCouponForDetail.validFrom).toLocaleDateString('en-IN') : "Start"} → {selectedCouponForDetail.validTill ? new Date(selectedCouponForDetail.validTill).toLocaleDateString('en-IN') : "End"}</span>
+                <span className={`px-2.5 py-0.5 rounded-full font-black uppercase ${selectedCouponForDetail.isActive !== false ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                  {selectedCouponForDetail.isActive !== false ? "Active" : "Disabled"}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setSelectedCouponForDetail(null)}
+                className="px-5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* --- EXTRA: COHORT BULK EXCEL IMPORT SLIDE-OVER / MODAL --- */}
       <Modal isOpen={showBulkModal} onClose={() => setShowBulkModal(false)} maxWidth="max-w-lg">

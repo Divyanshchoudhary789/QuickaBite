@@ -25,7 +25,7 @@ export function CartProvider({ children }) {
       (acc, curr) =>
         acc +
         Number(curr?.menuItem?.price ?? curr?.price ?? 0) *
-          Number(curr?.quantity ?? 1),
+        Number(curr?.quantity ?? 1),
       0,
     );
     if (cartItems.length === 0 || subtotal <= 0) {

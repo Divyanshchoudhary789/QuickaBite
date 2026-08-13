@@ -148,40 +148,42 @@ export default function MenuManagementTab({
   };
 
   useEffect(() => {
-    if (restaurantsList.length > 0 && !loadedMenus && import.meta.env.VITE_USE_MOCK === "false") {
+    if (!loadedMenus && import.meta.env.VITE_USE_MOCK === "false") {
       const fetchMenus = async () => {
         setIsLoadingMenus(true);
         try {
-          const response = await adminService.getAllMenu();
-          const allMenus = response?.data || response || [];
-          
-          setRestaurantsList(prevList => {
-            return prevList.map(res => {
-              const restaurantMenus = allMenus.filter(item => {
-                const itemResId = item.restaurant?._id || item.restaurant?.id || item.restaurant;
-                return (
-                  String(itemResId) === String(res._id) ||
-                  String(itemResId) === String(res.id) ||
-                  (res.slug && String(itemResId) === String(res.slug))
-                );
-              }).map(item => normalizeMenuItem(item));
-              return {
-                ...res,
-                menu: restaurantMenus.length > 0 ? restaurantMenus : (res.menu || []),
-              };
+          if (restaurantsList.length > 0) {
+            const response = await adminService.getAllMenu();
+            const allMenus = response?.data || response || [];
+
+            setRestaurantsList(prevList => {
+              return prevList.map(res => {
+                const restaurantMenus = allMenus.filter(item => {
+                  const itemResId = item.restaurant?._id || item.restaurant?.id || item.restaurant;
+                  return (
+                    String(itemResId) === String(res._id) ||
+                    String(itemResId) === String(res.id) ||
+                    (res.slug && String(itemResId) === String(res.slug))
+                  );
+                }).map(item => normalizeMenuItem(item));
+                return {
+                  ...res,
+                  menu: restaurantMenus.length > 0 ? restaurantMenus : (res.menu || []),
+                };
+              });
             });
-          });
-          setLoadedMenus(true);
+          }
         } catch (error) {
           console.error("Failed to fetch menus from API:", error);
           triggerToast("Failed to load menus from database.");
         } finally {
           setIsLoadingMenus(false);
+          setLoadedMenus(true);
         }
       };
       fetchMenus();
     }
-  }, [restaurantsList, loadedMenus]);
+  }, [restaurantsList.length, loadedMenus]);
 
   const showDishesSkeleton = isLoadingMenus || isLoadingKitchens || (!loadedMenus && import.meta.env.VITE_USE_MOCK === "false");
   const showKitchensSkeleton = isLoadingKitchens;
@@ -234,7 +236,7 @@ export default function MenuManagementTab({
   }, [allFlattenedItems, selectedResId, activeCategory, debouncedSearchQuery]);
   const menuCategories = useMemo(() => {
     const cats = /* @__PURE__ */ new Set();
-    
+
     // Include categories from actual menu items
     allFlattenedItems.forEach((entry) => {
       if (entry.item.category) {
@@ -294,7 +296,7 @@ export default function MenuManagementTab({
   };
   const handleToggleAvailability = async (restaurantId, itemId, currentStatus) => {
     const nextStatus = !currentStatus;
-    
+
     if (import.meta.env.VITE_USE_MOCK === "false") {
       try {
         await adminService.toggleAvailability(itemId);
@@ -329,10 +331,10 @@ export default function MenuManagementTab({
     setTargetRestaurantId(initialResId);
     setItemName("");
     setItemPrice("");
-    
+
     const initialTag = getFirstTagOfRestaurant(initialResId);
     setItemCategory(toSentenceCase(initialTag) || menuCategories[0] || "Indian");
-    
+
     setItemDescription("");
     setItemImage();
     setItemIsVeg(true);
@@ -783,37 +785,10 @@ export default function MenuManagementTab({
                   <div className="relative">
                     <select
                       value={selectedResId}
-                      onChange={async (e) => {
+                      onChange={(e) => {
                         const val = e.target.value;
                         setSelectedResId(val);
                         setSelectedItemIds([]);
-                        if (import.meta.env.VITE_USE_MOCK === "false") {
-                          setIsLoadingMenus(true);
-                          try {
-                            const response = await adminService.getAllMenu();
-                            const allMenus = response?.data || response || [];
-                            setRestaurantsList(prevList => {
-                              return prevList.map(res => {
-                                const resIdStr = String(res._id || res.id);
-                                const restaurantMenus = allMenus.filter(item => {
-                                  const itemResId = item.restaurant?._id || item.restaurant?.id || item.restaurant;
-                                  return (
-                                    String(itemResId) === resIdStr ||
-                                    String(itemResId) === String(res.slug)
-                                  );
-                                }).map(item => normalizeMenuItem(item));
-                                return {
-                                  ...res,
-                                  menu: restaurantMenus.length > 0 ? restaurantMenus : (res.menu || []),
-                                };
-                              });
-                            });
-                          } catch (error) {
-                            console.error("Failed to refresh menus on filter change:", error);
-                          } finally {
-                            setIsLoadingMenus(false);
-                          }
-                        }
                       }}
                       className="w-full bg-neutral-50 border border-neutral-200 hover:border-neutral-300 rounded-xl px-3 py-2.5 text-xs font-bold text-neutral-800 outline-none focus:ring-2 focus:ring-brand-orange/20 cursor-pointer appearance-none"
                     >
@@ -1715,11 +1690,10 @@ export default function MenuManagementTab({
                       onDragOver={handleItemDrag}
                       onDragLeave={handleItemDrag}
                       onDrop={handleItemDrop}
-                      className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 ${
-                        itemDragActive
+                      className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 ${itemDragActive
                           ? "border-brand-orange bg-orange-50/40 text-brand-orange scale-[0.99]"
                           : "border-neutral-200 bg-neutral-50/50 hover:bg-neutral-50 hover:border-orange-200 text-neutral-400"
-                      }`}
+                        }`}
                     >
                       <input
                         type="file"
