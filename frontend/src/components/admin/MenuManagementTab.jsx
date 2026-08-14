@@ -24,7 +24,7 @@ import {
 import { CATEGORIES } from "../../data";
 import apiClient, { parseApiError } from "../../api/apiClient";
 import { adminService } from "../../api/adminService";
-import { normalizeMenuItem, extractImageUrl } from "../../api/dinerService";
+import { normalizeMenuItem, extractImageUrl, dinerService } from "../../api/dinerService";
 const IMAGE_PRESETS = [
   {
     name: "🍔 Burger",
@@ -102,6 +102,39 @@ export default function MenuManagementTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadedMenus, setLoadedMenus] = useState(false);
   const [isLoadingMenus, setIsLoadingMenus] = useState(false);
+  const [virtualBrands, setVirtualBrands] = useState([]);
+  const [dbCategories, setDbCategories] = useState([]);
+  const [itemBrand, setItemBrand] = useState("");
+
+  useEffect(() => {
+    const loadCategoriesAndBrands = async () => {
+      try {
+        const [catsRes, brandsRes] = await Promise.allSettled([
+          adminService.getCategories(),
+          dinerService.getBrands(),
+        ]);
+
+        if (catsRes.status === "fulfilled" && catsRes.value) {
+          const rawCats = Array.isArray(catsRes.value)
+            ? catsRes.value
+            : (catsRes.value?.categories || catsRes.value?.data || []);
+          setDbCategories(rawCats);
+        }
+
+        if (brandsRes.status === "fulfilled" && brandsRes.value) {
+          const rawList = Array.isArray(brandsRes.value)
+            ? brandsRes.value
+            : (brandsRes.value?.brands || brandsRes.value?.data || []);
+          if (Array.isArray(rawList)) {
+            setVirtualBrands(rawList);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load categories/brands in MenuManagementTab:", err);
+      }
+    };
+    loadCategoriesAndBrands();
+  }, []);
 
   const handleItemDrag = (e) => {
     e.preventDefault();
@@ -262,6 +295,43 @@ export default function MenuManagementTab({
     return normalizedTags;
   }, [targetRestaurantId, restaurantsList]);
 
+  const availableOutletCategories = useMemo(() => {
+    const catsSet = new Set();
+
+    // 1. Include categories fetched from Category Directory (/v1/categories) matching target outlet
+    dbCategories.forEach((cat) => {
+      const catOutletId = cat.restaurant?._id || cat.restaurant?.id || (typeof cat.restaurant === "string" ? cat.restaurant : null);
+      if (!catOutletId || !targetRestaurantId || String(catOutletId) === String(targetRestaurantId)) {
+        if (cat.name) {
+          catsSet.add(toSentenceCase(cat.name));
+        }
+      }
+    });
+
+    // 2. Include categories from existing menu items for this restaurant outlet
+    allFlattenedItems.forEach((entry) => {
+      if (!targetRestaurantId || String(entry.restaurantId) === String(targetRestaurantId)) {
+        if (entry.item?.category) {
+          catsSet.add(toSentenceCase(entry.item.category));
+        }
+      }
+    });
+
+    // 3. Include restaurant tags/cuisines
+    currentRestaurantTags.forEach((t) => {
+      if (t) catsSet.add(toSentenceCase(t));
+    });
+
+    // 4. Default fallback categories if empty
+    if (catsSet.size === 0) {
+      CATEGORIES.filter((c) => c.id !== "all" && c.id !== "more").forEach((c) => {
+        catsSet.add(toSentenceCase(c.name));
+      });
+    }
+
+    return Array.from(catsSet);
+  }, [dbCategories, allFlattenedItems, targetRestaurantId, currentRestaurantTags]);
+
   const getFirstTagOfRestaurant = (restaurantId) => {
     const matched = restaurantsList.find((r) => r.id === restaurantId);
     if (matched) {
@@ -331,6 +401,7 @@ export default function MenuManagementTab({
     setTargetRestaurantId(initialResId);
     setItemName("");
     setItemPrice("");
+    setItemBrand("");
 
     const initialTag = getFirstTagOfRestaurant(initialResId);
     setItemCategory(toSentenceCase(initialTag) || menuCategories[0] || "Indian");
@@ -342,11 +413,13 @@ export default function MenuManagementTab({
     setItemIsAvailable(true);
     setViewMode("editor");
   };
-  const handleOpenEditMode = async (restaurantId, item) => {
+  const handleOpenEditMode = (restaurantId, item) => {
     setEditingItem(item);
     setTargetRestaurantId(restaurantId);
     setItemName(item.name);
     setItemPrice(item.price.toString());
+    const existingBrandId = item.brand ? (typeof item.brand === "object" ? (item.brand._id || item.brand.id) : item.brand) : "";
+    setItemBrand(existingBrandId || "");
     setItemCategory(toSentenceCase(item.category));
     setItemDescription(item.description);
     setItemImage(item.image);
@@ -354,26 +427,6 @@ export default function MenuManagementTab({
     setItemIsBestseller(!!item.isBestseller);
     setItemIsAvailable(item.isAvailable !== false);
     setViewMode("editor");
-
-    if (import.meta.env.VITE_USE_MOCK === "false") {
-      try {
-        const dishId = item._id || item.id;
-        const response = await adminService.getMenuById(dishId);
-        const freshItem = response?.data || response;
-        if (freshItem) {
-          setItemName(freshItem.name || item.name);
-          setItemPrice((freshItem.price || item.price).toString());
-          setItemCategory(toSentenceCase(freshItem.category || item.category));
-          setItemDescription(freshItem.description || item.description);
-          setItemImage(freshItem.image || item.image);
-          setItemIsVeg(freshItem.isVegetarian !== undefined ? freshItem.isVegetarian : (freshItem.isVeg !== undefined ? freshItem.isVeg : item.isVeg));
-          setItemIsBestseller(freshItem.isBestSeller !== undefined ? freshItem.isBestSeller : (freshItem.isBestseller !== undefined ? freshItem.isBestseller : item.isBestseller));
-          setItemIsAvailable(freshItem.isAvailable !== false);
-        }
-      } catch (error) {
-        console.error("Failed to fetch fresh menu details:", error);
-      }
-    }
   };
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -400,6 +453,9 @@ export default function MenuManagementTab({
           } else if (itemImage) {
             formDataPayload.append("image", itemImage);
           }
+          if (itemBrand) {
+            formDataPayload.append("brand", itemBrand);
+          }
           formDataPayload.append("name", itemName);
           formDataPayload.append("description", itemDescription || "");
           formDataPayload.append("category", toSentenceCase(itemCategory));
@@ -424,6 +480,7 @@ export default function MenuManagementTab({
             isVeg: updatedDish.isVegetarian !== undefined ? updatedDish.isVegetarian : (updatedDish.isVeg !== undefined ? updatedDish.isVeg : itemIsVeg),
             isBestseller: updatedDish.isBestSeller !== undefined ? updatedDish.isBestSeller : (updatedDish.isBestseller !== undefined ? updatedDish.isBestseller : itemIsBestseller),
             isAvailable: updatedDish.isAvailable !== undefined ? updatedDish.isAvailable : itemIsAvailable,
+            brand: itemBrand || updatedDish.brand || editingItem.brand || null,
           };
         } else {
           finalItem = {
@@ -436,6 +493,7 @@ export default function MenuManagementTab({
             isVeg: itemIsVeg,
             isBestseller: itemIsBestseller,
             isAvailable: itemIsAvailable,
+            brand: itemBrand || editingItem.brand || null,
           };
         }
 
@@ -476,6 +534,9 @@ export default function MenuManagementTab({
           } else if (itemImage) {
             formDataPayload.append("image", itemImage);
           }
+          if (itemBrand) {
+            formDataPayload.append("brand", itemBrand);
+          }
           formDataPayload.append("restaurant", restaurantDbId);
           formDataPayload.append("name", itemName);
           formDataPayload.append("description", itemDescription || "");
@@ -502,6 +563,7 @@ export default function MenuManagementTab({
             isVeg: createdDish.isVegetarian !== undefined ? createdDish.isVegetarian : (createdDish.isVeg !== undefined ? createdDish.isVeg : itemIsVeg),
             isBestseller: createdDish.isBestSeller !== undefined ? createdDish.isBestSeller : (createdDish.isBestseller !== undefined ? createdDish.isBestseller : itemIsBestseller),
             isAvailable: createdDish.isAvailable !== undefined ? createdDish.isAvailable : itemIsAvailable,
+            brand: itemBrand || createdDish.brand || null,
           };
         } else {
           newDish = {
@@ -514,6 +576,7 @@ export default function MenuManagementTab({
             isVeg: itemIsVeg,
             isBestseller: itemIsBestseller,
             isAvailable: itemIsAvailable,
+            brand: itemBrand || null,
           };
         }
 
@@ -1108,6 +1171,9 @@ export default function MenuManagementTab({
                         Brand Outlet
                       </th>
                       <th scope="col" className="px-6 py-4">
+                        Virtual Brand
+                      </th>
+                      <th scope="col" className="px-6 py-4">
                         Category
                       </th>
                       <th scope="col" className="px-6 py-4">
@@ -1145,6 +1211,9 @@ export default function MenuManagementTab({
                             <div className="h-7 w-24 bg-neutral-200 rounded-xl" />
                           </td>
                           <td className="px-6 py-4">
+                            <div className="h-7 w-20 bg-neutral-200 rounded-xl" />
+                          </td>
+                          <td className="px-6 py-4">
                             <div className="h-7 w-16 bg-neutral-200 rounded-xl" />
                           </td>
                           <td className="px-6 py-4">
@@ -1164,7 +1233,7 @@ export default function MenuManagementTab({
                     ) : filteredItems.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={8}
                           className="px-6 py-16 text-center text-neutral-400"
                         >
                           <div className="max-w-xs mx-auto space-y-2">
@@ -1236,6 +1305,23 @@ export default function MenuManagementTab({
                               <span className="text-xs font-bold text-neutral-700 bg-neutral-100 px-2.5 py-1.5 rounded-xl border border-neutral-200/55 inline-block">
                                 {entry.restaurantName}
                               </span>
+                            </td>
+
+                            <td className="px-6 py-4">
+                              {(() => {
+                                const brandIdStr = typeof dish.brand === "object" ? (dish.brand?._id || dish.brand?.id) : dish.brand;
+                                const brandObj = virtualBrands.find(b => String(b._id || b.id) === String(brandIdStr)) || (typeof dish.brand === "object" ? dish.brand : null);
+                                const brandName = brandObj?.name || (typeof dish.brand === "string" && dish.brand ? dish.brand : null);
+                                return brandName ? (
+                                  <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1.5 rounded-xl border border-purple-100 inline-block">
+                                    ✨ {brandName}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-neutral-400 font-medium italic">
+                                    —
+                                  </span>
+                                );
+                              })()}
                             </td>
 
                             <td className="px-6 py-4">
@@ -1541,6 +1627,31 @@ export default function MenuManagementTab({
                 </div>
               </div>
 
+              {/* Virtual Brand Picker */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-neutral-400 flex items-center gap-1">
+                  <span>Virtual Brand Concept (Optional)</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={itemBrand}
+                    onChange={(e) => setItemBrand(e.target.value)}
+                    className="w-full bg-white border border-neutral-200 focus:border-brand-orange rounded-xl px-3 py-3 text-xs font-bold text-neutral-800 outline-none focus:ring-4 focus:ring-brand-orange/10 cursor-pointer appearance-none"
+                  >
+                    <option value="">-- No Virtual Brand Assigned --</option>
+                    {virtualBrands.map((b) => {
+                      const bId = b._id || b.id;
+                      return (
+                        <option key={bId} value={bId}>
+                          ✨ {b.name}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-neutral-400 pointer-events-none" />
+                </div>
+              </div>
+
               {/* Food Name Field */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-wider text-neutral-400 flex items-center gap-1">
@@ -1587,45 +1698,18 @@ export default function MenuManagementTab({
                       onChange={(e) => setItemCategory(e.target.value)}
                       className="w-full bg-white border border-neutral-200 focus:border-brand-orange rounded-xl px-3 py-3 text-xs font-bold text-neutral-800 outline-none focus:ring-4 focus:ring-brand-orange/10 cursor-pointer appearance-none"
                     >
-                      {currentRestaurantTags.length > 0 ? (
-                        <>
-                          <option value="" disabled>
-                            Select a category...
-                          </option>
-                          {currentRestaurantTags.map((tag, idx) => (
-                            <option key={`${tag}-${idx}`} value={toSentenceCase(tag)}>
-                              {toSentenceCase(tag)}
-                            </option>
-                          ))}
-                          {itemCategory && !currentRestaurantTags.map(toSentenceCase).includes(toSentenceCase(itemCategory)) && (
-                            <option value={toSentenceCase(itemCategory)}>
-                              {toSentenceCase(itemCategory)}
-                            </option>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {CATEGORIES.filter(
-                            (c) => c.id !== "all" && c.id !== "more",
-                          ).map((c) => (
-                            <option key={c.id} value={toSentenceCase(c.name)}>
-                              {toSentenceCase(c.name)}
-                            </option>
-                          ))}
-                          {menuCategories
-                            .filter(
-                              (c) =>
-                                !CATEGORIES.some(
-                                  (def) =>
-                                    def.name.toLowerCase() === c.toLowerCase(),
-                                ),
-                            )
-                            .map((c) => (
-                              <option key={c} value={toSentenceCase(c)}>
-                                {toSentenceCase(c)}
-                              </option>
-                            ))}
-                        </>
+                      <option value="" disabled>
+                        Select a category...
+                      </option>
+                      {availableOutletCategories.map((catName) => (
+                        <option key={catName} value={catName}>
+                          📂 {catName}
+                        </option>
+                      ))}
+                      {itemCategory && !availableOutletCategories.includes(toSentenceCase(itemCategory)) && (
+                        <option value={toSentenceCase(itemCategory)}>
+                          📂 {toSentenceCase(itemCategory)}
+                        </option>
                       )}
                     </select>
                     <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-neutral-400 pointer-events-none" />

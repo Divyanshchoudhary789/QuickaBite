@@ -382,64 +382,6 @@ export default function AdminDashboard({
         ],
     );
     setShowAddResModal(true);
-
-    const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
-    if (!USE_MOCK) {
-      try {
-        const resId = restaurant._id || restaurant.id;
-        const responseData = await adminService.getRestaurant(resId);
-
-        let serverRes = responseData;
-        if (responseData && responseData.data) {
-          serverRes = responseData.data;
-        } else if (responseData && responseData.restaurant) {
-          serverRes = responseData.restaurant;
-        }
-
-        const norm = normalizeRestaurant(serverRes);
-        if (norm) {
-          setEditingRes(norm);
-          setNewResName(norm.name);
-          setNewResCuisines(norm.cuisines.join(", "));
-          setNewResTime(norm.deliveryTime);
-          setNewResFee(String(norm.deliveryFee ?? 0));
-          setNewResAddress(norm.address);
-          setNewResLandmark(norm.addressObj?.landmark || norm.landmark || "");
-          setNewResImage(norm.image);
-          setNewResCity(norm.city || "");
-          setNewResContact(norm.contactNumber || "");
-          setNewResRadius(norm.deliveryRadiusKm ?? 10);
-          setNewResIsActive(norm.isActive ?? true);
-          setNewResLongitude(norm.coordinates?.x || 0);
-          setNewResLatitude(norm.coordinates?.y || 0);
-          setNewResIsFreeDelivery(
-            norm.isFreeDelivery ?? Number(norm.deliveryFee) === 0,
-          );
-          setNewResOperatingHours(
-            Array.isArray(norm.operatingHours) && norm.operatingHours.length > 0
-              ? norm.operatingHours.map((oh) => ({
-                day: oh.day,
-                openTime: oh.openTime,
-                closeTime: oh.closeTime,
-                isClosed: !!oh.isClosed,
-                _id: oh._id,
-              }))
-              : Array.isArray(initialNorm.operatingHours) &&
-                initialNorm.operatingHours.length > 0
-                ? initialNorm.operatingHours
-                : [],
-          );
-        }
-      } catch (error) {
-        console.error(
-          "Failed to fetch fresh restaurant details from server:",
-          error,
-        );
-        triggerToast(
-          "Failed to fetch fresh details from server. Operating on offline copy.",
-        );
-      }
-    }
   };
 
   const closeAddResModal = () => {

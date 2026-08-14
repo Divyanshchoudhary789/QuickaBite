@@ -38,6 +38,7 @@ import LandingLoader from "./components/common/LandingLoader";
 
 import { authService } from "./api/authService";
 import { dinerService, normalizeMenuItem } from "./api/dinerService";
+import { getUserLocationCoordinates } from "./utils/locationHelper";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider, useCart } from "./context/CartContext";
 import { OrdersProvider, useOrders } from "./context/OrdersContext";
@@ -276,19 +277,44 @@ function AppContent() {
   const [filterPrice, setFilterPrice] = useState("all");
   const [restaurants, setRestaurants] = useState([]);
   const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(true);
+  const [userLocationCoords, setUserLocationCoords] = useState(null);
+  const [isGpsDenied, setIsGpsDenied] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const resolveLocation = async () => {
+      const defaultAddr = Array.isArray(profile?.addresses)
+        ? profile.addresses.find((a) => a.isDefault || a.default) || profile.addresses[0]
+        : profile?.defaultAddress || null;
+      const coords = await getUserLocationCoordinates(isLoggedIn, defaultAddr);
+      if (isMounted) {
+        if (coords) {
+          setUserLocationCoords(coords);
+          setIsGpsDenied(false);
+        } else {
+          setUserLocationCoords(null);
+          setIsGpsDenied(true);
+        }
+      }
+    };
+    resolveLocation();
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn, profile]);
+
   useEffect(() => {
     const loadRestaurants = async () => {
       setIsLoadingRestaurants(true);
       try {
-        const list = await dinerService.getRestaurants();
+        const list = await dinerService.getRestaurants(userLocationCoords);
 
         if (import.meta.env.VITE_USE_MOCK === "false") {
           try {
-            const response = await dinerService.getAllMenu();
-            const allMenus = response?.data || response || [];
+            const allMenus = await dinerService.getMenuItems(userLocationCoords);
 
             const updatedList = list.map((res) => {
-              const restaurantMenus = allMenus
+              const restaurantMenus = (allMenus || [])
                 .filter((item) => {
                   const itemResId =
                     item.restaurant?._id ||
@@ -299,8 +325,7 @@ function AppContent() {
                     String(itemResId) === String(res.id) ||
                     (res.slug && String(itemResId) === String(res.slug))
                   );
-                })
-                .map((item) => normalizeMenuItem(item));
+                });
               return {
                 ...res,
                 menu: restaurantMenus.length > 0 ? restaurantMenus : (res.menu || []),
@@ -308,20 +333,20 @@ function AppContent() {
             });
             setRestaurants(updatedList);
           } catch (menuErr) {
-            console.error("Failed to load menus in App.jsx:", menuErr);
+            console.error("Failed to load deliverable menus in App.jsx:", menuErr);
             setRestaurants(list);
           }
         } else {
           setRestaurants(list);
         }
       } catch (err) {
-        console.error("Failed to load restaurants in App.jsx:", err);
+        console.error("Failed to load deliverable restaurants in App.jsx:", err);
       } finally {
         setIsLoadingRestaurants(false);
       }
     };
     loadRestaurants();
-  }, []);
+  }, [userLocationCoords?.lat, userLocationCoords?.lng]);
   const [isExploreMoreUnlocked, setIsExploreMoreUnlocked] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [preAppliedCoupon, setPreAppliedCoupon] = useState("");
@@ -702,6 +727,14 @@ function AppContent() {
           isLoggedIn={isLoggedIn}
           profile={profile}
         />
+
+        {/* GPS Permission Warning / Location Banner */}
+        {isGpsDenied && activeTab === "home" && (
+          <div className="bg-neutral-900 text-neutral-300 text-xs px-4 py-2.5 text-center font-medium border-b border-neutral-800 flex items-center justify-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+            <span>Showing all restaurants. Enable location permission to see outlets that deliver to you.</span>
+          </div>
+        )}
 
         {/* Main Core View Area */}
         <main

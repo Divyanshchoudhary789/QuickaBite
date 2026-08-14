@@ -53,10 +53,10 @@ export const adminService = {
   async createCategory(categoryPayload) {
     const payload = {
       name: String(categoryPayload.name || "").trim(),
-      image: String(categoryPayload.image || "").trim(),
+      restaurant: String(categoryPayload.restaurant || categoryPayload.restaurantId || "").trim(),
       description: String(categoryPayload.description || "").trim(),
-      displayOrder: Number(categoryPayload.displayOrder) || 0,
-      isActive: categoryPayload.isActive !== undefined ? Boolean(categoryPayload.isActive) : true,
+      image: String(categoryPayload.image || "").trim(),
+      displayOrder: Number(categoryPayload.displayOrder) || 1,
     };
     if (USE_MOCK) {
       const list = await this.getCategories();
@@ -77,15 +77,22 @@ export const adminService = {
   },
 
   async updateCategory(id, categoryPayload) {
+    const payload = {
+      name: String(categoryPayload.name || "").trim(),
+      restaurant: String(categoryPayload.restaurant || categoryPayload.restaurantId || "").trim(),
+      description: String(categoryPayload.description || "").trim(),
+      image: String(categoryPayload.image || "").trim(),
+      displayOrder: Number(categoryPayload.displayOrder) || 1,
+    };
     if (USE_MOCK) {
       const list = await this.getCategories();
       const updated = list.map((c) =>
-        c._id === id || c.id === id ? { ...c, ...categoryPayload, updatedAt: new Date().toISOString() } : c
+        c._id === id || c.id === id ? { ...c, ...payload, updatedAt: new Date().toISOString() } : c
       );
       localStorage.setItem("globaleats_categories", JSON.stringify(updated));
       return updated.find((c) => c._id === id || c.id === id);
     } else {
-      const response = await apiClient.patch(`/v1/categories/${id}`, categoryPayload);
+      const response = await apiClient.patch(`/v1/categories/${id}`, payload);
       return response.data?.data || response.data;
     }
   },
@@ -99,6 +106,30 @@ export const adminService = {
     } else {
       const response = await apiClient.delete(`/v1/categories/${id}`);
       return response.data?.data || response.data;
+    }
+  },
+
+  async getUsers() {
+    if (USE_MOCK) {
+      const cached = localStorage.getItem("globaleats_users");
+      const list = cached ? JSON.parse(cached) : [
+        { id: "u-1", name: "Executive Admin", phone: "+91 99999 88888", role: "admin", status: "Active", joined: "Jan 2026" },
+        { id: "u-2", name: "Vedanshi Bhabhra", phone: "+91 9876543210", role: "user", status: "Active", joined: "June 2026" },
+        { id: "u-3", name: "Chef Sanjay", phone: "+91 88800 12345", role: "manager", status: "Active", joined: "May 2026" },
+      ];
+      return list.map(normalizeUser).filter(Boolean);
+    } else {
+      try {
+        const response = await apiClient.get("/v1/users");
+        const rawData = response.data?.data || response.data?.users || response.data || [];
+        const list = Array.isArray(rawData) ? rawData : [];
+        return list.map(normalizeUser).filter(Boolean);
+      } catch (err) {
+        console.warn("getUsers API error, using local fallback:", err?.message || err);
+        const cached = localStorage.getItem("globaleats_users");
+        const list = cached ? JSON.parse(cached) : [];
+        return list.map(normalizeUser).filter(Boolean);
+      }
     }
   },
 
@@ -664,6 +695,93 @@ export const adminService = {
     }
   },
 
+  async getAdminRestaurants() {
+    if (USE_MOCK) {
+      const cached = localStorage.getItem("globaleats_restaurants");
+      return cached ? JSON.parse(cached) : [];
+    } else {
+      try {
+        const response = await apiClient.get("/v1/restaurants");
+        const raw = response.data?.data || response.data?.restaurants || response.data;
+        return Array.isArray(raw) ? raw.map(normalizeRestaurant) : [];
+      } catch (err) {
+        console.warn("getAdminRestaurants API error:", err?.message || err);
+        return [];
+      }
+    }
+  },
+
+  async getDispatchBoard(queryParams = {}) {
+    if (USE_MOCK) {
+      const cached = localStorage.getItem("globaleats_orders");
+      const list = cached ? JSON.parse(cached) : [];
+      return Array.isArray(list) ? list.map(normalizeOrder).filter(Boolean) : [];
+    } else {
+      try {
+        const response = await apiClient.get("/v1/riders/dispatch-board", { params: queryParams });
+        const raw = response.data?.data || response.data?.orders || response.data;
+        return Array.isArray(raw) ? raw.map(normalizeOrder).filter(Boolean) : [];
+      } catch (err) {
+        console.warn("getDispatchBoard API call failed, fetching manager incoming orders fallback:", err?.message || err);
+        const response = await apiClient.get("/v1/orders/manager/incoming");
+        const raw = response.data?.data || response.data?.orders || response.data;
+        return Array.isArray(raw) ? raw.map(normalizeOrder).filter(Boolean) : [];
+      }
+    }
+  },
+
+  async getRestaurantDropdownList() {
+    return this.getAdminRestaurants();
+  },
+
+  async getFullBIDashboardData(restaurantId) {
+    if (USE_MOCK) {
+      const cachedOrders = localStorage.getItem("globaleats_orders");
+      const orders = cachedOrders ? JSON.parse(cachedOrders) : [];
+      const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+      return {
+        success: true,
+        data: {
+          totalRevenue,
+          totalOrders: orders.length,
+          avgOrderValue: orders.length ? totalRevenue / orders.length : 0,
+          orders,
+        },
+      };
+    } else {
+      try {
+        const params = restaurantId && restaurantId !== "all" ? { restaurant: restaurantId } : {};
+        const response = await apiClient.get("/v1/dashboard/stats", { params });
+        return response.data?.data || response.data;
+      } catch (err) {
+        console.warn("getFullBIDashboardData error:", err?.message || err);
+        return { totalRevenue: 0, totalOrders: 0, orders: [] };
+      }
+    }
+  },
+
+  async exportToCsv(restaurantId) {
+    if (!USE_MOCK) {
+      try {
+        const params = restaurantId && restaurantId !== "all" ? { restaurant: restaurantId } : {};
+        const response = await apiClient.get("/v1/dashboard/export", { params, responseType: "blob" });
+        const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `BI_Report_${restaurantId || "all"}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        return { success: true };
+      } catch (err) {
+        console.warn("exportToCsv failed:", err);
+      }
+    }
+    return { success: true };
+  },
+
   async getRestaurant(id) {
     if (USE_MOCK) {
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -782,12 +900,7 @@ export const adminService = {
       await new Promise((resolve) => setTimeout(resolve, 50));
       return { success: true };
     } else {
-      const token = localStorage.getItem("globaleats_token") || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTU2MjdjZmViZDBiZDEwOTUzYjVlMjIiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3ODQyNjgyNzgsImV4cCI6MTc4NDg3MzA3OH0.H4plc3f364HbGuHqo4RGO2hhgXZrnMI9XL-QMl7qsOE';
-      const response = await apiClient.patch(`/v1/menu/${id}/toggle-availability`, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiClient.patch(`/v1/menu/${id}/toggle-availability`, {});
       return response.data;
     }
   },
@@ -797,12 +910,7 @@ export const adminService = {
       await new Promise((resolve) => setTimeout(resolve, 50));
       return { success: true };
     } else {
-      const token = localStorage.getItem("globaleats_token") || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTU2MjdjZmViZDBiZDEwOTUzYjVlMjIiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3ODQyNjgyNzgsImV4cCI6MTc4NDg3MzA3OH0.H4plc3f364HbGuHqo4RGO2hhgXZrnMI9XL-QMl7qsOE';
-      const response = await apiClient.delete(`/v1/menu/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiClient.delete(`/v1/menu/${id}`);
       return response.data;
     }
   },

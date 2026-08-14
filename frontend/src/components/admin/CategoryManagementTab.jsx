@@ -14,10 +14,13 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { adminService } from "../../api/adminService";
+import { dinerService } from "../../api/dinerService";
 import Modal from "../common/Modal";
 
 export default function CategoryManagementTab({ triggerToast }) {
   const [categories, setCategories] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
+  const [restaurant, setRestaurant] = useState("");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -26,7 +29,7 @@ export default function CategoryManagementTab({ triggerToast }) {
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
   const [description, setDescription] = useState("");
-  const [displayOrder, setDisplayOrder] = useState(0);
+  const [displayOrder, setDisplayOrder] = useState(1);
   const [isActive, setIsActive] = useState(true);
 
   const fetchCategories = async () => {
@@ -43,8 +46,21 @@ export default function CategoryManagementTab({ triggerToast }) {
     }
   };
 
+  const fetchRestaurants = async () => {
+    try {
+      const list = await dinerService.getRestaurants();
+      setRestaurants(list || []);
+      if (list && list.length > 0) {
+        setRestaurant((prev) => prev || list[0]._id || list[0].id || "");
+      }
+    } catch (err) {
+      console.warn("Could not load restaurants:", err);
+    }
+  };
+
   useEffect(() => {
     fetchCategories();
+    fetchRestaurants();
   }, []);
 
   const openAddModal = () => {
@@ -52,8 +68,11 @@ export default function CategoryManagementTab({ triggerToast }) {
     setName("");
     setImage("https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=600");
     setDescription("");
-    setDisplayOrder(0);
+    setDisplayOrder(1);
     setIsActive(true);
+    if (restaurants.length > 0) {
+      setRestaurant(restaurants[0]._id || restaurants[0].id || "");
+    }
     setIsModalOpen(true);
   };
 
@@ -62,8 +81,10 @@ export default function CategoryManagementTab({ triggerToast }) {
     setName(cat.name || "");
     setImage(cat.image || "");
     setDescription(cat.description || "");
-    setDisplayOrder(cat.displayOrder ?? 0);
+    setDisplayOrder(cat.displayOrder ?? 1);
     setIsActive(cat.isActive !== undefined ? Boolean(cat.isActive) : true);
+    const restId = cat.restaurant?._id || cat.restaurant?.id || (typeof cat.restaurant === "string" ? cat.restaurant : "") || (restaurants[0]?._id || restaurants[0]?.id || "");
+    setRestaurant(restId);
     setIsModalOpen(true);
   };
 
@@ -76,9 +97,10 @@ export default function CategoryManagementTab({ triggerToast }) {
 
     const payload = {
       name: name.trim(),
-      image: image.trim(),
+      restaurant: restaurant || (restaurants[0]?._id || restaurants[0]?.id || ""),
       description: description.trim(),
-      displayOrder: Number(displayOrder) || 0,
+      image: image.trim(),
+      displayOrder: Number(displayOrder) || 1,
       isActive: Boolean(isActive),
     };
 
@@ -321,10 +343,36 @@ export default function CategoryManagementTab({ triggerToast }) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Gourmet Burgers"
+                placeholder="e.g. Chinese Starters"
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange"
                 required
               />
+            </div>
+
+            {/* Target Restaurant / Outlet */}
+            <div>
+              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">
+                Host Restaurant / Outlet *
+              </label>
+              <select
+                value={restaurant}
+                onChange={(e) => setRestaurant(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-orange bg-white"
+                required
+              >
+                {restaurants.length === 0 ? (
+                  <option value="">Loading outlets...</option>
+                ) : (
+                  restaurants.map((r) => {
+                    const rId = r._id || r.id;
+                    return (
+                      <option key={rId} value={rId}>
+                        {r.name || r.title || "Outlet"} ({String(rId).slice(-6)})
+                      </option>
+                    );
+                  })
+                )}
+              </select>
             </div>
 
             {/* Image URL */}

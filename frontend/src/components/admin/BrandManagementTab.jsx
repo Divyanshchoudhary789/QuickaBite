@@ -98,53 +98,27 @@ export default function BrandManagementTab({ orders, triggerToast, managerOutlet
     setIsModalOpen(true);
   };
 
-  const openEditModal = async (brand) => {
-    const brandId = brand._id || brand.id;
-    try {
-      console.log(`[GET /api/v1/brands/${brandId}] Fetching brand details...`);
-      const freshData = await dinerService.getBrandById(brandId);
-      const b = freshData || brand;
-      setEditingBrand(b);
-      setFormName(b.name || "");
-      setFormTagline(b.tagline || b.slogan || "");
-      setFormDescription(b.description || "");
-      setFormCoverImage(b.coverImage || b.bannerImage || "");
-      setFormLogo(b.logo || "");
-      setFormPrepTime(b.averagePrepTime || b.prepTime || "15-20 mins");
-      setFormIsFreeDelivery(b.isFreeDelivery !== undefined ? Boolean(b.isFreeDelivery) : true);
-      setFormCategoryId(
-        typeof b.category === "object"
-          ? (b.category?._id || b.category?.id || "64f1a2b3c4d5e6f7a8b9c0d1")
-          : (b.category || (availableCategories.length > 0 ? (availableCategories[0]._id || availableCategories[0].id) : "64f1a2b3c4d5e6f7a8b9c0d1"))
-      );
-      setFormSelectedRestaurants(
-        Array.isArray(b.restaurants) && b.restaurants.length > 0
-          ? b.restaurants.map((r) => typeof r === "object" ? (r._id || r.id) : r)
-          : (availableRestaurants.length > 0 ? [availableRestaurants[0]._id || availableRestaurants[0].id] : ["64f1a2b3c4d5e6f7a8b9c0d2"])
-      );
-      setIsModalOpen(true);
-    } catch (err) {
-      console.warn(`getBrandById failed for ${brandId}, using current brand state:`, err?.message || err);
-      setEditingBrand(brand);
-      setFormName(brand.name || "");
-      setFormTagline(brand.tagline || brand.slogan || "");
-      setFormDescription(brand.description || "");
-      setFormCoverImage(brand.coverImage || brand.bannerImage || "");
-      setFormLogo(brand.logo || "");
-      setFormPrepTime(brand.averagePrepTime || brand.prepTime || "15-20 mins");
-      setFormIsFreeDelivery(brand.isFreeDelivery !== undefined ? Boolean(brand.isFreeDelivery) : true);
-      setFormCategoryId(
-        typeof brand.category === "object"
-          ? (brand.category?._id || brand.category?.id || "64f1a2b3c4d5e6f7a8b9c0d1")
-          : (brand.category || (availableCategories.length > 0 ? (availableCategories[0]._id || availableCategories[0].id) : "64f1a2b3c4d5e6f7a8b9c0d1"))
-      );
-      setFormSelectedRestaurants(
-        Array.isArray(brand.restaurants) && brand.restaurants.length > 0
-          ? brand.restaurants.map((r) => typeof r === "object" ? (r._id || r.id) : r)
-          : (availableRestaurants.length > 0 ? [availableRestaurants[0]._id || availableRestaurants[0].id] : ["64f1a2b3c4d5e6f7a8b9c0d2"])
-      );
-      setIsModalOpen(true);
-    }
+  const openEditModal = (brand) => {
+    const b = brand;
+    setEditingBrand(b);
+    setFormName(b.name || "");
+    setFormTagline(b.tagline || b.slogan || "");
+    setFormDescription(b.description || "");
+    setFormCoverImage(b.coverImage || b.bannerImage || "");
+    setFormLogo(b.logo || "");
+    setFormPrepTime(b.averagePrepTime || b.prepTime || "15-20 mins");
+    setFormIsFreeDelivery(b.isFreeDelivery !== undefined ? Boolean(b.isFreeDelivery) : true);
+    setFormCategoryId(
+      typeof b.category === "object"
+        ? (b.category?._id || b.category?.id || "64f1a2b3c4d5e6f7a8b9c0d1")
+        : (b.category || (availableCategories.length > 0 ? (availableCategories[0]._id || availableCategories[0].id) : "64f1a2b3c4d5e6f7a8b9c0d1"))
+    );
+    setFormSelectedRestaurants(
+      Array.isArray(b.restaurants) && b.restaurants.length > 0
+        ? b.restaurants.map((r) => typeof r === "object" ? (r._id || r.id) : r)
+        : (availableRestaurants.length > 0 ? [availableRestaurants[0]._id || availableRestaurants[0].id] : ["64f1a2b3c4d5e6f7a8b9c0d2"])
+    );
+    setIsModalOpen(true);
   };
 
   const handleToggleRestaurantSelection = (restId) => {
@@ -183,11 +157,9 @@ export default function BrandManagementTab({ orders, triggerToast, managerOutlet
     try {
       if (editingBrand) {
         const brandId = editingBrand._id || editingBrand.id;
-        console.log(`[PATCH /api/v1/brands/${brandId}] Updating brand payload:`, apiBrandPayload);
         await dinerService.updateBrand(brandId, apiBrandPayload);
         triggerToast(`Brand "${formName}" updated successfully!`);
       } else {
-        console.log("[POST /api/v1/brands] Creating brand payload:", apiBrandPayload);
         await dinerService.createBrand(apiBrandPayload);
         triggerToast(`Brand "${formName}" created successfully!`);
       }
@@ -237,18 +209,6 @@ export default function BrandManagementTab({ orders, triggerToast, managerOutlet
       }
     }
   };
-  const handleResetBrands = () => {
-    if (
-      confirm(
-        "Revert all brands to default kitchen settings? All newly added brands will be removed.",
-      )
-    ) {
-      setBrands(INITIAL_BRANDS);
-      triggerToast(
-        "Kitchen brand directory re-seeded to factory default state.",
-      );
-    }
-  };
   const renderIconWithClass = (iconName, className = "h-5 w-5") => {
     const Component = ICON_MAP[iconName] || Utensils;
     return <Component className={className} />;
@@ -277,12 +237,6 @@ export default function BrandManagementTab({ orders, triggerToast, managerOutlet
         </div>
 
         <div className="flex items-center gap-2 z-10 shrink-0">
-          <button
-            onClick={handleResetBrands}
-            className="px-3.5 py-2.5 bg-neutral-800 text-neutral-300 hover:text-white hover:bg-neutral-750 border border-neutral-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer"
-          >
-            Reset Default
-          </button>
 
           <button
             onClick={openAddModal}
@@ -329,23 +283,8 @@ export default function BrandManagementTab({ orders, triggerToast, managerOutlet
           </div>
         </div>
 
-        {/* Metric 3: Hidden Brands */}
-        <div className="bg-white p-4 rounded-2xl border border-orange-100 shadow-soft flex items-center gap-4">
-          <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-            <EyeOff className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">
-              Hidden Offline
-            </span>
-            <h4 className="text-lg font-black text-amber-600">
-              {brands.filter((b) => !b.isVisible).length} Toggled
-            </h4>
-          </div>
-        </div>
-
         {/* Metric 4: Total Specialties */}
-        <div className="bg-white p-4 rounded-2xl border border-orange-100 shadow-soft flex items-center gap-4">
+        {/* <div className="bg-white p-4 rounded-2xl border border-orange-100 shadow-soft flex items-center gap-4">
           <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
             <Utensils className="h-5 w-5" />
           </div>
@@ -358,7 +297,7 @@ export default function BrandManagementTab({ orders, triggerToast, managerOutlet
               Items
             </h4>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* BRAND CARDS DIRECTORY WITH INTEGRATED STATISTICS */}

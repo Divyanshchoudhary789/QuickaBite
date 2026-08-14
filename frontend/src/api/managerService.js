@@ -185,6 +185,9 @@ export const managerService = {
         itemMap[name].count += qty;
         itemMap[name].revenue += revenue;
 
+        virtualBrandMap[brand].itemsSold += qty;
+        virtualBrandMap[brand].dishMap[name] = (virtualBrandMap[brand].dishMap[name] || 0) + qty;
+
         if (!brandMap[brand]) brandMap[brand] = { name: brand, value: 0 };
         brandMap[brand].value += revenue;
       });
@@ -196,15 +199,49 @@ export const managerService = {
 
     const categoryBreakdown = Object.values(brandMap);
 
+    const virtualBrandPerformance = Object.values(virtualBrandMap).map((vb) => {
+      const topSellingDish = Object.entries(vb.dishMap).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+      const avgOrderVal = vb.totalOrders > 0 ? vb.totalRevenue / vb.totalOrders : 0;
+      return {
+        brandId: vb.brandId,
+        brandName: vb.brandName,
+        totalOrders: vb.totalOrders,
+        quantitySold: vb.itemsSold,
+        totalRevenue: Number(vb.totalRevenue.toFixed(2)),
+        averageOrderValue: Number(avgOrderVal.toFixed(2)),
+        topSellingDish,
+      };
+    }).sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    const totalUnitsDispatched = filteredOrders.reduce((sum, o) => {
+      if (Array.isArray(o.items) && o.items.length > 0) {
+        return sum + o.items.reduce((s, it) => s + Number(it.quantity || it.qty || 1), 0);
+      }
+      return sum + 1;
+    }, 0);
+
+    const activeCustomersCount = new Set(
+      filteredOrders.map(o => o.customerName || o.customer?.name || o.customer?.email || o.user?.name || o.id)
+    ).size;
+
     return {
-      filter,
-      totalRevenue: Number(totalRevenue.toFixed(2)),
-      totalOrders,
-      averageOrderValue: Number(avgOrderValue.toFixed(2)),
-      completedOrders,
-      activeOrders,
-      topItems,
-      categoryBreakdown,
+      kpis: {
+        totalRevenue: Number(totalRevenue.toFixed(2)),
+        totalOrders,
+        totalUnitsDispatched,
+        activeCustomers: activeCustomersCount,
+        averageBasketSize: totalOrders > 0 ? Number((totalUnitsDispatched / totalOrders).toFixed(2)) : 0,
+        averageOrderValue: Number(avgOrderValue.toFixed(2)),
+        totalDeliveredOrders: completedOrders,
+        pendingPreparingOrders: activeOrders,
+      },
+      virtualBrandPerformance,
+      dailySales: [],
+      weeklyRevenue: [],
+      topSellingItems: topItems,
+      topCategories: categoryBreakdown,
+      highestSpendingCustomers: [],
+      orderStatusAnalytics: {},
       orders: filteredOrders,
     };
   },

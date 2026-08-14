@@ -515,7 +515,7 @@ export default function CloudKitchenSection({
       }
       <div className="lg:col-span-8 flex flex-col justify-between gap-4" id={`brand-specialties-${activeBrand.id}`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full items-stretch">
-          {activeBrand.specialties.map((specialty) => {
+          {(Array.isArray(activeBrand.specialties) ? activeBrand.specialties : []).map((specialty) => {
             const quantity = getItemQuantity(specialty.id);
             return <div
               key={specialty.id}

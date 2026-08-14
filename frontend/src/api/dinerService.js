@@ -6,13 +6,18 @@ import { notificationService } from "./notificationService";
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 
 export const dinerService = {
-  // Fetch restaurant catalog (GET /api/v1/restaurants)
-  async getRestaurants() {
+  // Fetch deliverable restaurant catalog (GET /api/v1/restaurants?lat=...&lng=...)
+  async getRestaurants(locationCoords = null) {
     if (USE_MOCK) {
       await new Promise((resolve) => setTimeout(resolve, 200));
       return RESTAURANTS.map(normalizeRestaurant);
     } else {
-      const response = await apiClient.get("/v1/restaurants");
+      const params = {};
+      if (locationCoords?.lat && locationCoords?.lng) {
+        params.lat = locationCoords.lat;
+        params.lng = locationCoords.lng;
+      }
+      const response = await apiClient.get("/v1/restaurants", { params });
       let list = [];
       if (Array.isArray(response.data)) {
         list = response.data;
@@ -23,6 +28,57 @@ export const dinerService = {
       }
       return list.map(normalizeRestaurant);
     }
+  },
+
+  // Fetch deliverable menu items / dishes (GET /api/v1/menu?lat=...&lng=...&category=...&isVegetarian=...&search=...&brand=...)
+  async getMenuItems(locationCoords = null, filters = {}) {
+    if (USE_MOCK) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      let list = [];
+      RESTAURANTS.forEach((r) => {
+        if (Array.isArray(r.menu)) {
+          r.menu.forEach((m) => {
+            list.push({ ...m, restaurant: r });
+          });
+        }
+      });
+      return list.map(normalizeMenuItem);
+    } else {
+      const params = {};
+      if (locationCoords?.lat && locationCoords?.lng) {
+        params.lat = locationCoords.lat;
+        params.lng = locationCoords.lng;
+      }
+      if (filters.category && filters.category !== "all") {
+        params.category = filters.category;
+      }
+      if (filters.isVegetarian !== undefined && filters.isVegetarian !== null) {
+        params.isVegetarian = filters.isVegetarian;
+      }
+      if (filters.search) {
+        params.search = filters.search;
+      }
+      if (filters.brand) {
+        params.brand = filters.brand;
+      }
+      if (filters.restaurant) {
+        params.restaurant = filters.restaurant;
+      }
+      const response = await apiClient.get("/v1/menu", { params });
+      let list = [];
+      if (Array.isArray(response.data)) {
+        list = response.data;
+      } else if (Array.isArray(response.data?.data)) {
+        list = response.data.data;
+      } else if (Array.isArray(response.data?.items)) {
+        list = response.data.items;
+      }
+      return list.map(normalizeMenuItem);
+    }
+  },
+
+  async getAllMenu(locationCoords = null, filters = {}) {
+    return this.getMenuItems(locationCoords, filters);
   },
 
   // Fetch restaurant details by ID (GET /api/v1/restaurants/:id)
@@ -413,6 +469,25 @@ export const dinerService = {
         razorpaySignature: verificationPayload.razorpaySignature,
       });
       return response.data?.data || response.data;
+    }
+  },
+
+  async getRazorpayPaymentStatus(orderId) {
+    if (USE_MOCK) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const isPaid = localStorage.getItem(`mock_order_paid_${orderId}`) === "true";
+      return {
+        paymentStatus: isPaid ? "paid" : "pending",
+        orderId: orderId,
+      };
+    } else {
+      try {
+        const response = await apiClient.get(`/v1/payments/razorpay/status/${orderId}`);
+        return response.data?.data || response.data;
+      } catch (err) {
+        console.error("getRazorpayPaymentStatus API error:", err);
+        return { paymentStatus: "pending", error: err };
+      }
     }
   },
 
@@ -1211,6 +1286,7 @@ export const normalizeMenuItem = (item) => {
     isVeg: item.isVegetarian !== undefined ? item.isVegetarian : (item.isVeg !== undefined ? item.isVeg : true),
     isBestseller: item.isBestSeller !== undefined ? item.isBestSeller : (item.isBestseller !== undefined ? item.isBestseller : false),
     isAvailable: parseIsAvailable(item.isAvailable, item.isActive),
+    brand: item.brand || item.brandId || null,
   };
 };
 
@@ -1431,6 +1507,9 @@ export const normalizeRestaurant = (res) => {
       ? res.menu.map((item) => normalizeMenuItem(item))
       : [],
     deliveryRadiusKm: res.deliveryRadiusKm !== undefined ? Number(res.deliveryRadiusKm) : 10,
+    distance: res.distance !== undefined && res.distance !== null ? Number(res.distance) : null,
+    location: res.location || null,
+    brands: Array.isArray(res.brands) ? res.brands : [],
     isActive: res.isActive !== false,
     contactNumber: res.contactNumber || "",
     operatingHours: Array.isArray(res.operatingHours) ? res.operatingHours : [],

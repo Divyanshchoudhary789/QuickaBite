@@ -72,33 +72,8 @@ export default function OrderManagementTab({
           queryParams.status = statusFilter;
         }
 
-        const [dispatchList, incomingList] = await Promise.all([
-          adminService.getDispatchBoard(queryParams).catch(() => []),
-          managerService.getIncomingOrders().catch(() => [])
-        ]);
-
-        let combined = Array.isArray(dispatchList) && dispatchList.length > 0 ? dispatchList : (Array.isArray(incomingList) ? incomingList : []);
-
-        if (Array.isArray(incomingList) && incomingList.length > 0 && Array.isArray(dispatchList) && dispatchList.length > 0) {
-          combined = dispatchList.map((dItem) => {
-            const matched = incomingList.find(
-              (inc) =>
-                String(inc.orderNumber) === String(dItem.orderNumber) ||
-                (inc._id && String(inc._id) === String(dItem._id)) ||
-                (inc.id && String(inc.id) === String(dItem.id))
-            );
-            if (matched && matched._id) {
-              return {
-                ...dItem,
-                _id: matched._id,
-                id: matched._id
-              };
-            }
-            return dItem;
-          });
-        }
-
-        setDispatchOrders(combined);
+        const dispatchList = await adminService.getDispatchBoard(queryParams).catch(() => []);
+        setDispatchOrders(Array.isArray(dispatchList) ? dispatchList : []);
       } catch (e) {
         console.error("Failed to load dispatch board via API:", e);
       } finally {

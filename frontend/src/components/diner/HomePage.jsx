@@ -859,6 +859,21 @@ export default function HomePage({
           )}
         </div>
 
+        {/* Empty State when no restaurants deliver to location */}
+        {activeRestaurantsList.length === 0 && (
+          <div className="bg-white p-10 rounded-3xl border border-neutral-100 text-center space-y-3 my-6 shadow-sm">
+            <div className="h-16 w-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto text-brand-orange">
+              <MapPin className="h-8 w-8 animate-bounce" />
+            </div>
+            <h4 className="font-display font-black text-lg text-gray-900">
+              No Outlets Delivering to Your Location
+            </h4>
+            <p className="text-xs text-gray-500 max-w-md mx-auto leading-relaxed">
+              No restaurants deliver to your current location right now. Try changing your delivery address or location.
+            </p>
+          </div>
+        )}
+
         {/* Vertical Dishes Grid (20 Dishes with Explore More Button) */}
         {(() => {
           // Extract menu dishes from active restaurants list or fallback mock dishes

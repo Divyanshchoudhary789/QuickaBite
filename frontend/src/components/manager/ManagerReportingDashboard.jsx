@@ -83,6 +83,7 @@ export default function ManagerReportingDashboard({ triggerToast }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderDetailsLoading, setOrderDetailsLoading] = useState(false);
   const [detailedOrderData, setDetailedOrderData] = useState(null);
+  const [brandViewMode, setBrandViewMode] = useState("graph"); // 'graph' or 'cards'
 
   const handleOpenOrderDetails = async (order) => {
     if (!order) return;
@@ -521,12 +522,32 @@ export default function ManagerReportingDashboard({ triggerToast }) {
       ? statsData.highestSpendingCustomers
       : [];
 
+    const virtualBrands = Array.isArray(statsData.virtualBrandPerformance)
+      ? statsData.virtualBrandPerformance.map((vb) => ({
+          brandId: vb.brandId || vb._id || vb.id,
+          brandName: vb.brandName || vb.name || "Virtual Brand",
+          logo: vb.logo || vb.image || vb.coverImage || "",
+          totalOrders: Number(vb.totalOrders || 0),
+          quantitySold: Number(
+            vb.quantitySold !== undefined ? vb.quantitySold : (vb.totalItemsSold || vb.itemsSold || 0)
+          ),
+          totalRevenue: Number(vb.totalRevenue || vb.revenue || 0),
+          averageOrderValue: Number(
+            vb.averageOrderValue !== undefined
+              ? vb.averageOrderValue
+              : (vb.totalOrders > 0 ? vb.totalRevenue / vb.totalOrders : 0)
+          ),
+          topSellingDish: vb.topSellingDish || vb.topItem || "",
+        }))
+      : [];
+
     return {
       trendData,
       statusData,
       brandData,
       topItems,
       topCustomers,
+      virtualBrands,
     };
   }, [statsData]);
 
@@ -659,79 +680,68 @@ export default function ManagerReportingDashboard({ triggerToast }) {
         avgOrderValue: "₹0.00",
         completedOrders: 0,
         activeOrders: 0,
+        totalUnitsDispatched: 0,
+        activeCustomers: 0,
+        averageBasketSize: 0,
       };
     }
 
-    const rawKpis = statsData.kpis || {};
+    const rawKpis = statsData.kpis || statsData;
 
-    // Calculate category or top items revenue sum if API's kpis.totalRevenue evaluates to 0
     const topCategoriesRevenue = Array.isArray(statsData.topCategories)
-      ? statsData.topCategories.reduce(
-        (sum, c) => sum + Number(c.revenue || 0),
-        0,
-      )
+      ? statsData.topCategories.reduce((sum, c) => sum + Number(c.revenue || 0), 0)
       : 0;
 
     const topItemsRevenue = Array.isArray(statsData.topSellingItems)
-      ? statsData.topSellingItems.reduce(
-        (sum, i) => sum + Number(i.revenueGenerated || i.revenue || 0),
-        0,
-      )
-      : Array.isArray(statsData.topPerformingMenu)
-        ? statsData.topPerformingMenu.reduce(
-          (sum, i) => sum + Number(i.revenue || 0),
-          0,
-        )
-        : 0;
-
-    const topCustomersSpending = Array.isArray(
-      statsData.highestSpendingCustomers,
-    )
-      ? statsData.highestSpendingCustomers.reduce(
-        (sum, cust) => sum + Number(cust.totalAmountSpent || 0),
-        0,
-      )
+      ? statsData.topSellingItems.reduce((sum, i) => sum + Number(i.revenueGenerated || i.revenue || 0), 0)
       : 0;
 
     const rawRevenue = Number(
-      (rawKpis.totalRevenue && rawKpis.totalRevenue > 0)
+      rawKpis.totalRevenue !== undefined
         ? rawKpis.totalRevenue
-        : statsData.totalRevenue ||
-        topCategoriesRevenue ||
-        topItemsRevenue ||
-        topCustomersSpending ||
-        0,
+        : (statsData.totalRevenue || topCategoriesRevenue || topItemsRevenue || 0)
     );
 
     const totalOrders = Number(
-      rawKpis.totalOrders ??
-      statsData.totalOrders ??
-      (Array.isArray(statsData.orders) ? statsData.orders.length : 0),
+      rawKpis.totalOrders !== undefined
+        ? rawKpis.totalOrders
+        : (statsData.totalOrders || 0)
     );
 
     const avgOrderValue = Number(
-      rawKpis.averageOrderValue ??
-      statsData.averageOrderValue ??
-      (totalOrders > 0 ? rawRevenue / totalOrders : 0),
+      rawKpis.averageOrderValue !== undefined
+        ? rawKpis.averageOrderValue
+        : (totalOrders > 0 ? rawRevenue / totalOrders : 0)
     );
 
     const completedOrders = Number(
-      rawKpis.totalDeliveredOrders ??
-      statsData.orderStatusAnalytics?.delivered ??
-      statsData.completedOrders ??
-      0,
+      rawKpis.totalDeliveredOrders !== undefined
+        ? rawKpis.totalDeliveredOrders
+        : (statsData.orderStatusAnalytics?.delivered || statsData.completedOrders || 0)
     );
 
-    const statusObj = statsData.orderStatusAnalytics || {};
     const activeOrders = Number(
-      rawKpis.pendingPreparingOrders ??
-      (Number(statusObj.pending || 0) +
-        Number(statusObj.preparing || 0) +
-        Number(statusObj.confirmed || 0) +
-        Number(statusObj.ready || 0) +
-        Number(statusObj.outForDelivery || 0)) ??
-      statsData.activeOrders ??
-      0,
+      rawKpis.pendingPreparingOrders !== undefined
+        ? rawKpis.pendingPreparingOrders
+        : (statsData.activeOrders || 0)
+    );
+
+    const totalUnitsDispatched = Number(
+      rawKpis.totalUnitsDispatched !== undefined
+        ? rawKpis.totalUnitsDispatched
+        : 0
+    );
+
+    const activeCustomers = Number(
+      rawKpis.activeCustomers !== undefined
+        ? rawKpis.activeCustomers
+        : 0
+    );
+
+    const averageBasketSize = Number(
+      rawKpis.averageBasketSize !== undefined
+        ? rawKpis.averageBasketSize
+        : 0
     );
 
     return {
@@ -746,6 +756,9 @@ export default function ManagerReportingDashboard({ triggerToast }) {
       }),
       completedOrders,
       activeOrders,
+      totalUnitsDispatched,
+      activeCustomers,
+      averageBasketSize,
     };
   }, [statsData]);
 
@@ -898,83 +911,115 @@ export default function ManagerReportingDashboard({ triggerToast }) {
       {/* Dashboard Main Content */}
       {statsData && (
         <>
-          {/* KPI Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {/* Total Revenue */}
-            <div className="p-5 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-3xl relative overflow-hidden group hover:border-emerald-500/40 transition-all">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+          {/* KPI Summary Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            {/* 1. Total Revenue */}
+            <div className="p-4 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-2xl relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
                   Total Sales
                 </span>
-                <div className="p-2.5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-400">
-                  <IndianRupee className="w-5 h-5" />
+                <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400">
+                  <IndianRupee className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-white tracking-tight">
+              <div className="text-xl font-black text-white tracking-tight">
                 {kpis.totalRevenue}
               </div>
-              <p className="text-xs text-neutral-400 mt-2 flex items-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                Gross revenue across filter timeframe
+              <p className="text-[10px] text-neutral-400 mt-1 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3 text-emerald-400" />
+                Gross revenue
               </p>
             </div>
 
-            {/* Total Orders */}
-            <div className="p-5 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-3xl relative overflow-hidden group hover:border-cyan-500/40 transition-all">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+            {/* 2. Total Orders */}
+            <div className="p-4 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-2xl relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
                   Total Orders
                 </span>
-                <div className="p-2.5 bg-cyan-500/10 rounded-2xl border border-cyan-500/20 text-cyan-400">
-                  <ShoppingBag className="w-5 h-5" />
+                <div className="p-2 bg-cyan-500/10 rounded-xl border border-cyan-500/20 text-cyan-400">
+                  <ShoppingBag className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-white tracking-tight">
+              <div className="text-xl font-black text-white tracking-tight">
                 {kpis.totalOrders}
               </div>
-              <p className="text-xs text-neutral-400 mt-2 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
-                {kpis.completedOrders} completed, {kpis.activeOrders} active
+              <p className="text-[10px] text-neutral-400 mt-1 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-cyan-400" />
+                {kpis.completedOrders} delivered, {kpis.activeOrders} pending
               </p>
             </div>
 
-            {/* Avg Order Value */}
-            <div className="p-5 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-3xl relative overflow-hidden group hover:border-amber-500/40 transition-all">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                  Avg Order Value
+            {/* 3. Units Dispatched */}
+            <div className="p-4 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-2xl relative overflow-hidden group hover:border-blue-500/40 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                  Units Dispatched
                 </span>
-                <div className="p-2.5 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-amber-400">
-                  <BarChart3 className="w-5 h-5" />
+                <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20 text-blue-400">
+                  <BarChart3 className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-white tracking-tight">
+              <div className="text-xl font-black text-white tracking-tight">
+                {kpis.totalUnitsDispatched}
+              </div>
+              <p className="text-[10px] text-neutral-400 mt-1 flex items-center gap-1">
+                Dispatched dish units
+              </p>
+            </div>
+
+            {/* 4. Active Diners */}
+            <div className="p-4 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-2xl relative overflow-hidden group hover:border-purple-500/40 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                  Active Diners
+                </span>
+                <div className="p-2 bg-purple-500/10 rounded-xl border border-purple-500/20 text-purple-400">
+                  <Users className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-xl font-black text-white tracking-tight">
+                {kpis.activeCustomers}
+              </div>
+              <p className="text-[10px] text-neutral-400 mt-1 flex items-center gap-1">
+                Unique purchasing customers
+              </p>
+            </div>
+
+            {/* 5. Avg Basket Size */}
+            <div className="p-4 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-2xl relative overflow-hidden group hover:border-amber-500/40 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                  Basket Size
+                </span>
+                <div className="p-2 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-400">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-xl font-black text-white tracking-tight">
+                {kpis.averageBasketSize} items
+              </div>
+              <p className="text-[10px] text-neutral-400 mt-1 flex items-center gap-1">
+                Items per order
+              </p>
+            </div>
+
+            {/* 6. Avg Order Value */}
+            <div className="p-4 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-2xl relative overflow-hidden group hover:border-rose-500/40 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                  Avg Ticket (AOV)
+                </span>
+                <div className="p-2 bg-rose-500/10 rounded-xl border border-rose-500/20 text-rose-400">
+                  <IndianRupee className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-xl font-black text-white tracking-tight">
                 {kpis.avgOrderValue}
               </div>
-              <p className="text-xs text-neutral-400 mt-2 flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Average basket size per customer
-              </p>
-            </div>
-
-            {/* Active Customers / Brands */}
-            <div className="p-5 bg-gradient-to-br from-neutral-900/90 to-neutral-900/50 border border-neutral-800/80 rounded-3xl relative overflow-hidden group hover:border-purple-500/40 transition-all">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                  Order Fulfilled
-                </span>
-                <div className="p-2.5 bg-purple-500/10 rounded-2xl border border-purple-500/20 text-purple-400">
-                  <Users className="w-5 h-5" />
-                </div>
-              </div>
-              <div className="text-2xl font-black text-white tracking-tight">
-                {kpis.totalOrders > 0
-                  ? Math.round((kpis.completedOrders / kpis.totalOrders) * 100)
-                  : 100}
-                %
-              </div>
-              <p className="text-xs text-neutral-400 mt-2 flex items-center gap-1">
-                Fulfilled order ratio
+              <p className="text-[10px] text-neutral-400 mt-1 flex items-center gap-1">
+                Average order spend
               </p>
             </div>
           </div>
@@ -1111,6 +1156,212 @@ export default function ManagerReportingDashboard({ triggerToast }) {
               </div>
             </div>
           </div>
+
+          {/* Virtual Kitchen Brand Performance Matrix & Graph */}
+          {chartDatasets.virtualBrands.length > 0 && (
+            <div className="bg-neutral-900/80 border border-neutral-800 p-6 rounded-3xl backdrop-blur-xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-orange-400" /> Virtual Kitchen Concepts Performance
+                  </h3>
+                  <p className="text-xs text-neutral-400">
+                    Comparative performance graph & metrics per virtual brand concept (Revenue ₹ vs Dispatched Unit Sales).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 bg-neutral-800/80 p-1 rounded-xl border border-neutral-700/60">
+                    <button
+                      onClick={() => setBrandViewMode("graph")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${brandViewMode === "graph" ? "bg-orange-500 text-white shadow-md" : "text-neutral-400 hover:text-white"}`}
+                    >
+                      <BarChart3 className="w-3.5 h-3.5" />
+                      <span>Graph Chart</span>
+                    </button>
+                    <button
+                      onClick={() => setBrandViewMode("cards")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${brandViewMode === "cards" ? "bg-orange-500 text-white shadow-md" : "text-neutral-400 hover:text-white"}`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Metric Cards</span>
+                    </button>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-2 rounded-xl">
+                    {chartDatasets.virtualBrands.length} Concepts Active
+                  </span>
+                </div>
+              </div>
+
+              {/* GRAPH CHART VIEW */}
+              {brandViewMode === "graph" && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="h-80 w-full pt-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartDatasets.virtualBrands}
+                        margin={{ top: 15, right: 30, left: 10, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#262626" />
+                        <XAxis
+                          dataKey="brandName"
+                          stroke="#a3a3a3"
+                          fontSize={11}
+                          tick={{ fill: "#d4d4d4" }}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          stroke="#f97316"
+                          fontSize={11}
+                          tickFormatter={(val) => `₹${val}`}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          stroke="#06b6d4"
+                          fontSize={11}
+                        />
+                        <Tooltip
+                          cursor={false}
+                          contentStyle={{
+                            backgroundColor: "#171717",
+                            borderColor: "#404040",
+                            borderRadius: "14px",
+                            color: "#fff",
+                            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                          }}
+                          formatter={(value, name) => {
+                            if (name === "Revenue (₹)") return [`₹${Number(value).toLocaleString("en-IN")}`, name];
+                            return [`${value} units`, name];
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} />
+                        <Bar
+                          yAxisId="left"
+                          dataKey="totalRevenue"
+                          name="Revenue (₹)"
+                          fill="#f97316"
+                          radius={[8, 8, 0, 0]}
+                          barSize={36}
+                        />
+                        <Bar
+                          yAxisId="right"
+                          dataKey="quantitySold"
+                          name="Quantity Sold (Units)"
+                          fill="#06b6d4"
+                          radius={[8, 8, 0, 0]}
+                          barSize={36}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Brand Summary Legend Bar */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                    {chartDatasets.virtualBrands.map((vb) => (
+                      <div
+                        key={vb.brandId || vb.brandName}
+                        className="bg-neutral-800/40 border border-neutral-700/40 p-3 rounded-xl flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          {vb.logo ? (
+                            <img
+                              src={vb.logo}
+                              alt=""
+                              className="h-7 w-7 object-cover rounded-lg border border-neutral-700 shrink-0"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="h-7 w-7 rounded-lg bg-orange-500/20 text-orange-400 font-bold text-xs flex items-center justify-center shrink-0">
+                              {vb.brandName.charAt(0)}
+                            </div>
+                          )}
+                          <div className="truncate">
+                            <div className="text-xs font-semibold text-neutral-200 truncate">
+                              {vb.brandName}
+                            </div>
+                            <div className="text-[9px] text-neutral-400">
+                              {vb.totalOrders} orders ({vb.quantitySold} units)
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-emerald-400 shrink-0">
+                          ₹{Number(vb.totalRevenue || 0).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* CARDS MATRIX VIEW */}
+              {brandViewMode === "cards" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+                  {chartDatasets.virtualBrands.map((vb) => (
+                    <div
+                      key={vb.brandId || vb.brandName}
+                      className="p-4 bg-neutral-800/60 border border-neutral-700/50 hover:border-orange-500/40 rounded-2xl space-y-3 transition-all"
+                    >
+                      <div className="flex items-center justify-between border-b border-neutral-700/40 pb-2.5">
+                        <div className="flex items-center gap-2.5 overflow-hidden">
+                          {vb.logo ? (
+                            <img
+                              src={vb.logo}
+                              alt={vb.brandName}
+                              className="h-8 w-8 object-cover rounded-xl border border-neutral-700 shrink-0"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center font-black text-xs shrink-0 border border-orange-500/30">
+                              {vb.brandName.charAt(0)}
+                            </div>
+                          )}
+                          <div className="truncate">
+                            <h4 className="font-bold text-xs text-white truncate">
+                              {vb.brandName}
+                            </h4>
+                            <span className="text-[9px] text-neutral-400 block font-medium">
+                              ID: {String(vb.brandId).slice(-6)}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-mono font-black text-emerald-400 shrink-0">
+                          ₹{Number(vb.totalRevenue || 0).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                        <div className="bg-neutral-900/50 p-2 rounded-xl border border-neutral-800 text-center">
+                          <span className="text-neutral-400 text-[8px] font-bold uppercase block">
+                            Orders
+                          </span>
+                          <span className="font-black text-neutral-200">
+                            {vb.totalOrders || 0}
+                          </span>
+                        </div>
+                        <div className="bg-neutral-900/50 p-2 rounded-xl border border-neutral-800 text-center">
+                          <span className="text-neutral-400 text-[8px] font-bold uppercase block">
+                            Qty Sold
+                          </span>
+                          <span className="font-black text-cyan-400">
+                            {vb.quantitySold || 0}
+                          </span>
+                        </div>
+                        <div className="bg-neutral-900/50 p-2 rounded-xl border border-neutral-800 text-center">
+                          <span className="text-neutral-400 text-[8px] font-bold uppercase block">
+                            Avg Basket
+                          </span>
+                          <span className="font-black text-amber-400">
+                            ₹{Number(vb.averageOrderValue || 0).toFixed(0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
 
           {/* Top Items & Top Customers & Detailed Orders */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1447,8 +1698,8 @@ export default function ManagerReportingDashboard({ triggerToast }) {
                     {(Array.isArray(detailedOrderData?.items) && detailedOrderData.items.length > 0
                       ? detailedOrderData.items
                       : Array.isArray(detailedOrderData?.orderItems) && detailedOrderData.orderItems.length > 0
-                      ? detailedOrderData.orderItems
-                      : [
+                        ? detailedOrderData.orderItems
+                        : [
                           {
                             itemName: detailedOrderData?.itemNames || "Gourmet Dish Item",
                             quantity: detailedOrderData?.quantity || 1,

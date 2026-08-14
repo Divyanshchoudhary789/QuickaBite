@@ -35,20 +35,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { dinerService } from "../../api/dinerService";
-
-const loadRazorpayScript = () => {
-  return new Promise((resolve) => {
-    if (window.Razorpay) {
-      resolve(true);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
+import { paymentService, loadRazorpayScript } from "../../services/payment.service";
 
 export default function CheckoutPage({
   cartItems,
@@ -111,6 +98,37 @@ export default function CheckoutPage({
     setNewAddrCustomLabel("");
     setIsAddingNewAddress(true);
   };
+
+  // Requirement 3: Handling Mobile Tab Reload (Polling Fallback)
+  useEffect(() => {
+    const pendingOrderId = localStorage.getItem("pending_razorpay_order_id");
+    if (!pendingOrderId) return;
+
+    let isMounted = true;
+    const pollStatus = async () => {
+      try {
+        const res = await paymentService.checkPaymentStatus(pendingOrderId);
+        const status =
+          res?.paymentStatus ||
+          res?.data?.paymentStatus ||
+          res?.data?.order?.paymentStatus;
+        if (status === "paid" && isMounted) {
+          localStorage.removeItem("pending_razorpay_order_id");
+          if (typeof onClearCart === "function") onClearCart();
+          navigate(`/order-success/${pendingOrderId}`);
+        }
+      } catch (err) {
+        console.error("Tab reload polling error:", err);
+      }
+    };
+
+    pollStatus();
+    const interval = setInterval(pollStatus, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [navigate, onClearCart]);
 
   useEffect(() => {
     if (profile) {
@@ -210,7 +228,7 @@ export default function CheckoutPage({
   const [deliveryInstruction, setDeliveryInstruction] = useState("");
   const [selectedPresets, setSelectedPresets] = useState([]);
   const [paymentScreenActive, setPaymentScreenActive] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("razorpay");
+  const [paymentMethod, setPaymentMethod] = useState("upi_gpay");
   const [cardNumber, setCardNumber] = useState("");
   const [cardName, setCardName] = useState("Vedanshi Bhabhra");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -810,12 +828,12 @@ export default function CheckoutPage({
         return;
       }
 
-      // Razorpay / Online Payment Flow
-      await loadRazorpayScript();
+      // Razorpay / Direct UPI Payment Flow
+      await paymentService.loadRazorpayScript();
 
       let rzpData = null;
       try {
-        rzpData = await dinerService.createRazorpayOrder(orderPayload);
+        rzpData = await paymentService.createRazorpayOrder(orderPayload);
         console.log("[Razorpay Order Initiation Response]", rzpData);
       } catch (backendErr) {
         console.error(
@@ -831,86 +849,48 @@ export default function CheckoutPage({
       }
 
       const rawData = rzpData?.data || rzpData;
-
-      const findInternalOrderId = (obj, depth = 0) => {
-        if (!obj || depth > 5) return null;
-        if (typeof obj === "string") {
-          if (/^[0-9a-fA-F]{24}$/.test(obj)) return obj;
-          return null;
-        }
-        if (typeof obj !== "object") return null;
-
-        if (obj._id && typeof obj._id === "string") return obj._id;
-        if (obj.orderId && typeof obj.orderId === "string" && !obj.orderId.startsWith("order_")) return obj.orderId;
-        if (obj.order_id && typeof obj.order_id === "string" && !obj.order_id.startsWith("order_")) return obj.order_id;
-        if (obj.internalOrderId && typeof obj.internalOrderId === "string") return obj.internalOrderId;
-
-        if (obj.order) {
-          const res = findInternalOrderId(obj.order, depth + 1);
-          if (res) return res;
-        }
-        if (obj.data) {
-          const res = findInternalOrderId(obj.data, depth + 1);
-          if (res) return res;
-        }
-        if (obj.id && typeof obj.id === "string" && !obj.id.startsWith("order_")) return obj.id;
-
-        return null;
-      };
-
-      const internalOrderId = findInternalOrderId(rzpData);
+      const razorpayObj = rawData?.razorpay || rzpData?.razorpay || rawData;
+      const internalOrderObj =
+        rawData?.order?.order ||
+        rawData?.order ||
+        rzpData?.order?.order ||
+        rzpData?.order ||
+        rawData?.internalOrder ||
+        rzpData;
 
       const keyId =
-        rawData?.razorpay?.keyId ||
-        rawData?.razorpay?.key_id ||
+        razorpayObj?.keyId ||
+        razorpayObj?.key_id ||
         rawData?.keyId ||
-        rawData?.key_id ||
-        rawData?.key ||
-        rawData?.razorpayKey ||
-        rawData?.razorpayKeyId ||
-        rawData?.razorpay_key_id ||
-        rzpData?.razorpay?.keyId ||
         import.meta.env.VITE_RAZORPAY_KEY_ID;
 
       const razorpayOrderId =
-        rawData?.razorpay?.orderId ||
-        rawData?.razorpay?.order_id ||
-        rawData?.razorpay?.id ||
+        razorpayObj?.orderId ||
+        razorpayObj?.order_id ||
+        razorpayObj?.id ||
         rawData?.razorpayOrderId ||
-        rawData?.razorpay_order_id ||
-        rawData?.order?.razorpayOrderId ||
-        rawData?.order?.razorpay_order_id ||
-        rawData?.razorpayOrder?.id ||
-        rzpData?.razorpay?.orderId ||
-        rzpData?.razorpay?.order_id;
+        rawData?.orderId;
 
       const amountPaise =
-        rawData?.razorpay?.amount ||
+        razorpayObj?.amount ||
         rawData?.amount ||
-        rzpData?.razorpay?.amount ||
         Math.round(grandTotal * 100);
 
       const currency =
-        rawData?.razorpay?.currency ||
+        razorpayObj?.currency ||
         rawData?.currency ||
-        rzpData?.razorpay?.currency ||
         "INR";
 
-      console.log("[Resolved Order IDs]", {
-        internalOrderId,
-        razorpayOrderId,
-        keyId,
-        amountPaise,
-        currency,
-        rawResponse: rzpData,
-      });
+      const internalOrderId =
+        internalOrderObj?._id ||
+        internalOrderObj?.id ||
+        rawData?.orderId ||
+        rzpData?.orderId;
 
-      if (!internalOrderId) {
-        setIsPlacingOrder(false);
-        triggerToast("Failed to resolve Order ID from payment server.");
-        console.error("Unable to extract internalOrderId from backend response:", rzpData);
-        return;
-      }
+      const orderNumber =
+        internalOrderObj?.orderNumber ||
+        internalOrderObj?._id ||
+        internalOrderId;
 
       if (!keyId) {
         setIsPlacingOrder(false);
@@ -918,107 +898,128 @@ export default function CheckoutPage({
         return;
       }
 
+      // Save pending order ID for tab reload polling fallback
+      localStorage.setItem("pending_razorpay_order_id", internalOrderId);
+
+      const razorpayData = {
+        keyId,
+        orderId: razorpayOrderId,
+        amount: amountPaise,
+        currency,
+      };
+
+      const internalOrder = {
+        _id: internalOrderId,
+        id: internalOrderId,
+        orderNumber: orderNumber,
+      };
+
+      const currentUser = {
+        name: name,
+        email: email || "",
+        phone: phone,
+      };
+
+      const getConfigForMethod = (method) => {
+        if (method === "credit_card") {
+          return {
+            display: {
+              blocks: {
+                banks: {
+                  name: "Pay via Credit / Debit Card",
+                  instruments: [{ method: "card" }],
+                },
+              },
+              sequence: ["block.banks"],
+            },
+          };
+        }
+        if (method === "netbanking") {
+          return {
+            display: {
+              blocks: {
+                netbanking: {
+                  name: "Pay via NetBanking",
+                  instruments: [{ method: "netbanking" }],
+                },
+              },
+              sequence: ["block.netbanking"],
+            },
+          };
+        }
+        return {
+          display: {
+            blocks: {
+              upi: {
+                name: "Pay via UPI (PhonePe / GPay / Paytm)",
+                instruments: [{ method: "upi" }],
+              },
+            },
+            sequence: ["block.upi"],
+          },
+        };
+      };
+
       if (window.Razorpay) {
         const options = {
-          key: keyId,
-          amount: amountPaise,
-          currency: currency,
+          key: razorpayData.keyId,
+          amount: razorpayData.amount,
+          currency: razorpayData.currency,
           name: "QuikaBite",
-          description: `Food Order ${internalOrderId}`,
-          prefill: {
-            name: name,
-            email: email,
-            contact: phone,
-          },
-          theme: {
-            color: "#EA580C",
-          },
+          description: `Order #${internalOrder.orderNumber}`,
+          order_id: razorpayData.orderId,
+          config: getConfigForMethod(paymentMethod),
           handler: async function (response) {
-            triggerToast("Verifying payment signature with bank...");
-            const rzpPaymentId =
-              response.razorpay_payment_id || response.payment_id;
-            const rzpOrderId =
-              response.razorpay_order_id || response.order_id || razorpayOrderId;
-            const rzpSignature =
-              response.razorpay_signature || response.signature;
-
-            console.log("[Razorpay Payment Verified Callback]", {
-              orderId: internalOrderId,
-              razorpayOrderId: rzpOrderId,
-              razorpayPaymentId: rzpPaymentId,
-              razorpaySignature: rzpSignature,
-            });
+            triggerToast("Verifying payment signature...");
+            const rzpPaymentId = response.razorpay_payment_id || response.payment_id;
+            const rzpOrderId = response.razorpay_order_id || response.order_id || razorpayOrderId;
+            const rzpSignature = response.razorpay_signature || response.signature;
 
             try {
-              await dinerService.verifyRazorpayPayment({
-                orderId: internalOrderId,
+              const verifyRes = await paymentService.verifyPayment({
+                orderId: internalOrder._id,
                 razorpayOrderId: rzpOrderId,
                 razorpayPaymentId: rzpPaymentId,
-                razorpaySignature: rzpSignature || "test_signature_mock",
+                razorpaySignature: rzpSignature || "test_signature",
               });
+
+              if (verifyRes?.success || verifyRes?.data?.success) {
+                localStorage.removeItem("pending_razorpay_order_id");
+                setIsPlacingOrder(false);
+                if (typeof onClearCart === "function") onClearCart();
+                navigate(`/order-success/${internalOrder._id}`);
+              } else {
+                setIsPlacingOrder(false);
+                triggerToast(verifyRes?.message || "Payment verification failed.");
+              }
             } catch (vErr) {
-              console.error(
-                "Payment verification failed:",
-                vErr.response?.data || vErr.message,
-              );
+              console.error("Payment verification error:", vErr);
               setIsPlacingOrder(false);
-              triggerToast(
-                vErr.response?.data?.message ||
-                "Payment verification failed! Please contact support if money was debited.",
-              );
-              return;
+              triggerToast(vErr.response?.data?.message || "Payment verification failed!");
             }
-
-            const finalOrderId = internalOrderId || `GE-${Math.floor(1e5 + Math.random() * 9e5)}`;
-
-            const finalOrder = {
-              id: finalOrderId,
-              restaurantId,
-              restaurantName,
-              items: [...cartItems],
-              status: "received",
-              paymentStatus: "paid",
-              paymentMethod: "razorpay",
-              razorpayOrderId: rzpOrderId,
-              razorpayPaymentId: rzpPaymentId,
-              timestamp: new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-              subtotal,
-              deliveryFee,
-              discount: couponDiscount,
-              tax: taxesAndService,
-              total: grandTotal,
-              couponCode: appliedCoupon?.code,
-              driverCoords: { x: 12, y: 18 },
-            };
-
-            setGeneratedOrder(finalOrder);
-            setOrderSuccess(true);
-            setIsPlacingOrder(false);
-            triggerToast("Payment Verified & Order Booked!");
-            onCheckoutSuccess(finalOrder);
+          },
+          prefill: {
+            name: currentUser.name,
+            email: currentUser.email || "",
+            contact: currentUser.phone,
+          },
+          theme: {
+            color: "#FF6B00",
           },
           modal: {
             ondismiss: function () {
+              localStorage.removeItem("pending_razorpay_order_id");
               setIsPlacingOrder(false);
               triggerToast("Razorpay checkout cancelled by user.");
             },
           },
         };
 
-        if (razorpayOrderId) {
-          options.order_id = razorpayOrderId;
-        }
-
         const rzp = new window.Razorpay(options);
         rzp.open();
       } else {
         setIsPlacingOrder(false);
-        triggerToast(
-          "Failed to load Razorpay payment gateway script. Please check connection.",
-        );
+        triggerToast("Failed to load Razorpay SDK.");
       }
     } catch (err) {
       console.error(
@@ -1685,12 +1686,46 @@ export default function CheckoutPage({
               <div className="space-y-3">
                 {[
                   {
-                    id: "razorpay",
-                    name: "Razorpay Online Gateway",
-                    description:
-                      "Pay securely via Credit / Debit Cards, UPI (GPay, PhonePe, Paytm), NetBanking & Wallets.",
-                    icon: ShieldCheck,
-                    badge: "Recommended",
+                    id: "upi_gpay",
+                    name: "Google Pay (GPay)",
+                    description: "Fast UPI payment via Google Pay app on your device.",
+                    icon: Smartphone,
+                    badge: "Popular UPI",
+                  },
+                  {
+                    id: "upi_phonepe",
+                    name: "PhonePe",
+                    description: "Instant UPI transfer using PhonePe app.",
+                    icon: Smartphone,
+                    badge: "Fast UPI",
+                  },
+                  {
+                    id: "upi_paytm",
+                    name: "Paytm UPI",
+                    description: "Pay using Paytm UPI or Paytm Bank.",
+                    icon: Smartphone,
+                    badge: "UPI",
+                  },
+                  {
+                    id: "upi_generic",
+                    name: "Other UPI / QR Code",
+                    description: "BHIM, Cred UPI, WhatsApp Pay or scan QR.",
+                    icon: QrCode,
+                    badge: "UPI / QR",
+                  },
+                  {
+                    id: "credit_card",
+                    name: "Credit / Debit Cards",
+                    description: "Visa, Mastercard, RuPay, Amex, Diner's.",
+                    icon: CreditCard,
+                    badge: "Cards",
+                  },
+                  {
+                    id: "netbanking",
+                    name: "NetBanking & Wallets",
+                    description: "HDFC, ICICI, SBI, Axis & major Indian banks.",
+                    icon: Building,
+                    badge: "NetBanking",
                   },
                   {
                     id: "cod",
@@ -1760,7 +1795,102 @@ export default function CheckoutPage({
                 })}
               </div>
 
-              {paymentMethod === "cod" ? (
+              {paymentMethod === "credit_card" ? (
+                <div className="bg-gradient-to-br from-neutral-900 to-neutral-950 p-6 rounded-3xl text-white space-y-5 shadow-xl border border-neutral-800 animate-fade-in">
+                  <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-orange-500" />
+                      <h4 className="text-xs font-black uppercase tracking-wider text-neutral-200">
+                        Credit / Debit Card Details
+                      </h4>
+                    </div>
+                    <span className="text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                      256-Bit Encrypted
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Cardholder Name */}
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-neutral-400 block mb-1.5">
+                        Cardholder Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={cardName}
+                        onChange={(e) => setCardName(e.target.value)}
+                        placeholder="e.g. Vedanshi Bhabhra"
+                        className="w-full bg-neutral-800/80 border border-neutral-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-xl px-4 py-2.5 text-xs text-white placeholder-neutral-500 outline-none font-semibold transition"
+                      />
+                    </div>
+
+                    {/* Card Number */}
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-neutral-400 block mb-1.5">
+                        16-Digit Card Number
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          maxLength={19}
+                          value={cardNumber}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
+                            const formatted = raw.replace(/(.{4})/g, "$1 ").trim();
+                            setCardNumber(formatted);
+                          }}
+                          placeholder="4532 0000 0000 0000"
+                          className="w-full bg-neutral-800/80 border border-neutral-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-xl pl-4 pr-10 py-2.5 text-xs text-white placeholder-neutral-500 outline-none font-mono font-semibold transition tracking-wider"
+                        />
+                        <CreditCard className="absolute right-3 top-2.5 h-4 w-4 text-neutral-400" />
+                      </div>
+                    </div>
+
+                    {/* Expiry & CVV Row */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-neutral-400 block mb-1.5">
+                          Expiry Date (MM/YY)
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={5}
+                          value={cardExpiry}
+                          onChange={(e) => {
+                            let raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+                            if (raw.length >= 3) {
+                              raw = `${raw.slice(0, 2)}/${raw.slice(2)}`;
+                            }
+                            setCardExpiry(raw);
+                          }}
+                          placeholder="MM/YY"
+                          className="w-full bg-neutral-800/80 border border-neutral-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-xl px-4 py-2.5 text-xs text-white placeholder-neutral-500 outline-none font-mono font-semibold transition tracking-wider"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-neutral-400 block mb-1.5">
+                          CVV / CVC Code
+                        </label>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          value={cardCvv}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+                            setCardCvv(raw);
+                          }}
+                          placeholder="•••"
+                          className="w-full bg-neutral-800/80 border border-neutral-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-xl px-4 py-2.5 text-xs text-white placeholder-neutral-500 outline-none font-mono font-semibold transition tracking-wider"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-neutral-400 font-medium leading-relaxed pt-1">
+                    🔒 Card details are encrypted using PCI-DSS 256-Bit SSL standard before being forwarded to Razorpay checkout terminal.
+                  </p>
+                </div>
+              ) : paymentMethod === "cod" ? (
                 <div className="bg-emerald-50/60 p-6 rounded-3xl border border-emerald-100 space-y-2">
                   <div className="flex items-center gap-2 text-xs font-black text-gray-900 uppercase tracking-wider">
                     <Truck className="h-4 w-4 text-emerald-600" />

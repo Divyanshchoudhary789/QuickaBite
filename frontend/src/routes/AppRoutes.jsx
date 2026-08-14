@@ -9,6 +9,7 @@ import FavoritesPage from "../components/diner/FavoritesPage";
 import SupportPage from "../components/diner/SupportPage";
 import ShoppingCartPage from "../components/diner/ShoppingCartPage";
 import CheckoutPage from "../components/diner/CheckoutPage";
+import OrderSuccessPage from "../components/diner/OrderSuccessPage";
 import AdminDashboard from "../components/admin/AdminDashboard";
 import BrandManagementTab from "../components/admin/BrandManagementTab";
 import ManagerDashboard from "../components/manager/ManagerDashboard";
@@ -208,6 +209,16 @@ export default function AppRoutes({
             triggerToast={triggerToast}
             preAppliedCoupon={preAppliedCoupon}
             setPreAppliedCoupon={setPreAppliedCoupon}
+          />
+        }
+      />
+
+      <Route
+        path="/order-success/:orderId"
+        element={
+          <OrderSuccessPage
+            triggerToast={triggerToast}
+            setActiveOrder={setActiveOrder}
           />
         }
       />
