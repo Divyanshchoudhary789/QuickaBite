@@ -224,23 +224,13 @@ export const adminService = {
 
   // Banners management
   async getBanners() {
-    if (USE_MOCK) {
-      const cached = localStorage.getItem("globaleats_banners");
-      return cached ? JSON.parse(cached) : [];
-    } else {
-      const response = await apiClient.get("/admin/banners");
-      return response.data;
-    }
+    const cached = localStorage.getItem("globaleats_banners");
+    return cached ? JSON.parse(cached) : [];
   },
 
   async saveBanners(banners) {
-    if (USE_MOCK) {
-      localStorage.setItem("globaleats_banners", JSON.stringify(banners));
-      return banners;
-    } else {
-      const response = await apiClient.post("/admin/banners", { banners });
-      return response.data;
-    }
+    localStorage.setItem("globaleats_banners", JSON.stringify(banners));
+    return banners;
   },
 
   // Custom bulk notifications

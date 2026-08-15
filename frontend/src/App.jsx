@@ -121,11 +121,16 @@ function AppContent() {
   });
 
   useEffect(() => {
-    const path = location.pathname.substring(1);
-    if (!path || path === "") {
+    const rawPath = location.pathname.substring(1);
+    if (!rawPath || rawPath === "") {
       navigate("/home", { replace: true });
       return;
     }
+
+    const parts = rawPath.split("/");
+    const path = parts[0];
+    const subRoute = parts[1] || "";
+
     const validTabs = [
       "home",
       "search",
@@ -149,7 +154,7 @@ function AppContent() {
     // Guard: logged in users should not access the login page
     if (path === "login" && isLoggedIn) {
       if (userRole === "admin") {
-        navigate("/admin", { replace: true });
+        navigate("/admin/dashboard", { replace: true });
       } else if (userRole === "manager") {
         navigate("/manager", { replace: true });
       } else {
@@ -176,9 +181,34 @@ function AppContent() {
       return;
     }
 
-    if (path === "admin" && userRole !== "admin") {
-      navigate("/home", { replace: true });
-      return;
+    if (path === "admin") {
+      if (userRole !== "admin") {
+        navigate("/home", { replace: true });
+        return;
+      }
+
+      const normalizedSub = subRoute.toLowerCase();
+      if (!subRoute || normalizedSub === "dashboard" || normalizedSub === "overview") {
+        setAdminSubTab("dashboard");
+      } else if (normalizedSub === "bireporting" || normalizedSub === "reports") {
+        setAdminSubTab("BIreporting");
+      } else if (normalizedSub === "support-tickets" || normalizedSub === "support") {
+        setAdminSubTab("support-tickets");
+      } else if (normalizedSub === "categories") {
+        setAdminSubTab("categories");
+      } else if (normalizedSub === "brands") {
+        setAdminSubTab("brands");
+      } else if (normalizedSub === "orders") {
+        setAdminSubTab("orders");
+      } else if (normalizedSub === "restaurants" || normalizedSub === "menu") {
+        setAdminSubTab("restaurants");
+      } else if (normalizedSub === "marketing" || normalizedSub === "coupons") {
+        setAdminSubTab("marketing");
+      } else if (normalizedSub === "users") {
+        setAdminSubTab("users");
+      } else if (normalizedSub === "notifications") {
+        setAdminSubTab("notifications");
+      }
     }
 
     if (path === "manager" && userRole !== "manager") {
@@ -192,7 +222,7 @@ function AppContent() {
     }
 
     if (
-      (path === "favorites" || path === "cart" || path === "checkout") &&
+      (path === "favorites" || path === "cart" || path === "checkout" || path === "support") &&
       (userRole === "admin" || userRole === "manager")
     ) {
       navigate("/home", { replace: true });
@@ -211,7 +241,7 @@ function AppContent() {
   const [filterPureVeg, setFilterPureVeg] = useState(false);
   const [filterOffers, setFilterOffers] = useState(false);
   const [filterPrice, setFilterPrice] = useState("all");
-  const [adminSubTab, setAdminSubTab] = useState("overview");
+  const [adminSubTab, setAdminSubTab] = useState("dashboard");
   const [marketingSubTab, setMarketingSubTab] = useState("overview");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -1017,8 +1047,7 @@ function AppContent() {
         )}
 
         {/* 5. Sticky Bottom Navigation Bar (Responsive floating dock) */}
-        {/* 5. Sticky Bottom Navigation Bar (Responsive floating dock) */}
-        {!hideBottomNavbar && (
+        {!hideBottomNavbar && activeTab !== "admin" && userRole !== "admin" && (
           <BottomNavbar
             activeTab={activeTab}
             setActiveTab={navigateWithAuth}

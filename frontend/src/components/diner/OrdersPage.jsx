@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   CheckCircle2,
   Clock,
@@ -14,8 +15,12 @@ import {
   Calendar,
   XCircle,
   AlertTriangle,
+  LifeBuoy,
+  X,
 } from "lucide-react";
 import { RESTAURANTS } from "../../data";
+import ReportIssueModal from "./ReportIssueModal";
+
 export default function OrdersPage({
   orders,
   setOrders,
@@ -27,6 +32,7 @@ export default function OrdersPage({
   triggerToast,
 }) {
   const [activeSubTab, setActiveSubTab] = useState("active");
+  const [reportIssueOrder, setReportIssueOrder] = useState(null);
   const [expandedOrders, setExpandedOrders] = useState({});
   const [ratingOrder, setRatingOrder] = useState(null);
   const [hoverRating, setHoverRating] = useState(0);
@@ -302,6 +308,95 @@ ${divider}
     link.click();
     document.body.removeChild(link);
     triggerToast(`Invoice for ${order.id || "order"} downloaded successfully!`);
+  };
+
+  const handlePrintInvoice = (order) => {
+    if (!order) return;
+    const printWindow = window.open("", "_blank", "width=800,height=900");
+    if (!printWindow) {
+      if (triggerToast) triggerToast("Please allow popups in your browser to print invoice.");
+      return;
+    }
+
+    const itemsHtml = (Array.isArray(order.items) ? order.items : [])
+      .map((item) => {
+        const name = item?.menuItem?.name || item?.name || "Gourmet Item";
+        const price = Number(item?.menuItem?.price ?? item?.price ?? 0);
+        const qty = Number(item?.quantity ?? 1);
+        return `
+          <tr>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #eee;">${name} x${qty}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">₹ ${(price * qty).toFixed(2)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice #${order.id || "QB-0000"} - QuickaBite</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #111; max-width: 650px; margin: auto; }
+            .header { text-align: center; border-bottom: 3px solid #ea580c; padding-bottom: 15px; margin-bottom: 25px; }
+            .header h1 { margin: 0; color: #ea580c; font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
+            .header p { margin: 6px 0 0; color: #666; font-size: 11px; font-weight: bold; letter-spacing: 1px; }
+            .meta { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 25px; line-height: 1.6; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px; }
+            th { text-align: left; background: #f8f8f8; padding: 10px 8px; border-bottom: 2px solid #e5e5e5; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .totals { font-size: 13px; margin-top: 15px; }
+            .totals div { display: flex; justify-content: space-between; padding: 5px 0; }
+            .grand-total { font-size: 16px; font-weight: 900; border-top: 2px solid #111; padding-top: 10px; margin-top: 10px; }
+            .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #888; border-top: 1px border-dashed #ddd; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>QuickaBite</h1>
+            <p>AUTHENTICATED TAX INVOICE & RECEIPT</p>
+          </div>
+          <div class="meta">
+            <div>
+              <strong>Order ID:</strong> #${order.id || "QB-0000"}<br>
+              <strong>Date & Time:</strong> ${order.timestamp || new Date().toLocaleString()}<br>
+              <strong>Restaurant:</strong> ${order.restaurantName || "QuickaBite Kitchen Outpost"}
+            </div>
+            <div style="text-align: right;">
+              <strong>Payment Status:</strong> PAID ONLINE ✓<br>
+              <strong>TRN Number:</strong> 100459302840003
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item Description</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div class="totals">
+            <div><span>Subtotal:</span> <span>₹ ${Number(order.subtotal || 0).toFixed(2)}</span></div>
+            ${Number(order.discount || 0) > 0 ? `<div><span style="color:#059669; font-weight:bold;">Promo Discount (${order.couponCode || "COUPON"}):</span> <span style="color:#059669; font-weight:bold;">-₹ ${Number(order.discount).toFixed(2)}</span></div>` : ""}
+            <div><span>Delivery Fee:</span> <span>${Number(order.deliveryFee || 0) === 0 ? "<strong style='color:#059669;'>FREE</strong>" : `₹ ${Number(order.deliveryFee).toFixed(2)}`}</span></div>
+            <div><span>5% VAT & Service Charge:</span> <span>₹ ${Number(order.tax || 0).toFixed(2)}</span></div>
+            <div class="grand-total"><span>Grand Total:</span> <span>₹ ${Number(order.total || order.grandTotal || 0).toFixed(2)}</span></div>
+          </div>
+          <div class="footer">
+            Thank you for ordering with QuickaBite! • Computer-generated tax receipt.
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
   const getStatusInfo = (status) => {
     switch (status) {
@@ -1118,6 +1213,15 @@ ${divider}
                           <Printer className="h-3.5 w-3.5 text-gray-400" />
                           <span>Print View</span>
                         </button>
+
+                        <button
+                          onClick={() => setReportIssueOrder(order)}
+                          className="bg-amber-50 hover:bg-amber-100 border border-amber-250 text-amber-800 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                          title="Raise Support Ticket"
+                        >
+                          <LifeBuoy className="h-3.5 w-3.5 text-amber-600" />
+                          <span>Support / Raise Ticket</span>
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-3">
@@ -1165,47 +1269,45 @@ ${divider}
       )}
 
       {/* INVOICE MODAL / PRINT PREVIEW PORTAL */}
-      {invoiceModalOrder && (
+      {invoiceModalOrder && createPortal(
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-100 overflow-y-auto animate-fade-in cursor-pointer"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setInvoiceModalOrder(null);
-            }
-          }}
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in cursor-pointer overflow-y-auto"
+          onClick={() => setInvoiceModalOrder(null)}
         >
           <div
-            className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-100 my-8 cursor-default"
+            className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-neutral-200 my-auto cursor-default flex flex-col max-h-[85vh] animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Controls Bar */}
-            <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-              <h4 className="font-display font-black text-xs text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                <span>📄 Verified Invoice Portal</span>
+            <div className="p-4 sm:p-5 bg-neutral-950 text-white border-b border-neutral-800 flex items-center justify-between shrink-0">
+              <h4 className="font-display font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2 text-white">
+                <Printer className="h-4.5 w-4.5 text-brand-orange shrink-0" />
+                <span>Verified Tax Invoice Portal</span>
               </h4>
               <button
                 onClick={() => setInvoiceModalOrder(null)}
-                className="text-gray-400 hover:text-gray-800 font-bold text-sm bg-white hover:bg-gray-100 h-8 w-8 rounded-full flex items-center justify-center shadow-xs transition"
+                className="p-1.5 text-neutral-400 hover:text-white rounded-xl hover:bg-neutral-800 transition cursor-pointer flex items-center justify-center"
+                title="Close Window"
               >
-                ✕
+                <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Printable Area content */}
             <div
-              className="p-6 sm:p-8 space-y-6 text-gray-800"
+              className="p-6 sm:p-8 space-y-6 text-gray-800 max-h-[70vh] overflow-y-auto"
               id={`printable-invoice-${invoiceModalOrder.id}`}
             >
               {/* Receipt Header */}
               <div className="text-center space-y-1">
                 <h3 className="font-display font-black text-2xl text-gray-950 tracking-tight">
-                  GLOBAL EATS CO.
+                  QUICKABITE FOODS
                 </h3>
                 <p className="text-[10px] text-gray-400 font-mono font-bold uppercase tracking-widest">
-                  Gourmet Dining Delivery Services
+                  Gourmet Cloud Kitchen Delivery Services
                 </p>
                 <p className="text-xs text-gray-500">
-                  Dubai Marina Office Towers, PO Box 4509, Dubai, UAE
+                  QuickaBite Corporate Hub, Tax Reg #100459302840003
                 </p>
               </div>
 
@@ -1230,8 +1332,8 @@ ${divider}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-gray-400">Delivery Client:</p>
-                  <p className="font-bold text-gray-800">Vedanshi Bhabhra</p>
+                  <p className="text-gray-400">Payment Status:</p>
+                  <p className="font-bold text-emerald-600">PAID ONLINE ✓</p>
                 </div>
               </div>
 
@@ -1321,28 +1423,45 @@ ${divider}
             </div>
 
             {/* Action controls footer */}
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center gap-2.5">
+              <button
+                onClick={() => setInvoiceModalOrder(null)}
+                className="px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl text-xs transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
               <button
                 onClick={() => handleDownloadInvoice(invoiceModalOrder)}
-                className="flex-1 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs"
+                className="flex-1 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-4 w-4 text-gray-500" />
                 <span>Download file</span>
               </button>
 
               <button
-                onClick={() => {
-                  window.print();
-                }}
-                className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-black py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md"
+                onClick={() => handlePrintInvoice(invoiceModalOrder)}
+                className="flex-1 bg-brand-orange hover:bg-orange-600 text-white font-black py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
               >
                 <Printer className="h-4 w-4" />
                 <span>Print Invoice</span>
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
+
+      {/* Support / Issue Reporting Modal */}
+      <ReportIssueModal
+        isOpen={!!reportIssueOrder}
+        onClose={() => setReportIssueOrder(null)}
+        order={reportIssueOrder}
+        onSuccess={() => {
+          if (triggerToast) triggerToast("Support ticket submitted successfully!");
+          setReportIssueOrder(null);
+        }}
+      />
     </div>
   );
 }

@@ -41,6 +41,10 @@ export default function Navbar({
   isLoggedIn = false,
   profile,
 }) {
+  if (userRole === "admin" || activeTab === "admin") {
+    return null;
+  }
+
   const [showLocationMenu, setShowLocationMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const { favorites, favoriteDishes } = useFavorites();
@@ -425,16 +429,18 @@ export default function Navbar({
                               <User className="h-4 w-4" />
                               <span>My Profile</span>
                             </button>
-                            <button
-                              onClick={() => {
-                                setActiveTab("support");
-                                setShowProfileMenu(false);
-                              }}
-                              className="cursor-pointer w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-brand-orange transition flex items-center gap-2"
-                            >
-                              <LifeBuoy className="h-4 w-4" />
-                              <span>Support Helpdesk</span>
-                            </button>
+                            {userRole !== "manager" && userRole !== "admin" && (
+                              <button
+                                onClick={() => {
+                                  setActiveTab("support");
+                                  setShowProfileMenu(false);
+                                }}
+                                className="cursor-pointer w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-brand-orange transition flex items-center gap-2"
+                              >
+                                <LifeBuoy className="h-4 w-4" />
+                                <span>Support Helpdesk</span>
+                              </button>
+                            )}
                             <div className="border-t border-gray-50 my-1" />
                             {onLogout && (
                               <button

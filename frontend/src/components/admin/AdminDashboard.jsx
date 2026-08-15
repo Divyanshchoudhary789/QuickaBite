@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChefHat,
@@ -16,6 +17,12 @@ import {
   AlertCircle,
   Grid,
   Ticket,
+  HelpCircle,
+  Menu,
+  LogOut,
+  Mail,
+  User,
+  ShieldCheck,
 } from "lucide-react";
 import {
   RESTAURANTS,
@@ -32,8 +39,8 @@ import ReportingDashboard from "./ReportingDashboard";
 import MarketingTab from "./MarketingTab";
 import UsersTab from "./UsersTab";
 import DriversTab from "./DriversTab";
-import BannersTab from "./BannersTab";
 import CategoryManagementTab from "./CategoryManagementTab";
+import AdminSupportManagementTab from "./AdminSupportManagementTab";
 import { adminService } from "../../api/adminService";
 import { parseApiError } from "../../api/apiClient";
 import {
@@ -45,7 +52,6 @@ import {
 import { createPortal } from "react-dom";
 import Modal from "../common/Modal";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 export default function AdminDashboard({
   orders,
   setOrders,
@@ -61,8 +67,9 @@ export default function AdminDashboard({
   marketingSubTab,
   setMarketingSubTab,
 }) {
+  const navigate = useNavigate();
   const [localActiveSubTab, setLocalActiveSubTab] = useState(() => {
-    return localStorage.getItem("Quikabite_admin_subtab") || "overview";
+    return localStorage.getItem("Quikabite_admin_subtab") || "dashboard";
   });
   const activeSubTab = adminSubTab || localActiveSubTab;
   const setActiveSubTab = setAdminSubTab || setLocalActiveSubTab;
@@ -79,8 +86,10 @@ export default function AdminDashboard({
     }
   }, [adminSubTab]);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const { logout } = useAuth();
-  const navigate = useNavigate();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { user, logout } = useAuth();
+  const adminName = user?.fullName || user?.name || "Executive Admin";
+  const adminEmail = user?.email || "admin@quickabite.com";
 
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
@@ -1074,103 +1083,209 @@ export default function AdminDashboard({
   return (
     <>
       <div
-        className="min-h-screen bg-neutral-50/70 py-12 px-4 sm:px-6 lg:px-8 font-sans"
+        className="min-h-screen bg-neutral-100 flex font-sans relative overflow-x-hidden"
         id="admin-workspace-pane"
       >
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* HEADER RAIL */}
+        {/* MOBILE BACKDROP OVERLAY */}
+        {isSidebarOpen && (
           <div
-            className="bg-neutral-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden border border-neutral-800"
-            id="admin-workspace-header"
-          >
-            <div
-              className="absolute inset-0 bg-cover bg-center mix-blend-overlay opacity-5 blur-xs"
-              style={{
-                backgroundImage:
-                  'url("https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&q=80&w=800")',
-              }}
-            />
-            <div className="z-10 space-y-2">
-              <span className="text-[10px] font-black uppercase bg-brand-orange/20 text-orange-400 border border-brand-orange/30 px-3.5 py-1.5 rounded-full inline-block">
-                Multi-Brand Cloud Kitchen Control Panel
-              </span>
-              <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
-                <ChefHat className="h-8 w-8 text-brand-orange animate-bounce" />
-                <span>QuickaBite Kitchen Control</span>
-              </h1>
-              <p className="text-neutral-400 text-xs font-semibold">
-                Coordinate brand menus, process direct recipes, monitor live
-                food dispatches, and review fleet latency logs.
-              </p>
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden cursor-pointer"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        {/* ADMIN SIDEBAR SLIDER DRAWER */}
+        <aside
+          className={`fixed lg:sticky top-0 left-0 h-screen z-50 bg-white text-neutral-900 border-r border-neutral-200 flex flex-col transition-all duration-300 ease-in-out shrink-0 shadow-md ${
+            isSidebarOpen
+              ? "w-72 translate-x-0"
+              : "-translate-x-full lg:translate-x-0 lg:w-20"
+          }`}
+          id="admin-sidebar-drawer"
+        >
+          {/* Sidebar Header & Brand Badge */}
+          <div className="p-5 border-b border-neutral-150 flex items-center justify-between shrink-0 bg-white">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-10 h-10 rounded-2xl bg-brand-orange text-white flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                <ChefHat className="w-6 h-6 text-white animate-pulse" />
+              </div>
+              {isSidebarOpen && (
+                <div className="space-y-0.5">
+                  <h3 className="font-display font-black text-base text-neutral-900 tracking-tight leading-none">
+                    QuickaBite
+                  </h3>
+                  <span className="text-[9px] font-mono font-black text-brand-orange uppercase tracking-widest block">
+                    Admin Portal
+                  </span>
+                </div>
+              )}
             </div>
 
-            <div className="flex flex-wrap gap-2.5 z-10 w-full md:w-auto shrink-0">
-              <button
-                onClick={() => setShowLogoutConfirm(true)}
-                className="flex-1 sm:flex-initial px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl text-xs transition shadow-lg shadow-red-900/10 cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <span>Logout Securely</span>
-              </button>
+            {/* TOGGLE BUTTON INSIDE SLIDER HEADER */}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 text-neutral-500 hover:text-neutral-900 rounded-xl hover:bg-neutral-100 transition cursor-pointer"
+              title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+            >
+              {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+
+          {/* ADMIN PROFILE CARD (Name & Mail) */}
+          <div className="p-4 border-b border-neutral-150 bg-neutral-50/80 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-brand-orange text-white flex items-center justify-center font-black text-base shadow-sm shrink-0">
+                {adminName.charAt(0).toUpperCase()}
+              </div>
+              {isSidebarOpen && (
+                <div className="overflow-hidden space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="font-black text-xs text-neutral-900 truncate max-w-[140px]">
+                      {adminName}
+                    </h4>
+                    <ShieldCheck className="w-3.5 h-3.5 text-brand-orange shrink-0" />
+                  </div>
+                  <p className="text-[11px] text-neutral-500 font-mono truncate max-w-[160px]">
+                    {adminEmail}
+                  </p>
+                  <span className="inline-block px-2 py-0.5 bg-orange-50 text-brand-orange border border-orange-200 text-[9px] font-black rounded-full uppercase tracking-wider mt-1">
+                    Super Admin
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* ADMIN WORKSPACE SUB-NAVIGATION BAR */}
-          <div
-            className="bg-white p-2 rounded-2xl shadow-xs border border-neutral-150 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth shrink-0"
-            id="admin-subnav-row"
-          >
+          {/* SIDEBAR NAVIGATION ITEMS SLIDER LIST */}
+          <div className="p-3 space-y-1.5 overflow-y-auto flex-1 custom-scrollbar">
             {[
               {
-                id: "overview",
-                label: "Kitchen Analytics",
+                id: "dashboard",
+                route: "/admin/dashboard",
+                label: "Dashboard",
                 icon: TrendingUp,
               },
               {
-                id: "reports",
-                label: "BI & Reporting Dashboard",
+                id: "BIreporting",
+                route: "/admin/BIreporting",
+                label: "BI & Reporting",
                 icon: Sparkles,
               },
               {
+                id: "support-tickets",
+                route: "/admin/support-tickets",
+                label: "Support Tickets",
+                icon: HelpCircle,
+              },
+              {
                 id: "brands",
+                route: "/admin/brands",
                 label: "Virtual Brands",
                 icon: Award,
               },
               {
                 id: "marketing",
+                route: "/admin/marketing",
                 label: "Promo Coupons",
                 icon: Ticket,
               },
               {
                 id: "orders",
-                label: `Orders`,
+                route: "/admin/orders",
+                label: "Orders",
                 icon: Clock,
               },
               {
                 id: "categories",
+                route: "/admin/categories",
                 label: "Categories",
                 icon: Grid,
               },
               {
                 id: "restaurants",
+                route: "/admin/restaurants",
                 label: "Menu Management",
                 icon: SlidersHorizontal,
               },
-              { id: "users", label: "Users Directory", icon: Users },
-              { id: "banners", label: "Promo Banners", icon: Image },
+              { id: "users", route: "/admin/users", label: "Users Directory", icon: Users },
             ].map((tab) => {
               const Icon = tab.icon;
-              const isSelected = activeSubTab === tab.id;
+              const isSelected =
+                activeSubTab === tab.id ||
+                (tab.id === "dashboard" && activeSubTab === "overview") ||
+                (tab.id === "BIreporting" && activeSubTab === "reports");
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveSubTab(tab.id)}
-                  className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition flex items-center gap-2 cursor-pointer ${isSelected ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
+                  onClick={() => {
+                    setActiveSubTab(tab.id);
+                    navigate(tab.route);
+                    if (window.innerWidth < 1024) {
+                      setIsSidebarOpen(false);
+                    }
+                  }}
+                  className={`w-full px-3.5 py-3 rounded-2xl font-bold text-xs transition-all duration-200 flex items-center gap-3 cursor-pointer ${
+                    isSelected
+                      ? "bg-brand-orange text-white shadow-md font-black"
+                      : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
+                  } ${!isSidebarOpen ? "justify-center px-0" : ""}`}
+                  title={tab.label}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
+                  <Icon className={`h-4.5 w-4.5 shrink-0 ${isSelected ? "text-white" : "text-neutral-500"}`} />
+                  {isSidebarOpen && <span className="truncate">{tab.label}</span>}
                 </button>
               );
             })}
+          </div>
+
+          {/* SIDEBAR FOOTER (LOGOUT) */}
+          <div className="p-3 border-t border-neutral-150 shrink-0 bg-white">
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className={`w-full py-3 px-3.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-2xl font-black text-xs transition flex items-center justify-center gap-2.5 cursor-pointer shadow-xs ${
+                !isSidebarOpen ? "px-0" : ""
+              }`}
+              title="Logout Securely"
+            >
+              <LogOut className="w-4 h-4 shrink-0 text-rose-600" />
+              {isSidebarOpen && <span>Logout Securely</span>}
+            </button>
+          </div>
+        </aside>
+
+        {/* MAIN WORKSPACE VIEWPORT AREA */}
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* WORKSPACE TOP CONTROL BAR */}
+          <div className="bg-white p-4 rounded-3xl shadow-xs border border-neutral-200 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {!isSidebarOpen && (
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2.5 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 transition cursor-pointer flex items-center justify-center border border-neutral-200"
+                  title="Open Sidebar"
+                >
+                  <Menu className="w-5 h-5 text-neutral-900" />
+                </button>
+              )}
+              <div>
+                <h2 className="font-display font-black text-base text-neutral-900 tracking-tight flex items-center gap-2">
+                  <span>QuickaBite Administration</span>
+                </h2>
+                <p className="text-[11px] text-neutral-500 font-medium">
+                  Active View: <span className="font-bold text-brand-orange uppercase">{activeSubTab}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-3">
+              <div className="text-right">
+                <span className="text-xs font-bold text-neutral-900 block">{adminName}</span>
+                <span className="text-[10px] text-neutral-400 font-mono">{adminEmail}</span>
+              </div>
+              <div className="w-9 h-9 rounded-xl bg-neutral-900 text-brand-orange flex items-center justify-center font-black text-xs border border-neutral-800">
+                {adminName.charAt(0).toUpperCase()}
+              </div>
+            </div>
           </div>
 
           {/* VIEWPORT AREA WITH ANIMATION */}
@@ -1183,8 +1298,8 @@ export default function AdminDashboard({
               transition={{ duration: 0.2 }}
               className="space-y-6"
             >
-              {/* 1. OPERATIONAL ANALYTICS */}
-              {activeSubTab === "overview" && (
+              {/* 1. OPERATIONAL ANALYTICS / DASHBOARD */}
+              {(activeSubTab === "dashboard" || activeSubTab === "overview") && (
                 <AnalyticsTab
                   orders={orders}
                   restaurantsCount={restaurantsList.length}
@@ -1192,16 +1307,24 @@ export default function AdminDashboard({
                   driversCount={driversCount}
                   setOrders={setOrders}
                   triggerToast={triggerToast}
-                  onNavigateSubTab={setActiveSubTab}
+                  onNavigateSubTab={(targetTabId) => {
+                    setActiveSubTab(targetTabId);
+                    navigate(`/admin/${targetTabId}`);
+                  }}
                 />
               )}
 
               {/* BI & REPORTING DASHBOARD */}
-              {activeSubTab === "reports" && (
+              {(activeSubTab === "BIreporting" || activeSubTab === "reports") && (
                 <ReportingDashboard
                   orders={orders}
                   triggerToast={triggerToast}
                 />
+              )}
+
+              {/* GLOBAL SUPPORT TICKETS & USER AUDIT */}
+              {activeSubTab === "support-tickets" && (
+                <AdminSupportManagementTab triggerToast={triggerToast} />
               )}
 
               {/* CATEGORIES MANAGEMENT TAB */}
@@ -1285,11 +1408,6 @@ export default function AdminDashboard({
                 />
               )}
 
-              {/* 7. PROMO BANNERS */}
-              {activeSubTab === "banners" && (
-                <BannersTab triggerToast={triggerToast} />
-              )}
-
               {/* 9. PUSH CENTER */}
               {activeSubTab === "notifications" && (
                 <NotificationsTab
@@ -1298,8 +1416,14 @@ export default function AdminDashboard({
                   triggerToast={triggerToast}
                 />
               )}
+
+              {(activeSubTab === "issues" || activeSubTab === "support") && (
+                <AdminSupportManagementTab triggerToast={triggerToast} />
+              )}
             </motion.div>
           </AnimatePresence>
+        </main>
+      </div>
 
           {/* MODAL: ADD/EDIT KITCHEN OUTLET */}
           <Modal isOpen={showAddResModal} onClose={closeAddResModal} maxWidth="max-w-md">
@@ -1868,8 +1992,6 @@ export default function AdminDashboard({
               </button>
             </form>
           </Modal>
-        </div>
-      </div>
 
       {showLogoutConfirm &&
         createPortal(

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { ChefHat, Sparkles } from "lucide-react";
+import { ChefHat, Sparkles, HelpCircle, Ticket } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import KitchenOperationsBoard from "./KitchenOperationsBoard";
 import ManagerReportingDashboard from "./ManagerReportingDashboard";
+import ManagerIssueManagementTab from "./ManagerIssueManagementTab";
 
 export default function ManagerDashboard({
   orders,
@@ -14,7 +15,7 @@ export default function ManagerDashboard({
 }) {
   const [managerSubTab, setManagerSubTab] = useState("kitchen");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const { logout } = useAuth();
+  const { logout, profile } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -50,20 +51,29 @@ export default function ManagerDashboard({
           </div>
 
           {/* Sub Navigation for Manager */}
-          <div className="bg-white p-1.5 rounded-2xl shadow-xs border border-neutral-150 flex gap-1 items-center">
+          <div className="bg-white p-1.5 rounded-2xl shadow-xs border border-neutral-150 flex gap-1 items-center overflow-x-auto">
             <button
               onClick={() => setManagerSubTab("kitchen")}
-              className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer ${managerSubTab === "kitchen" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
+              className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shrink-0 ${managerSubTab === "kitchen" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
             >
               <ChefHat className="h-4 w-4" />
-              <span>Kitchen Operations Board</span>
+              <span>Kitchen Operations</span>
             </button>
+
+            <button
+              onClick={() => setManagerSubTab("issues")}
+              className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shrink-0 ${managerSubTab === "issues" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
+            >
+              <Ticket className="h-4 w-4 text-amber-400" />
+              <span>Support Tickets</span>
+            </button>
+
             <button
               onClick={() => setManagerSubTab("reports")}
-              className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer ${managerSubTab === "reports" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
+              className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shrink-0 ${managerSubTab === "reports" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
             >
               <Sparkles className="h-4 w-4" />
-              <span>BI & Reporting Dashboard</span>
+              <span>Reporting</span>
             </button>
           </div>
 
@@ -74,6 +84,10 @@ export default function ManagerDashboard({
               triggerToast={triggerToast}
               setHideBottomNavbar={setHideBottomNavbar}
             />
+          )}
+
+          {managerSubTab === "issues" && (
+            <ManagerIssueManagementTab restaurantId={profile?.restaurant} />
           )}
 
           {managerSubTab === "reports" && (

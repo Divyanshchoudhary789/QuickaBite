@@ -736,52 +736,41 @@ export const dinerService = {
 
   // Banners Management (diner-scoped)
   async getBanners() {
-    if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const cached = localStorage.getItem("globaleats_banners");
-      if (cached) return JSON.parse(cached);
-      const defaultBanners = [
-        {
-          title: "UP TO 50% OFF",
-          subtitle: "ON YOUR FIRST ORDER",
-          code: "WELCOME50",
-          image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800",
-          foodName: "Signature Dum Biryani",
-          color: "from-orange-600 to-amber-500"
-        },
-        {
-          title: "FLAT 40% OFF",
-          subtitle: "ON PREMIUM FEASTS",
-          code: "FOOD40",
-          image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=800",
-          foodName: "Melted Cheese Pizzas",
-          color: "from-rose-600 to-orange-500"
-        },
-        {
-          title: "BUY 1 GET 1 FREE",
-          subtitle: "ON LEBANESE SHAWARMAS",
-          code: "YALLABOGO",
-          image: "https://images.unsplash.com/photo-1574894709920-11b28e7367e3?auto=format&fit=crop&q=80&w=800",
-          foodName: "Authentic Arabic Bowls",
-          color: "from-emerald-600 to-teal-500"
-        }
-      ];
-      localStorage.setItem("globaleats_banners", JSON.stringify(defaultBanners));
-      return defaultBanners;
-    } else {
-      const response = await apiClient.get("/diner/banners");
-      return response.data;
-    }
+    const cached = localStorage.getItem("globaleats_banners");
+    if (cached) return JSON.parse(cached);
+    const defaultBanners = [
+      {
+        title: "UP TO 50% OFF",
+        subtitle: "ON YOUR FIRST ORDER",
+        code: "WELCOME50",
+        image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800",
+        foodName: "Signature Dum Biryani",
+        color: "from-orange-600 to-amber-500"
+      },
+      {
+        title: "FLAT 40% OFF",
+        subtitle: "ON PREMIUM FEASTS",
+        code: "FOOD40",
+        image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=800",
+        foodName: "Melted Cheese Pizzas",
+        color: "from-rose-600 to-orange-500"
+      },
+      {
+        title: "BUY 1 GET 1 FREE",
+        subtitle: "ON LEBANESE SHAWARMAS",
+        code: "YALLABOGO",
+        image: "https://images.unsplash.com/photo-1574894709920-11b28e7367e3?auto=format&fit=crop&q=80&w=800",
+        foodName: "Authentic Arabic Bowls",
+        color: "from-emerald-600 to-teal-500"
+      }
+    ];
+    localStorage.setItem("globaleats_banners", JSON.stringify(defaultBanners));
+    return defaultBanners;
   },
 
   async saveBanners(banners) {
-    if (USE_MOCK) {
-      localStorage.setItem("globaleats_banners", JSON.stringify(banners));
-      return banners;
-    } else {
-      const response = await apiClient.post("/diner/banners", { banners });
-      return response.data;
-    }
+    localStorage.setItem("globaleats_banners", JSON.stringify(banners));
+    return banners;
   },
 
   // --- REELS API ---
