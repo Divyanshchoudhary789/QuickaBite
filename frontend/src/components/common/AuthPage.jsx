@@ -249,6 +249,17 @@ export default function AuthPage({
       setOtpValues(updated2);
       return;
     }
+    // If pasted full 6-digit OTP code or multiple digits
+    if (cleaned.length >= 6) {
+      const digits = cleaned.slice(0, 6).split("");
+      const newOtp = ["", "", "", "", "", ""];
+      digits.forEach((d, i) => {
+        if (i < 6) newOtp[i] = d;
+      });
+      setOtpValues(newOtp);
+      otpRefs[5].current?.focus();
+      return;
+    }
     const lastChar = cleaned[cleaned.length - 1];
     const updated = [...otpValues];
     updated[index] = lastChar;
@@ -423,7 +434,7 @@ export default function AuthPage({
         </div>
 
         {/* RIGHT COLUMN: Interactive Auth Screens */}
-        <div className="lg:col-span-6 flex flex-col justify-between p-8 sm:p-12 bg-white relative overflow-y-auto">
+        <div className="lg:col-span-6 flex flex-col justify-between p-4 sm:p-8 lg:p-12 bg-white relative overflow-y-auto">
           <AnimatePresence mode="wait" custom={slideDirection}>
             {currentScreen === "welcome" && (
               <motion.div
@@ -475,11 +486,11 @@ export default function AuthPage({
                 </div>
 
                 {/* Primary Access Actions */}
-                <div className="space-y-3">
+                <div className="space-y-3 shrink-0">
                   <button
                     onClick={() => navigateTo("login", "next")}
                     style={{ backgroundColor: "#099535" }}
-                    className="w-full text-white font-black py-4 px-6 rounded-2xl transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer text-sm"
+                    className="w-full text-white font-black py-3.5 sm:py-4 px-5 sm:px-6 rounded-2xl transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm shrink-0"
                   >
                     <span>Log In to Account</span>
                     <ArrowRight className="h-4 w-4" />
@@ -487,7 +498,7 @@ export default function AuthPage({
 
                   <button
                     onClick={() => navigateTo("signup", "next")}
-                    className="w-full bg-white hover:bg-neutral-50 text-neutral-800 font-extrabold py-4 px-6 rounded-2xl transition border-2 border-neutral-200 flex items-center justify-center gap-2 cursor-pointer text-sm"
+                    className="w-full bg-white hover:bg-neutral-50 text-neutral-800 font-extrabold py-3.5 sm:py-4 px-5 sm:px-6 rounded-2xl transition border-2 border-neutral-200 flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm shrink-0"
                   >
                     <span>Create Free Account</span>
                   </button>
@@ -877,7 +888,7 @@ export default function AuthPage({
                 animate="center"
                 exit="exit"
                 transition={{ duration: 0.3 }}
-                className="flex-1 flex flex-col justify-center space-y-6"
+                className="flex-1 flex flex-col justify-center space-y-4 sm:space-y-6"
               >
                 {/* Back button */}
                 <button
@@ -889,16 +900,16 @@ export default function AuthPage({
                 </button>
 
                 {/* Header icon / illustration */}
-                <div className="flex flex-col items-center text-center space-y-4">
-                  <div className="h-16 w-16 bg-orange-50 rounded-full flex items-center justify-center border border-orange-100 text-brand-orange animate-pulse">
-                    <Smartphone className="h-8 w-8" />
+                <div className="flex flex-col items-center text-center space-y-2 sm:space-y-4">
+                  <div className="h-12 w-12 sm:h-16 sm:w-16 bg-orange-50 rounded-full flex items-center justify-center border border-orange-100 text-brand-orange animate-pulse">
+                    <Smartphone className="h-6 w-6 sm:h-8 sm:w-8" />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <h2 className="font-display font-black text-2xl text-neutral-900 tracking-tight leading-none">
+                  <div className="space-y-1 sm:space-y-1.5">
+                    <h2 className="font-display font-black text-xl sm:text-2xl text-neutral-900 tracking-tight leading-none">
                       Verify OTP Identity 🔐
                     </h2>
-                    <p className="text-xs text-neutral-400 font-medium max-w-sm leading-relaxed">
+                    <p className="text-[11px] sm:text-xs text-neutral-400 font-medium max-w-sm leading-relaxed">
                       For secure multi-factor gourmet auth, enter the 6-digit
                       code dispatched to phone{" "}
                       <span className="text-neutral-700 font-extrabold">
@@ -917,18 +928,21 @@ export default function AuthPage({
                 </div>
 
                 {/* OTP digit inputs box */}
-                <div className="space-y-5">
-                  <div className="flex justify-center gap-3">
+                <div className="space-y-4 sm:space-y-5">
+                  <div className="flex justify-center gap-1.5 xs:gap-2 sm:gap-3 px-1">
                     {otpValues.map((digit, idx) => (
                       <input
                         key={idx}
                         ref={otpRefs[idx]}
-                        type="text"
-                        maxLength={1}
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete="one-time-code"
+                        maxLength={6}
                         value={digit}
                         onChange={(e) => handleOtpChange(idx, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        className="w-14 h-14 text-center bg-neutral-50 border-2 border-neutral-150 focus:border-brand-orange text-xl font-black text-neutral-900 rounded-2xl outline-none focus:bg-white focus:shadow-md transition"
+                        className="w-10 h-11 xs:w-11 xs:h-12 sm:w-14 sm:h-14 text-center bg-neutral-50 border-2 border-neutral-150 focus:border-brand-orange text-lg sm:text-xl font-black text-neutral-900 rounded-xl sm:rounded-2xl outline-none focus:bg-white focus:shadow-md transition shrink-0"
                         autoFocus={idx === 0}
                       />
                     ))}
@@ -954,7 +968,7 @@ export default function AuthPage({
                   <button
                     onClick={handleOtpVerify}
                     disabled={isLoading}
-                    className="w-full bg-neutral-950 hover:bg-neutral-900 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-4 px-6 rounded-2xl transition shadow-lg hover:shadow-xl hover:shadow-neutral-950/15 flex items-center justify-center gap-2 cursor-pointer text-xs"
+                    className="w-full bg-neutral-950 hover:bg-neutral-900 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 sm:py-4 px-6 rounded-2xl transition shadow-lg hover:shadow-xl hover:shadow-neutral-950/15 flex items-center justify-center gap-2 cursor-pointer text-xs"
                   >
                     {isLoading ? (
                       <span>Verifying…</span>

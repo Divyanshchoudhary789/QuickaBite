@@ -1116,7 +1116,7 @@ export default function AdminDashboard({
 
           {/* ADMIN WORKSPACE SUB-NAVIGATION BAR */}
           <div
-            className="bg-white p-2 rounded-2xl shadow-xs border border-neutral-150 flex flex-wrap gap-1 items-center"
+            className="bg-white p-2 rounded-2xl shadow-xs border border-neutral-150 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth shrink-0"
             id="admin-subnav-row"
           >
             {[
@@ -1164,7 +1164,7 @@ export default function AdminDashboard({
                 <button
                   key={tab.id}
                   onClick={() => setActiveSubTab(tab.id)}
-                  className={`px-4 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition flex items-center gap-2 cursor-pointer ${isSelected ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
+                  className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition flex items-center gap-2 cursor-pointer ${isSelected ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
                 >
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>

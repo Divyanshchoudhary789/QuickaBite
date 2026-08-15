@@ -39,7 +39,7 @@ export default function BottomNavbar({
   const favoritesCount = (favorites?.length || 0) + (favoriteDishes?.length || 0);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-xl flex justify-around items-center h-16 py-1 md:max-w-md md:mx-auto md:bottom-4 md:rounded-2xl md:border md:border-gray-100/80 transition-all duration-300">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-xl flex justify-around items-center h-16 pb-[env(safe-area-inset-bottom)] py-1 md:max-w-md md:mx-auto md:bottom-4 md:rounded-2xl md:border md:border-gray-100/80 transition-all duration-300">
       {userRole === "manager" ? (
         <button
           onClick={() => {

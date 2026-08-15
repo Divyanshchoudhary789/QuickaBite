@@ -84,8 +84,8 @@ export default function Navbar({
         className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-xl border-b border-gray-200/50 shadow-xs transition-all duration-300 hover:bg-white/95"
         id="global-header"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20 gap-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-20 gap-1.5 sm:gap-4">
             {/* Logo */}
             <div
               onClick={() => setActiveTab("home")}
@@ -95,23 +95,23 @@ export default function Navbar({
               <QuikaBiteLogo size="md" />
             </div>
 
-            {/* Location Selector */}
-            {isLoggedIn && userRole !== "admin" && userRole !== "manager" && (
+            {/* Location Selector (Desktop + Compact Mobile Button) */}
+            {userRole !== "admin" && userRole !== "manager" && (
               <div
-                className="relative shrink-0 hidden md:block"
+                className="relative shrink-0"
                 id="location-selector-container"
               >
                 <button
                   onClick={() => setShowLocationMenu(!showLocationMenu)}
-                  className="flex items-center gap-1.5 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-full text-sm font-semibold text-gray-700 transition max-w-[220px] lg:max-w-[280px]"
+                  className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-2 sm:px-3.5 py-1.5 sm:py-2.5 rounded-full text-[11px] sm:text-sm font-semibold text-gray-700 transition max-w-[125px] min-[360px]:max-w-[150px] xs:max-w-[180px] sm:max-w-[220px] lg:max-w-[280px]"
                   id="location-trigger"
                   title={currentLocation || "Select Delivery Location"}
                 >
-                  <MapPin className="h-4.5 w-4.5 text-brand-orange shrink-0" />
+                  <MapPin className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-brand-orange shrink-0" />
                   <span className="truncate">
                     {currentLocation || "Select Location"}
                   </span>
-                  <ChevronDown className="h-4 w-4 text-gray-500 shrink-0" />
+                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 shrink-0" />
                 </button>
 
                 {showLocationMenu && (
@@ -120,7 +120,7 @@ export default function Navbar({
                       className="fixed inset-0 z-40"
                       onClick={() => setShowLocationMenu(false)}
                     />
-                    <div className="absolute left-0 mt-2 w-72 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 py-2 max-h-80 overflow-y-auto">
+                    <div className="absolute left-0 mt-2 w-[85vw] max-w-xs sm:w-72 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 py-2 max-h-80 overflow-y-auto">
                       <div className="px-4 py-2 border-b border-gray-50 flex items-center justify-between">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                           Saved Delivery Locations
@@ -312,11 +312,15 @@ export default function Navbar({
               {!isLoggedIn ? (
                 <button
                   onClick={() => setActiveTab("profile")}
-                  className="bg-brand-orange hover:bg-orange-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-full transition shadow-md cursor-pointer flex items-center gap-1.5"
+                  className="bg-brand-orange hover:bg-orange-700 text-white font-extrabold text-xs px-3 sm:px-5 py-2 sm:py-2.5 rounded-full transition shadow-md cursor-pointer flex items-center gap-1.5 shrink-0"
                   id="navbar-signin-btn"
+                  title="Profile / Sign In"
                 >
-                  <User className="h-4 w-4" />
-                  <span>Profile / Sign In</span>
+                  <User className="h-4 w-4 shrink-0" />
+                  <span className="text-[11px] sm:text-xs">
+                    <span className="inline sm:hidden">Sign In</span>
+                    <span className="hidden sm:inline">Profile / Sign In</span>
+                  </span>
                 </button>
               ) : (
                 <div className="relative">

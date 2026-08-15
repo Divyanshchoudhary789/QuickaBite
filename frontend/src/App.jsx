@@ -291,6 +291,24 @@ function AppContent() {
         if (coords) {
           setUserLocationCoords(coords);
           setIsGpsDenied(false);
+
+          // Reverse geocode to show actual location name when not logged in or no default address
+          if (!isLoggedIn || !defaultAddr) {
+            try {
+              const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}`
+              );
+              const data = await res.json();
+              const suburb = data.address?.suburb || data.address?.neighbourhood || data.address?.residential;
+              const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || "Current Location";
+              const displayLoc = suburb ? `${suburb}, ${city}` : city;
+              if (isMounted && displayLoc) {
+                setCurrentLocation(displayLoc);
+              }
+            } catch (e) {
+              console.warn("Reverse geocode failed:", e);
+            }
+          }
         } else {
           setUserLocationCoords(null);
           setIsGpsDenied(true);

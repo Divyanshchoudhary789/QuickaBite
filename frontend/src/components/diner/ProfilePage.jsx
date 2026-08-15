@@ -476,7 +476,7 @@ export default function ProfilePage({
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Left Navigation Sidebar */}
-        <div className="lg:col-span-1 space-y-2 bg-white p-4 rounded-3xl border border-gray-100 shadow-xs h-fit">
+        <div className="lg:col-span-1 flex lg:flex-col overflow-x-auto no-scrollbar gap-2 space-y-0 lg:space-y-2 bg-white p-3 sm:p-4 rounded-3xl border border-gray-100 shadow-xs h-fit shrink-0">
           {[
             { id: "info", label: "Profile Information", icon: User },
             {
@@ -511,15 +511,15 @@ export default function ProfilePage({
                   setIsAddingPayment(false);
                   setEditingAddrId(null);
                 }}
-                className={`cursor-pointer w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold transition-all ${isActive ? "bg-brand-orange text-white shadow-md scale-102" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
+                className={`cursor-pointer shrink-0 whitespace-nowrap lg:whitespace-normal w-auto lg:w-full flex items-center justify-between gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl text-xs font-bold transition-all ${isActive ? "bg-brand-orange text-white shadow-md scale-102 font-black" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800 bg-gray-50/50 lg:bg-transparent"}`}
               >
-                <div className="flex items-center gap-3">
-                  <IconComponent className="h-4 w-4" />
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <IconComponent className="h-4 w-4 shrink-0" />
                   <span>{item.label}</span>
                 </div>
                 {item.count !== void 0 && item.count > 0 && (
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-black ${isActive ? "bg-white text-brand-orange" : "bg-gray-100 text-gray-600"}`}
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-black ${isActive ? "bg-white text-brand-orange" : "bg-gray-200/80 text-gray-700"}`}
                   >
                     {item.count}
                   </span>
