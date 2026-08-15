@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, MapPin } from "lucide-react";
 import {
   RESTAURANTS,
   CATEGORIES,
@@ -38,7 +38,7 @@ import LandingLoader from "./components/common/LandingLoader";
 
 import { authService } from "./api/authService";
 import { dinerService, normalizeMenuItem } from "./api/dinerService";
-import { getUserLocationCoordinates } from "./utils/locationHelper";
+import { getUserLocationCoordinates, requestExactHighAccuracyGps } from "./utils/locationHelper";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider, useCart } from "./context/CartContext";
 import { OrdersProvider, useOrders } from "./context/OrdersContext";
@@ -204,8 +204,18 @@ function AppContent() {
     }
   }, [location.pathname, navigate, activeTab, isLoggedIn, userRole]);
 
+  const [restaurants, setRestaurants] = useState(RESTAURANTS);
+  const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false);
+  const [filterFastDelivery, setFilterFastDelivery] = useState(false);
+  const [filterTopRated, setFilterTopRated] = useState(false);
+  const [filterPureVeg, setFilterPureVeg] = useState(false);
+  const [filterOffers, setFilterOffers] = useState(false);
+  const [filterPrice, setFilterPrice] = useState("all");
+  const [adminSubTab, setAdminSubTab] = useState("overview");
+  const [marketingSubTab, setMarketingSubTab] = useState("overview");
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentLocation, setCurrentLocation] = useState("Home, Dubai");
+  const [currentLocation, setCurrentLocation] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isCuisineExpanded, setIsCuisineExpanded] = useState(false);
   const [isPopularCuisinesExpanded, setIsPopularCuisinesExpanded] =
@@ -215,70 +225,69 @@ function AppContent() {
   const triggerToast = (msg) => {
     setToast(msg);
   };
-  const navigateWithAuth = (tab, options) => {
-    const rawTab = typeof tab === "string" ? tab : "";
-    const cleanTab = rawTab.split("?")[0].replace(/^\//, "");
-    if (
-      (cleanTab === "favorites" || cleanTab === "cart" || cleanTab === "checkout") &&
-      (userRole === "admin" || userRole === "manager")
-    ) {
-      triggerToast("Access denied: diners only!");
-      return;
-    }
-    if (
-      !isLoggedIn &&
-      (cleanTab === "orders" ||
-        cleanTab === "profile" ||
-        cleanTab === "checkout" ||
-        cleanTab === "admin" ||
-        cleanTab === "manager" ||
-        cleanTab === "brands")
-    ) {
-      const fromPath = rawTab.startsWith("/") ? rawTab : `/${rawTab}`;
-      navigate("/login", { state: { from: fromPath } });
-      triggerToast(
-        `Please sign in to access your ${cleanTab.charAt(0).toUpperCase() + cleanTab.slice(1)}!`,
-      );
-    } else {
-      const targetPath = rawTab.startsWith("/") ? rawTab : `/${rawTab}`;
-      navigate(targetPath, options);
-    }
-  };
-  const handleLogout = async () => {
-    navigate("/home", { replace: true });
-    await logout();
-    triggerToast("Logged out securely");
-  };
+
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(null), 3e3);
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 3500);
       return () => clearTimeout(timer);
     }
   }, [toast]);
-  const [adminSubTab, setAdminSubTab] = useState(() => {
-    return localStorage.getItem("Quikabite_admin_subtab") || "overview";
-  });
-  const [marketingSubTab, setMarketingSubTab] = useState(() => {
-    return localStorage.getItem("Quikabite_marketing_subtab") || "whatsapp";
-  });
 
-  useEffect(() => {
-    localStorage.setItem("Quikabite_admin_subtab", adminSubTab);
-  }, [adminSubTab]);
+  const navigateWithAuth = (target, options) => {
+    if (typeof target === "string") {
+      if (target.startsWith("/")) {
+        navigate(target, options);
+      } else {
+        navigate(`/${target}`, options);
+      }
+    } else {
+      navigate(target, options);
+    }
+  };
 
-  useEffect(() => {
-    localStorage.setItem("Quikabite_marketing_subtab", marketingSubTab);
-  }, [marketingSubTab]);
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+    triggerToast("Logged out successfully.");
+  };
 
-  const [filterFastDelivery, setFilterFastDelivery] = useState(false);
-  const [filterTopRated, setFilterTopRated] = useState(false);
-  const [filterPureVeg, setFilterPureVeg] = useState(false);
-  const [filterOffers, setFilterOffers] = useState(false);
-  const [filterPrice, setFilterPrice] = useState("all");
-  const [restaurants, setRestaurants] = useState([]);
-  const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(true);
   const [userLocationCoords, setUserLocationCoords] = useState(null);
   const [isGpsDenied, setIsGpsDenied] = useState(false);
+  const [showGpsHelpModal, setShowGpsHelpModal] = useState(false);
+
+  const handleRequestGpsAgain = async () => {
+    triggerToast("Requesting device location permission...");
+    try {
+      const res = await requestExactHighAccuracyGps();
+      setUserLocationCoords(res);
+      setIsGpsDenied(false);
+      setShowGpsHelpModal(false);
+
+      try {
+        const revRes = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${res.lat}&lon=${res.lng}`
+        );
+        const data = await revRes.json();
+        const suburb = data.address?.suburb || data.address?.neighbourhood || data.address?.residential;
+        const city = data.address?.city || data.address?.town || data.address?.village || "";
+        const displayLoc = suburb ? `${suburb}, ${city}` : city;
+        if (displayLoc) {
+          setCurrentLocation(displayLoc);
+          triggerToast(`Location updated: ${displayLoc}`);
+        }
+      } catch (e) {
+        setCurrentLocation("Live GPS Location");
+        triggerToast("Exact GPS location acquired!");
+      }
+    } catch (err) {
+      setIsGpsDenied(true);
+      setCurrentLocation("");
+      setShowGpsHelpModal(true);
+      triggerToast(err.message || "Please enable Location permission in your browser settings.");
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -290,28 +299,36 @@ function AppContent() {
       if (isMounted) {
         if (coords) {
           setUserLocationCoords(coords);
-          setIsGpsDenied(false);
 
-          // Reverse geocode to show actual location name when not logged in or no default address
-          if (!isLoggedIn || !defaultAddr) {
-            try {
-              const res = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}`
-              );
-              const data = await res.json();
-              const suburb = data.address?.suburb || data.address?.neighbourhood || data.address?.residential;
-              const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || "Current Location";
-              const displayLoc = suburb ? `${suburb}, ${city}` : city;
-              if (isMounted && displayLoc) {
-                setCurrentLocation(displayLoc);
+          if (coords.source === "fallback") {
+            setIsGpsDenied(true);
+            setCurrentLocation(""); // Do NOT show fake default string when location is missing!
+          } else {
+            setIsGpsDenied(false);
+            if (coords.source === "saved_address" && defaultAddr) {
+              const tag = defaultAddr.label === "Other" && defaultAddr.tagName ? defaultAddr.tagName : defaultAddr.label || "Address";
+              setCurrentLocation(defaultAddr.detail ? `${tag}: ${defaultAddr.detail}` : tag);
+            } else {
+              try {
+                const res = await fetch(
+                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}`
+                );
+                const data = await res.json();
+                const suburb = data.address?.suburb || data.address?.neighbourhood || data.address?.residential;
+                const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || "";
+                const displayLoc = suburb ? `${suburb}, ${city}` : city;
+                if (isMounted && displayLoc) {
+                  setCurrentLocation(displayLoc);
+                }
+              } catch (e) {
+                console.warn("Reverse geocode failed:", e);
               }
-            } catch (e) {
-              console.warn("Reverse geocode failed:", e);
             }
           }
         } else {
           setUserLocationCoords(null);
           setIsGpsDenied(true);
+          setCurrentLocation("");
         }
       }
     };
@@ -736,6 +753,7 @@ function AppContent() {
           onCartToggle={() => navigateWithAuth("cart")}
           currentLocation={currentLocation}
           setCurrentLocation={setCurrentLocation}
+          onRequestGpsAgain={handleRequestGpsAgain}
           notifications={notifications}
           onMarkAllAsRead={handleMarkAllNotificationsAsRead}
           onDeleteNotification={handleDeleteNotification}
@@ -765,6 +783,7 @@ function AppContent() {
               <HomePage
                 restaurants={restaurants}
                 currentLocation={currentLocation}
+                onRequestGpsAgain={handleRequestGpsAgain}
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
                 isCuisineExpanded={isCuisineExpanded}
@@ -1022,7 +1041,62 @@ function AppContent() {
           onConfirm={resolveCartConflict}
         />
 
-        {/* 7. Beautiful Toast Banner */}
+        {/* 7. GPS Permission Guidance Modal */}
+        {showGpsHelpModal && (
+          <div
+            className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+            onClick={() => setShowGpsHelpModal(false)}
+          >
+            <div
+              className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-5 animate-scale-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 text-red-600">
+                <div className="h-10 w-10 rounded-2xl bg-red-50 flex items-center justify-center shrink-0">
+                  <MapPin className="h-5 w-5 text-red-600 animate-bounce" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-gray-900">
+                    Location Permission Blocked
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Your browser has remembered the choice to block location.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 space-y-2">
+                <p className="font-bold text-amber-950">How to unblock location in your browser:</p>
+                <ol className="list-decimal list-inside space-y-1.5 font-medium text-amber-900">
+                  <li>Click the <strong>🔒 Padlock / Controls icon</strong> on the left side of your browser URL bar.</li>
+                  <li>Find <strong>Location</strong> and change the setting to <strong>Allow</strong>.</li>
+                  <li>Ensure your device's overall <strong>GPS / Location setting</strong> is turned ON.</li>
+                </ol>
+              </div>
+
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowGpsHelpModal(false)}
+                  className="flex-1 py-3 px-4 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition cursor-pointer"
+                >
+                  Dismiss
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleRequestGpsAgain();
+                  }}
+                  className="flex-1 py-3 px-4 rounded-xl text-xs font-bold text-white bg-brand-orange hover:bg-orange-700 transition shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>Try Requesting Again</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 8. Beautiful Toast Banner */}
         {toast && (
           <div
             className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] bg-gray-900 text-white font-bold text-xs px-5 py-3.5 rounded-full shadow-2xl flex items-center gap-2 border border-gray-800 animate-slide-up"

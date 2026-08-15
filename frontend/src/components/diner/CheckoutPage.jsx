@@ -36,6 +36,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { dinerService } from "../../api/dinerService";
 import { paymentService, loadRazorpayScript } from "../../services/payment.service";
+import { requestExactHighAccuracyGps } from "../../utils/locationHelper";
 
 export default function CheckoutPage({
   cartItems,
@@ -77,6 +78,49 @@ export default function CheckoutPage({
   const [newAddrDetail, setNewAddrDetail] = useState("");
   const [newAddrContact, setNewAddrContact] = useState("");
   const [isSavingAddress, setIsSavingAddress] = useState(false);
+
+  // GPS Accuracy & Permission status state
+  const [gpsAccuracyStatus, setGpsAccuracyStatus] = useState({
+    isApproximate: true,
+    accuracy: null,
+    isRequesting: false,
+    exactAcquired: false,
+  });
+
+  const handleEnableHighAccuracyGps = async () => {
+    setGpsAccuracyStatus((prev) => ({ ...prev, isRequesting: true }));
+    try {
+      const res = await requestExactHighAccuracyGps();
+      setGpsAccuracyStatus({
+        isApproximate: false,
+        accuracy: res.accuracy,
+        isRequesting: false,
+        exactAcquired: true,
+      });
+      triggerToast(`Exact High-Accuracy GPS acquired! Precision: ${res.accuracy}m`);
+
+      if (res.lat && res.lng) {
+        try {
+          const revRes = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${res.lat}&lon=${res.lng}`
+          );
+          const data = await revRes.json();
+          const suburb = data.address?.suburb || data.address?.neighbourhood || data.address?.residential || "";
+          const road = data.address?.road || "";
+          const city = data.address?.city || data.address?.town || data.address?.village || "";
+          const fullAddr = [road, suburb, city].filter(Boolean).join(", ");
+          if (fullAddr) {
+            setAddressDetail(fullAddr);
+          }
+        } catch (e) {
+          console.warn("Reverse geocode exact error:", e);
+        }
+      }
+    } catch (err) {
+      setGpsAccuracyStatus((prev) => ({ ...prev, isRequesting: false }));
+      triggerToast(err.message || "Failed to switch on High-Accuracy GPS.");
+    }
+  };
 
   const getAvailableDefaultLabel = () => {
     const hasHome = (addresses || []).some(
@@ -718,6 +762,9 @@ export default function CheckoutPage({
     const addressId =
       selectedAddr?.id || selectedAddr?._id || "6a61f47e198289aa34c30eeb";
 
+    const latVal = Number(selectedAddr?.lat || selectedAddr?.location?.coordinates?.[1] || 26.9124);
+    const lngVal = Number(selectedAddr?.lng || selectedAddr?.location?.coordinates?.[0] || 75.7873);
+
     const formattedItems = cartItems.map((item) => ({
       menuItem:
         item.menuItem?.id || item.menuItem?._id || item.id || item._id || "",
@@ -728,6 +775,16 @@ export default function CheckoutPage({
 
     const orderPayload = {
       address: addressId,
+      exactDeliveryLocation: {
+        type: "Point",
+        coordinates: [lngVal, latVal],
+        latitude: latVal,
+        longitude: lngVal,
+        addressDetail: addressDetail || selectedAddr?.detail || "",
+        label: addressType || selectedAddr?.label || "Home",
+        isApproximateLocation: gpsAccuracyStatus.isApproximate,
+        gpsAccuracyMeters: gpsAccuracyStatus.accuracy,
+      },
       restaurant: restaurantId,
       restaurantId: restaurantId,
       restaurantName: restaurantName,
@@ -1388,6 +1445,54 @@ export default function CheckoutPage({
                     </button>
                   )}
                 </div>
+
+                {/* APPROXIMATE LOCATION WARNING BANNER & GPS PERMISSION SWITCH */}
+                {!gpsAccuracyStatus.exactAcquired && (
+                  <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 space-y-3 shadow-xs">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-amber-100 text-amber-800 rounded-xl shrink-0 mt-0.5">
+                        <AlertCircle className="h-5 w-5 text-amber-600 animate-pulse" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+                          <span>Using Approximate Location</span>
+                          <span className="bg-amber-200 text-amber-900 text-[9px] px-2 py-0.5 rounded-full font-bold">
+                            {gpsAccuracyStatus.accuracy ? `~${gpsAccuracyStatus.accuracy}m Accuracy` : "Device GPS Disabled"}
+                          </span>
+                        </h4>
+                        <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                          Your device's high-precision GPS may be turned off or location permission was limited. Our rider needs your exact GPS coordinates to deliver your order without delay.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={gpsAccuracyStatus.isRequesting}
+                      onClick={handleEnableHighAccuracyGps}
+                      className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-black text-xs py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    >
+                      {gpsAccuracyStatus.isRequesting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Requesting High-Accuracy Device GPS…</span>
+                        </>
+                      ) : (
+                        <>
+                          <MapPin className="h-4 w-4" />
+                          <span>⚡ Switch On High-Accuracy GPS Permission</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {gpsAccuracyStatus.exactAcquired && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-center gap-2.5 text-xs text-emerald-800 font-extrabold shadow-xs">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                    <span>Exact High-Accuracy GPS coordinates acquired! ({gpsAccuracyStatus.accuracy ? `Precision: ${gpsAccuracyStatus.accuracy}m` : "Pinpoint Location"})</span>
+                  </div>
+                )}
 
                 {/* CASE 1: No saved addresses in profile and not adding yet */}
                 {(!addresses || addresses.length === 0) &&

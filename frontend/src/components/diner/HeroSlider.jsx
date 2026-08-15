@@ -56,7 +56,7 @@ const DEFAULT_SLIDES = [
   },
 ];
 
-export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSelect }) {
+export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSelect, onRequestGpsAgain }) {
   const { isLoggedIn } = useAuth();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slides, setSlides] = useState(DEFAULT_SLIDES);
@@ -127,10 +127,17 @@ export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSe
           <div className="flex-1 max-w-xl space-y-4 text-left">
             {/* Location bar */}
             <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-amber-300 shrink-0 animate-bounce" />
-              <span className="text-white/90 text-xs sm:text-sm font-extrabold truncate max-w-[260px] bg-black/25 backdrop-blur-md px-3 py-1 rounded-full border border-white/20">
-                {currentLocation || "Detecting location…"}
-              </span>
+              <MapPin className={`h-4 w-4 shrink-0 ${!currentLocation ? "text-red-400 animate-bounce" : "text-amber-300"}`} />
+              <button
+                onClick={onRequestGpsAgain}
+                className={`text-xs sm:text-sm font-extrabold truncate max-w-[280px] backdrop-blur-md px-3 py-1 rounded-full border transition cursor-pointer ${
+                  !currentLocation
+                    ? "bg-red-600/90 text-white border-red-300 hover:bg-red-700 animate-pulse shadow-md"
+                    : "bg-black/25 text-white/90 border-white/20 hover:bg-black/40"
+                }`}
+              >
+                {currentLocation || "Location Not Detected • Tap to grant GPS"}
+              </button>
             </div>
 
             {/* Offer tag pill */}

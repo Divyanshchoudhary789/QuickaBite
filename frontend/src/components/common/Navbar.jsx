@@ -13,6 +13,7 @@ import {
   Home,
   Briefcase,
   Plus,
+  Navigation,
 } from "lucide-react";
 import { RiAdminFill } from "react-icons/ri";
 import { FaUserTie } from "react-icons/fa";
@@ -29,6 +30,7 @@ export default function Navbar({
   onCartToggle,
   currentLocation,
   setCurrentLocation,
+  onRequestGpsAgain,
   notifications = [],
   onMarkAllAsRead,
   onToggleRead,
@@ -48,7 +50,7 @@ export default function Navbar({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const getAddressDisplayText = (addr) => {
-    if (!addr) return "Select Location";
+    if (!addr) return "";
     const tag =
       addr.label === "Other" && addr.tagName
         ? addr.tagName
@@ -63,20 +65,16 @@ export default function Navbar({
       userRole !== "admin" &&
       userRole !== "manager" &&
       addresses &&
-      addresses.length > 0
+      addresses.length > 0 &&
+      !currentLocation
     ) {
       const defaultAddr = addresses.find((a) => a.isDefault) || addresses[0];
       const formattedDefault = getAddressDisplayText(defaultAddr);
-      if (
-        !currentLocation ||
-        currentLocation === "Home, Dubai" ||
-        currentLocation === "Home, Jaipur" ||
-        currentLocation === "Office, Mansoravar Jaipur"
-      ) {
+      if (formattedDefault) {
         setCurrentLocation(formattedDefault);
       }
     }
-  }, [addresses, isLoggedIn, userRole]);
+  }, [addresses, isLoggedIn, userRole, currentLocation]);
 
   return (
     <>
@@ -102,16 +100,25 @@ export default function Navbar({
                 id="location-selector-container"
               >
                 <button
-                  onClick={() => setShowLocationMenu(!showLocationMenu)}
-                  className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-2 sm:px-3.5 py-1.5 sm:py-2.5 rounded-full text-[11px] sm:text-sm font-semibold text-gray-700 transition max-w-[125px] min-[360px]:max-w-[150px] xs:max-w-[180px] sm:max-w-[220px] lg:max-w-[280px]"
+                  onClick={() => {
+                    if (typeof onRequestGpsAgain === "function") {
+                      onRequestGpsAgain();
+                    }
+                    setShowLocationMenu(!showLocationMenu);
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition shrink-0 max-w-[135px] min-[360px]:max-w-[165px] xs:max-w-[200px] sm:max-w-[260px] cursor-pointer ${
+                    !currentLocation
+                      ? "bg-red-50 text-red-700 border-2 border-red-300 animate-pulse hover:bg-red-100 shadow-xs"
+                      : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-150"
+                  }`}
                   id="location-trigger"
-                  title={currentLocation || "Select Delivery Location"}
+                  title={currentLocation ? `Location: ${currentLocation}` : "Location Not Detected • Tap to grant location permission"}
                 >
-                  <MapPin className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-brand-orange shrink-0" />
+                  <MapPin className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${!currentLocation ? "text-red-600 animate-bounce" : "text-brand-orange"}`} />
                   <span className="truncate">
-                    {currentLocation || "Select Location"}
+                    {currentLocation || "Location Not Detected • Tap to grant GPS"}
                   </span>
-                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 shrink-0" />
+                  <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gray-500 shrink-0" />
                 </button>
 
                 {showLocationMenu && (
@@ -121,6 +128,21 @@ export default function Navbar({
                       onClick={() => setShowLocationMenu(false)}
                     />
                     <div className="absolute left-0 mt-2 w-[85vw] max-w-xs sm:w-72 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 py-2 max-h-80 overflow-y-auto">
+                      <div className="p-2 border-b border-gray-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowLocationMenu(false);
+                            if (typeof onRequestGpsAgain === "function") {
+                              onRequestGpsAgain();
+                            }
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs font-black text-white bg-brand-orange hover:bg-orange-700 rounded-xl transition flex items-center gap-2 shadow-xs cursor-pointer"
+                        >
+                          <Navigation className="h-3.5 w-3.5 shrink-0" />
+                          <span>Detect Live GPS Location</span>
+                        </button>
+                      </div>
                       <div className="px-4 py-2 border-b border-gray-50 flex items-center justify-between">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                           Saved Delivery Locations

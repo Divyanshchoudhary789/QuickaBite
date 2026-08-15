@@ -50,6 +50,7 @@ import { PiFilmReelFill, PiBowlFoodFill } from "react-icons/pi";
 export default function HomePage({
   restaurants,
   currentLocation,
+  onRequestGpsAgain,
   selectedCategory,
   setSelectedCategory,
   isCuisineExpanded,
@@ -382,6 +383,7 @@ export default function HomePage({
           }
         }}
         currentLocation={currentLocation}
+        onRequestGpsAgain={onRequestGpsAgain}
         onCuisineSelect={(cuisineId) => {
           setSelectedCategory(cuisineId);
           triggerToast(`Showing ${cuisineId} restaurants!`);
