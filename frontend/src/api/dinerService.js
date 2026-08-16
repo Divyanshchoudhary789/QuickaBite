@@ -128,16 +128,52 @@ export const dinerService = {
       if (filters.restaurant) {
         params.restaurant = filters.restaurant;
       }
+      if (filters.page) {
+        params.page = filters.page;
+      }
+      if (filters.limit) {
+        params.limit = filters.limit;
+      }
+
       const response = await apiClient.get("/v1/menu", { params });
       let list = [];
-      if (Array.isArray(response.data)) {
-        list = response.data;
-      } else if (Array.isArray(response.data?.data)) {
-        list = response.data.data;
-      } else if (Array.isArray(response.data?.items)) {
-        list = response.data.items;
+      let pagination = null;
+
+      const resPayload = response.data;
+      const resData = resPayload?.data || resPayload;
+
+      if (Array.isArray(resData)) {
+        list = resData;
+      } else if (resData && typeof resData === "object") {
+        if (Array.isArray(resData.items)) {
+          list = resData.items;
+          pagination = resData.pagination || null;
+        } else if (Array.isArray(resData.data)) {
+          list = resData.data;
+        }
+      } else if (Array.isArray(resPayload?.items)) {
+        list = resPayload.items;
+        pagination = resPayload.pagination || null;
       }
-      return list.map(normalizeMenuItem);
+
+      const normalizedList = list.map(normalizeMenuItem);
+      if (pagination) {
+        normalizedList.pagination = pagination;
+      }
+
+      if (filters.returnPagination || filters.returnFullPayload) {
+        return {
+          items: normalizedList,
+          pagination: pagination || {
+            total: normalizedList.length,
+            page: Number(filters.page) || 1,
+            limit: Number(filters.limit) || 10,
+            totalPages: Math.ceil(normalizedList.length / (Number(filters.limit) || 10)) || 1,
+          },
+        };
+      }
+
+      return normalizedList;
     }
   },
 

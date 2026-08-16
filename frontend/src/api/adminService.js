@@ -830,7 +830,6 @@ export const adminService = {
 
         return normalizedOrders;
       } catch (err) {
-        console.warn("getDispatchBoard API (/v1/admin/dispatch) call failed, falling back:", err?.message || err);
         try {
           const fallbackRes = await apiClient.get("/v1/orders/manager/incoming");
           const raw = fallbackRes.data?.data || fallbackRes.data?.orders || fallbackRes.data;
@@ -1037,10 +1036,34 @@ export const adminService = {
       const list = cached ? JSON.parse(cached) : [];
       return list.map(normalizeCoupon).filter(Boolean);
     } else {
-      const response = await apiClient.get("/v1/coupons/all");
-      const rawData = response.data?.data || response.data || [];
-      const list = Array.isArray(rawData) ? rawData : [];
-      return list.map(normalizeCoupon).filter(Boolean);
+      try {
+        let response;
+        try {
+          response = await apiClient.get("/v1/coupons/all");
+        } catch {
+          try {
+            response = await apiClient.get("/v1/coupons");
+          } catch {
+            response = await apiClient.get("/v1/coupons/active");
+          }
+        }
+        const resPayload = response.data;
+        const resData = resPayload?.data || resPayload;
+        let list = [];
+        if (Array.isArray(resData)) {
+          list = resData;
+        } else if (resData && typeof resData === "object") {
+          list = Array.isArray(resData.coupons) ? resData.coupons : Array.isArray(resData.data) ? resData.data : [];
+        } else if (Array.isArray(resPayload?.coupons)) {
+          list = resPayload.coupons;
+        }
+        return list.map(normalizeCoupon).filter(Boolean);
+      } catch (err) {
+        console.warn("getAllCoupons API error, fallback to local storage:", err?.message || err);
+        const cached = localStorage.getItem("globaleats_coupons");
+        const list = cached ? JSON.parse(cached) : [];
+        return list.map(normalizeCoupon).filter(Boolean);
+      }
     }
   },
 
@@ -1195,46 +1218,6 @@ export const adminService = {
     }
   },
 
-  // Rider Dispatch Logistics APIs
-  async getDispatchBoard(queryParams = {}) {
-    try {
-      const params = {};
-      if (queryParams.sort) params.sort = queryParams.sort;
-      if (queryParams.restaurant) params.restaurant = queryParams.restaurant;
-      if (queryParams.restaurantId) params.restaurantId = queryParams.restaurantId;
-      if (queryParams.status) params.status = queryParams.status;
-
-      const response = await apiClient.get("/v1/admin/dispatch", { params });
-      const rawPayload = response.data;
-      const rawData = rawPayload?.data || rawPayload;
-      const list = Array.isArray(rawData)
-        ? rawData
-        : Array.isArray(rawData?.orders)
-          ? rawData.orders
-          : Array.isArray(rawPayload?.orders)
-            ? rawPayload.orders
-            : Array.isArray(rawPayload?.dispatch)
-              ? rawPayload.dispatch
-              : [];
-      const normalized = list.map(normalizeOrder).filter(Boolean);
-      if (normalized.length > 0) {
-        return normalized;
-      }
-    } catch (err) {
-      console.warn("getDispatchBoard live API call failed, using mock fallback:", err?.message || err);
-    }
-
-    // Mock Fallback
-    const cached = localStorage.getItem("globaleats_orders");
-    const list = cached ? JSON.parse(cached) : [];
-    let normalized = list.map(normalizeOrder).filter(Boolean);
-    if (queryParams.sort === "high") {
-      normalized.sort((a, b) => b.total - a.total);
-    } else if (queryParams.sort === "low") {
-      normalized.sort((a, b) => a.total - b.total);
-    }
-    return normalized;
-  },
 
   async getAdminRestaurantsAlias(queryParams = {}) {
     return this.getAdminRestaurants(queryParams);

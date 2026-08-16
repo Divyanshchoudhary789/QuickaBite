@@ -127,12 +127,14 @@ export default function AdminDashboard({
     const loadCoupons = async () => {
       try {
         const list = await adminService.getAllCoupons();
-        setCouponsList(list);
+        if (Array.isArray(list)) {
+          setCouponsList(list);
+        }
       } catch (e) {
         console.error("Failed to load coupons in AdminDashboard:", e);
       }
     };
-    if (import.meta.env.VITE_USE_MOCK === "false" && (activeSubTab === "marketing" || activeSubTab === "offers")) {
+    if (activeSubTab === "marketing" || activeSubTab === "offers") {
       loadCoupons();
     }
   }, [activeSubTab]);
@@ -1136,7 +1138,7 @@ export default function AdminDashboard({
 
         {/* ADMIN SIDEBAR SLIDER DRAWER */}
         <aside
-          className={`fixed lg:sticky top-0 left-0 h-screen z-50 bg-white text-neutral-900 border-r border-neutral-200 flex flex-col transition-all duration-300 ease-in-out shrink-0 shadow-md ${
+          className={`fixed lg:sticky top-0 left-0 h-screen z-50 bg-white text-neutral-900 border-r border-neutral-200/80 flex flex-col transition-all duration-300 ease-in-out shrink-0 shadow-lg ${
             isSidebarOpen
               ? "w-72 translate-x-0"
               : "-translate-x-full lg:translate-x-0 lg:w-20"
@@ -1144,14 +1146,14 @@ export default function AdminDashboard({
           id="admin-sidebar-drawer"
         >
           {/* Sidebar Header & Brand Badge */}
-          <div className="p-5 border-b border-neutral-150 flex items-center justify-between shrink-0 bg-white">
+          <div className="p-4 border-b border-neutral-150 flex items-center justify-between shrink-0 bg-white">
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-10 h-10 rounded-2xl bg-brand-orange text-white flex items-center justify-center font-black text-lg shadow-md shrink-0">
-                <ChefHat className="w-6 h-6 text-white animate-pulse" />
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-600 via-brand-orange to-amber-500 text-white flex items-center justify-center font-black text-lg shadow-md shadow-orange-500/20 shrink-0">
+                <ChefHat className="w-5 h-5 text-white animate-pulse" />
               </div>
               {isSidebarOpen && (
-                <div className="space-y-0.5">
-                  <h3 className="font-display font-black text-base text-neutral-900 tracking-tight leading-none">
+                <div className="space-y-0.5 min-w-0">
+                  <h3 className="font-display font-black text-base text-neutral-900 tracking-tight leading-none truncate">
                     QuickaBite
                   </h3>
                   <span className="text-[9px] font-mono font-black text-brand-orange uppercase tracking-widest block">
@@ -1164,36 +1166,11 @@ export default function AdminDashboard({
             {/* TOGGLE BUTTON INSIDE SLIDER HEADER */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 text-neutral-500 hover:text-neutral-900 rounded-xl hover:bg-neutral-100 transition cursor-pointer"
+              className="p-2 text-neutral-400 hover:text-neutral-900 rounded-xl hover:bg-neutral-100 transition cursor-pointer shrink-0"
               title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
             >
               {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-          </div>
-
-          {/* ADMIN PROFILE CARD (Name & Mail) */}
-          <div className="p-4 border-b border-neutral-150 bg-neutral-50/80 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-brand-orange text-white flex items-center justify-center font-black text-base shadow-sm shrink-0">
-                {adminName.charAt(0).toUpperCase()}
-              </div>
-              {isSidebarOpen && (
-                <div className="overflow-hidden space-y-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <h4 className="font-black text-xs text-neutral-900 truncate max-w-[140px]">
-                      {adminName}
-                    </h4>
-                    <ShieldCheck className="w-3.5 h-3.5 text-brand-orange shrink-0" />
-                  </div>
-                  <p className="text-[11px] text-neutral-500 font-mono truncate max-w-[160px]">
-                    {adminEmail}
-                  </p>
-                  <span className="inline-block px-2 py-0.5 bg-orange-50 text-brand-orange border border-orange-200 text-[9px] font-black rounded-full uppercase tracking-wider mt-1">
-                    Super Admin
-                  </span>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* SIDEBAR NAVIGATION ITEMS SLIDER LIST */}
@@ -1264,9 +1241,9 @@ export default function AdminDashboard({
                       setIsSidebarOpen(false);
                     }
                   }}
-                  className={`w-full px-3.5 py-3 rounded-2xl font-bold text-xs transition-all duration-200 flex items-center gap-3 cursor-pointer ${
+                  className={`w-full px-3.5 py-2.5 rounded-2xl font-bold text-xs transition-all duration-200 flex items-center gap-3 cursor-pointer ${
                     isSelected
-                      ? "bg-brand-orange text-white shadow-md font-black"
+                      ? "bg-brand-orange text-white shadow-md shadow-orange-500/20 font-black"
                       : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
                   } ${!isSidebarOpen ? "justify-center px-0" : ""}`}
                   title={tab.label}
@@ -1282,7 +1259,7 @@ export default function AdminDashboard({
           <div className="p-3 border-t border-neutral-150 shrink-0 bg-white">
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className={`w-full py-3 px-3.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-2xl font-black text-xs transition flex items-center justify-center gap-2.5 cursor-pointer shadow-xs ${
+              className={`w-full py-2.5 px-3.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-2xl font-black text-xs transition flex items-center justify-center gap-2.5 cursor-pointer shadow-2xs ${
                 !isSidebarOpen ? "px-0" : ""
               }`}
               title="Logout Securely"

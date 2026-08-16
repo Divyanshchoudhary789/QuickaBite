@@ -287,33 +287,90 @@ export default function AdminSupportManagementTab() {
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-6 text-neutral-900 bg-white">
               {/* User Loyalty & History Audit Card */}
-              <div className="p-5 bg-orange-50/50 border border-orange-200/80 rounded-2xl space-y-3">
-                <h4 className="text-xs font-black text-brand-orange uppercase tracking-wider flex items-center gap-1.5">
-                  <User className="w-4 h-4" /> Customer Loyalty & Refund Risk Assessment
-                </h4>
+              <div className="p-5 bg-orange-50/50 border border-orange-200/80 rounded-2xl space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-orange-200/60 pb-3">
+                  <h4 className="text-xs font-black text-brand-orange uppercase tracking-wider flex items-center gap-1.5">
+                    <User className="w-4 h-4" /> Customer Loyalty & Trust Score Audit
+                  </h4>
+
+                  {userLoyalty?.trustBadge && (
+                    <div className="flex items-center gap-2">
+                      <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full border ${
+                        userLoyalty.trustColor === "emerald" || userLoyalty.trustBadge === "LOW_RISK" || userLoyalty.trustBadge === "VERY_LOW_RISK"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : userLoyalty.trustColor === "amber" || userLoyalty.trustBadge === "MODERATE_RISK"
+                          ? "bg-amber-50 text-amber-800 border-amber-200"
+                          : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}>
+                        🛡️ {userLoyalty.trustBadge.replace("_", " ")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {userLoyalty?.trustDescription && (
+                  <p className="text-[11px] text-neutral-600 font-semibold italic bg-white p-2.5 rounded-xl border border-neutral-200">
+                    "{userLoyalty.trustDescription}"
+                  </p>
+                )}
 
                 {loyaltyLoading ? (
                   <div className="text-xs text-neutral-500 py-2">Calculating user loyalty score...</div>
                 ) : userLoyalty ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <div className="p-3 bg-white rounded-xl border border-neutral-200 shadow-xs">
-                      <span className="text-neutral-500 block text-[10px] font-bold">Total Delivered Orders</span>
-                      <span className="text-lg font-black text-neutral-900">{userLoyalty.deliveredOrders}</span>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs">
+                      <div className="p-3 bg-white rounded-xl border border-neutral-200 shadow-xs">
+                        <span className="text-neutral-500 block text-[9px] font-bold uppercase">Total Orders</span>
+                        <span className="text-base font-black text-neutral-900">{userLoyalty.totalOrders ?? userLoyalty.deliveredOrders ?? 0}</span>
+                      </div>
+                      <div className="p-3 bg-white rounded-xl border border-neutral-200 shadow-xs">
+                        <span className="text-neutral-500 block text-[9px] font-bold uppercase">Delivered</span>
+                        <span className="text-base font-black text-emerald-600">{userLoyalty.deliveredOrders ?? 0}</span>
+                      </div>
+                      <div className="p-3 bg-white rounded-xl border border-neutral-200 shadow-xs">
+                        <span className="text-neutral-500 block text-[9px] font-bold uppercase">Reported Issues</span>
+                        <span className="text-base font-black text-amber-600">{userLoyalty.totalIssuesCount ?? 0}</span>
+                      </div>
+                      <div className="p-3 bg-white rounded-xl border border-neutral-200 shadow-xs">
+                        <span className="text-neutral-500 block text-[9px] font-bold uppercase">Issue Ratio</span>
+                        <span className={`text-base font-black ${(userLoyalty.issueRatioPercent ?? 0) > 20 ? "text-rose-600" : "text-emerald-600"}`}>
+                          {userLoyalty.issueRatioPercent ?? 0}%
+                        </span>
+                      </div>
+                      <div className="p-3 bg-white rounded-xl border border-neutral-200 shadow-xs col-span-2 sm:col-span-1">
+                        <span className="text-neutral-500 block text-[9px] font-bold uppercase">Refund Claims</span>
+                        <span className="text-base font-black text-emerald-700">₹{userLoyalty.totalRefundAmountClaimed ?? 0} ({userLoyalty.acceptedRefundsCount ?? 0})</span>
+                      </div>
                     </div>
-                    <div className="p-3 bg-white rounded-xl border border-neutral-200 shadow-xs">
-                      <span className="text-neutral-500 block text-[10px] font-bold">Reported Issues</span>
-                      <span className="text-lg font-black text-amber-600">{userLoyalty.totalIssuesCount}</span>
-                    </div>
-                    <div className="p-3 bg-white rounded-xl border border-neutral-200 shadow-xs">
-                      <span className="text-neutral-500 block text-[10px] font-bold">Claim Rate Ratio</span>
-                      <span className={`text-lg font-black ${userLoyalty.issueRatioPercent > 25 ? "text-rose-600" : "text-emerald-600"}`}>
-                        {userLoyalty.issueRatioPercent}%
-                      </span>
-                    </div>
-                    <div className="p-3 bg-white rounded-xl border border-neutral-200 shadow-xs">
-                      <span className="text-neutral-500 block text-[10px] font-bold">Total Refund Claimed</span>
-                      <span className="text-lg font-black text-emerald-600">₹{userLoyalty.totalRefundAmountClaimed}</span>
-                    </div>
+
+                    {/* Past Reported User Issues */}
+                    {Array.isArray(userLoyalty.issues) && userLoyalty.issues.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-orange-200/50">
+                        <span className="text-[10px] font-black uppercase text-neutral-500 tracking-wider block">
+                          User Past Issue Logs ({userLoyalty.issues.length})
+                        </span>
+                        <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                          {userLoyalty.issues.map((iss) => (
+                            <div key={iss._id} className="p-2.5 bg-white border border-neutral-200 rounded-xl text-xs flex justify-between items-center">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-brand-orange text-[10px]">#{iss.ticketNumber}</span>
+                                  <span className="font-bold text-neutral-900 text-[11px]">{iss.selectedQuestion}</span>
+                                </div>
+                                <span className="text-[10px] text-neutral-400 font-semibold block mt-0.5">
+                                  Branch: {iss.restaurant?.name || "Kitchen"} • Order #{iss.order?.orderNumber || "N/A"}
+                                </span>
+                              </div>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                iss.status === "ACCEPTED" ? "bg-emerald-100 text-emerald-700" : iss.status === "REJECTED" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"
+                              }`}>
+                                {iss.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : null}
               </div>

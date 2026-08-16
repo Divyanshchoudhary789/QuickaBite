@@ -32,6 +32,10 @@ export default function OrderManagementTab({
   restaurantsList,
   triggerToast
 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [paginationInfo, setPaginationInfo] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [dispatchStats, setDispatchStats] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -55,38 +59,48 @@ export default function OrderManagementTab({
     };
     loadAdminRestaurants();
   }, []);
-
-  useEffect(() => {
-    const loadDispatchBoard = async () => {
-      setIsLoadingDispatch(true);
-      try {
-        let apiSortParam = sortBy;
-        if (sortBy === "total_high") apiSortParam = "high";
-        if (sortBy === "total_low") apiSortParam = "low";
-
-        const queryParams = {};
-        if (apiSortParam) queryParams.sort = apiSortParam;
-        if (restaurantFilter && restaurantFilter !== "all") {
-          queryParams.restaurant = restaurantFilter;
+  const loadDispatchBoard = async () => {
+    setIsLoadingDispatch(true);
+    try {
+      let apiSortParam = sortBy;
+      if (sortBy === "total_high") apiSortParam = "high";
+      if (sortBy === "total_low") apiSortParam = "low";
+      
+      const queryParams = {
+        page: currentPage,
+        limit: limit,
+        returnFullPayload: true,
+      };
+      if (apiSortParam) queryParams.sort = apiSortParam;
+      if (restaurantFilter && restaurantFilter !== "all") {
+        queryParams.restaurant = restaurantFilter;
+      }
+      if (statusFilter && statusFilter !== "all") {
+        queryParams.status = statusFilter;
+      }
+      
+      const res = await adminService.getDispatchBoard(queryParams).catch(() => ({ orders: [], stats: null, pagination: null }));
+              
+        if (res && typeof res === "object" && !Array.isArray(res)) {
+          setDispatchOrders(Array.isArray(res.orders) ? res.orders : []);
+          if (res.pagination) setPaginationInfo(res.pagination);
+          if (res.stats) setDispatchStats(res.stats);
+        } else {
+          setDispatchOrders(Array.isArray(res) ? res : []);
         }
-        if (statusFilter && statusFilter !== "all") {
-          queryParams.status = statusFilter;
-        }
-
-        const dispatchList = await adminService.getDispatchBoard(queryParams).catch(() => []);
-        setDispatchOrders(Array.isArray(dispatchList) ? dispatchList : []);
       } catch (e) {
         console.error("Failed to load dispatch board via API:", e);
       } finally {
         setIsLoadingDispatch(false);
       }
     };
+
+  useEffect(() => {
     loadDispatchBoard();
-  }, [sortBy, restaurantFilter, statusFilter]);
+  }, [currentPage, limit, sortBy, restaurantFilter, statusFilter]);
 
   const activeOrdersList = dispatchOrders.length > 0 ? dispatchOrders : orders;
   const activeRestaurants = adminRestaurants.length > 0 ? adminRestaurants : (restaurantsList || []);
-
   const normalizeStatus = (status) => {
     if (status === "confirmed") return "received";
     if (status === "out_for_delivery") return "dispatched";
@@ -205,7 +219,16 @@ export default function OrderManagementTab({
     }
   };
   const getCountByStatus = (status) => {
-    if (status === "all") return activeOrdersList.length;
+    if (dispatchStats) {
+      if (status === "all") return dispatchStats.totalOrders ?? paginationInfo.total ?? activeOrdersList.length;
+      if (status === "received") return dispatchStats.received ?? 0;
+      if (status === "accepted") return dispatchStats.accepted ?? 0;
+      if (status === "preparing") return dispatchStats.preparing ?? 0;
+      if (status === "dispatched") return dispatchStats.dispatched ?? 0;
+      if (status === "delivered") return dispatchStats.delivered ?? 0;
+      if (status === "rejected") return dispatchStats.rejected ?? 0;
+    }
+    if (status === "all") return paginationInfo.total || activeOrdersList.length;
     return activeOrdersList.filter((o) => normalizeStatus(o.status) === status).length;
   };
 
@@ -357,9 +380,9 @@ export default function OrderManagementTab({
       typeof orderParam.deliveryAddress === "string"
         ? orderParam.deliveryAddress
         : orderParam.deliveryAddress?.detail ||
-          orderParam.deliveryAddress?.formattedAddress ||
-          orderParam.address ||
-          orderParam.shippingAddress;
+        orderParam.deliveryAddress?.formattedAddress ||
+        orderParam.address ||
+        orderParam.shippingAddress;
 
     const realInstructions =
       typeof orderParam.deliveryInstructions === "string"
@@ -414,7 +437,10 @@ export default function OrderManagementTab({
         }
         return <button
           key={status}
-          onClick={() => setStatusFilter(status)}
+          onClick={() => {
+            setStatusFilter(status);
+            setCurrentPage(1);
+          }}
           className={`p-3.5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between h-20 ${colorClass}`}
         >
           <span className={`text-[9px] font-black tracking-wider uppercase opacity-80`}>
@@ -499,7 +525,7 @@ export default function OrderManagementTab({
         <div className="col-span-1 md:col-span-2 xl:col-span-3 text-center py-20 bg-white border border-dashed border-neutral-200 rounded-3xl space-y-3">
           <Loader2 className="h-10 w-10 text-brand-orange animate-spin mx-auto" />
           <h4 className="text-xs font-black text-neutral-800 uppercase tracking-wider">Fetching Live Dispatch Board...</h4>
-          <p className="text-[10px] text-neutral-400">Loading live dispatch data from API...</p>
+          <p className="text-[10px] text-neutral-400">Loading live dispatch data...</p>
         </div>
       ) : filteredOrders.length === 0 ? (
         <div className="col-span-1 md:col-span-2 xl:col-span-3 text-center py-20 bg-white border border-dashed border-neutral-200 rounded-3xl">
@@ -665,6 +691,50 @@ export default function OrderManagementTab({
         </motion.div>;
       })}
     </div>
+
+    {/* 4. Pagination Controls Bar */}
+    {((paginationInfo && (paginationInfo.totalPages > 1 || (paginationInfo.total > limit))) || dispatchOrders.length >= limit || currentPage > 1) && (
+      <div className="bg-white rounded-3xl border border-neutral-150 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+        <div className="text-xs font-semibold text-neutral-500">
+          Showing page<span className="font-black text-neutral-900">{paginationInfo.page || currentPage}</span> of{" "}
+          <span className="font-black text-neutral-900">{paginationInfo.totalPages || 1}</span> (Total{" "}
+          <span className="font-black text-brand-orange">{paginationInfo.total || dispatchOrders.length}</span>)
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            disabled={currentPage <= 1 || isLoadingDispatch}
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            className="px-3.5 py-1.5 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-neutral-700 transition cursor-pointer"
+          >
+            ← Previous
+          </button>
+
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.max(paginationInfo.totalPages || 1, currentPage + (dispatchOrders.length >= limit ? 1 : 0)) }, (_, i) => i + 1).map((pg) => (
+              <button
+                key={pg}
+                onClick={() => setCurrentPage(pg)}
+                className={`w-8 h-8 rounded-xl text-xs font-black transition cursor-pointer ${pg === currentPage
+                    ? "bg-brand-orange text-white shadow-xs"
+                    : "bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border border-neutral-200"
+                  }`}
+              >
+                {pg}
+              </button>
+            ))}
+          </div>
+
+          <button
+            disabled={(paginationInfo.totalPages ? currentPage >= paginationInfo.totalPages : dispatchOrders.length < limit) || isLoadingDispatch}
+            onClick={() => setCurrentPage((prev) => prev + 1)}
+            className="px-3.5 py-1.5 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-neutral-700 transition cursor-pointer"
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    )}
 
     {/* ORDER DETAILS SLIDE-OVER DRAWER MODAL */}
     <AnimatePresence>

@@ -19,7 +19,6 @@ apiClient.interceptors.request.use(
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }
-    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data || "");
     return config;
   },
   (error) => {
@@ -30,7 +29,6 @@ apiClient.interceptors.request.use(
 // Response interceptor for centralized error/success logs
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(`[API Response] Success from ${response.config?.url}`);
     return response;
   },
   (error) => {

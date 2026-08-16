@@ -47,7 +47,7 @@ export default function MarketingTab({
   saveOffersToStorage,
 }) {
   const [localActiveSubTab, setLocalActiveSubTab] = useState("coupons");
-  const activeSubTab = propActiveSubTab || localActiveSubTab;
+  const activeSubTab = (propActiveSubTab && propActiveSubTab !== "marketing") ? propActiveSubTab : "coupons";
   const setActiveSubTab = propSetActiveSubTab || setLocalActiveSubTab;
 
   const [selectedResIdForOffer, setSelectedResIdForOffer] = useState(null);
@@ -1806,7 +1806,16 @@ ${newTemplateBody}`
       className="bg-neutral-50/50 rounded-3xl p-6 border border-neutral-150 shadow-sm space-y-6"
       id="marketing-module-main-card"
     >
-
+      {/* SUBTAB NAVIGATION BAR */}
+      <div className="flex items-center gap-2 border-b border-neutral-200 pb-4 shrink-0">
+        <button
+          onClick={() => setActiveSubTab("coupons")}
+          className="px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 bg-brand-orange text-white shadow-md shadow-orange-500/20 cursor-pointer"
+        >
+          <Ticket className="h-4 w-4 text-white" />
+          <span>Promo Coupons 🎫</span>
+        </button>
+      </div>
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -5366,7 +5375,7 @@ ${newTemplateBody}`
                     {/* Image Upload for Promocode */}
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Banner Image File (Multipart Upload)
+                        Banner Image File
                       </label>
                       <input
                         type="file"

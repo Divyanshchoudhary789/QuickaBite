@@ -92,21 +92,60 @@ export default function SearchPage({
     });
   };
 
+  const recognitionRef = useRef(null);
+
   const handleTriggerVoiceSearch = () => {
-    setIsVoiceSearching(true);
-    setTimeout(() => {
-      const randomDishes = [
-        "Special Chicken Biryani",
-        "Butter Chicken Pizza",
-        "Double Smash Beef Burger",
-        "Chilli Garlic Noodles",
-      ];
-      const selectedDish =
-        randomDishes[Math.floor(Math.random() * randomDishes.length)];
-      handleSelectSearchQuery(selectedDish);
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      triggerToast("Web Speech Voice Recognition is not supported in this browser. Try Google Chrome.");
+      return;
+    }
+
+    try {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-IN";
+
+      setIsVoiceSearching(true);
+
+      recognition.onresult = (event) => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          handleSelectSearchQuery(transcript, false);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn("Speech recognition error:", event.error);
+        setIsVoiceSearching(false);
+        if (event.error !== "no-speech") {
+          triggerToast(`Voice Error: ${event.error}`);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsVoiceSearching(false);
+        if (searchQuery.trim()) {
+          triggerToast(`Voice Recognized: "${searchQuery}"`);
+        }
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error("Failed to initialize Web Speech API:", err);
       setIsVoiceSearching(false);
-      triggerToast(`Voice recognized: "${selectedDish}"`);
-    }, 2800);
+      triggerToast("Could not start microphone voice capture.");
+    }
   };
 
   const searchSuggestions = searchQuery.trim()
@@ -129,50 +168,113 @@ export default function SearchPage({
 
   // Use debounced query for heavy filtering operations
 
-  const searchedDishes = restaurants
-    .flatMap((restaurant) =>
-      restaurant.menu.map((item) => ({
-        ...item,
-        restaurantId: restaurant.id,
-        restaurantName: restaurant.name,
-        restaurantRating: restaurant.rating,
-        deliveryTime: restaurant.deliveryTime,
-        hasPromoBadge: restaurant.isPromoBadge,
-        discount: restaurant.discount,
-      })),
-    )
-    .filter((dish) => {
-      const matchesSearch = debouncedSearchQuery.trim()
-        ? dish.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        dish.category.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        dish.description.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        dish.restaurantName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-        : true;
-      if (!matchesSearch) return false;
-      if (searchVegOnly && !dish.isVeg) return false;
-      if (searchNonVegOnly && dish.isVeg) return false;
-      if (searchPriceFilter === "under-99" && Number(dish.price) > 99)
-        return false;
-      if (searchPriceFilter === "under-199" && Number(dish.price) > 199)
-        return false;
-      if (searchPriceFilter === "under-299" && Number(dish.price) > 299)
-        return false;
-      if (searchPriceFilter === "above-299" && Number(dish.price) < 299)
-        return false;
-      if (searchRatingFilter === "4.5" && dish.restaurantRating < 4.5)
-        return false;
-      if (searchRatingFilter === "4.0" && dish.restaurantRating < 4)
-        return false;
-      if (searchDeliveryTimeFilter !== "all") {
-        const minTime = parseInt(dish.deliveryTime, 10);
-        if (searchDeliveryTimeFilter === "under-30" && minTime > 30)
-          return false;
-        if (searchDeliveryTimeFilter === "under-45" && minTime > 45)
-          return false;
+  const [apiDishes, setApiDishes] = useState([]);
+  const [apiPagination, setApiPagination] = useState(null);
+  const [isSearchingApi, setIsSearchingApi] = useState(false);
+
+  useEffect(() => {
+    const fetchSearchMenu = async () => {
+      if (!debouncedSearchQuery.trim()) {
+        setApiDishes([]);
+        setApiPagination(null);
+        return;
       }
-      if (searchHasOffersOnly && !dish.hasPromoBadge) return false;
-      return true;
-    });
+
+      setIsSearchingApi(true);
+      try {
+        const filters = {
+          search: debouncedSearchQuery.trim(),
+          page: 1,
+          limit: 10,
+          returnFullPayload: true,
+        };
+        if (searchVegOnly) filters.isVegetarian = true;
+
+        const res = await dinerService.getMenuItems(null, filters);
+        if (res && typeof res === "object") {
+          setApiDishes(Array.isArray(res.items) ? res.items : Array.isArray(res) ? res : []);
+          if (res.pagination) setApiPagination(res.pagination);
+        } else {
+          setApiDishes(Array.isArray(res) ? res : []);
+        }
+      } catch (err) {
+        console.error("Failed to execute live menu search API:", err);
+      } finally {
+        setIsSearchingApi(false);
+      }
+    };
+
+    fetchSearchMenu();
+  }, [debouncedSearchQuery, searchVegOnly]);
+
+  const searchedDishes = debouncedSearchQuery.trim() && apiDishes.length > 0
+    ? apiDishes.map((item) => {
+        const resObj = typeof item.restaurant === "object" ? item.restaurant : null;
+        const targetRes = restaurants.find(
+          (r) => String(r.id || r._id) === String(resObj?._id || resObj?.id || item.restaurant)
+        );
+        return {
+          ...item,
+          restaurantId: resObj?._id || resObj?.id || item.restaurant || targetRes?.id || targetRes?._id,
+          restaurantName: resObj?.name || targetRes?.name || "Kitchen Outlet",
+          restaurantRating: targetRes?.rating || 4.5,
+          deliveryTime: targetRes?.deliveryTime || "25 mins",
+          hasPromoBadge: targetRes?.isPromoBadge || false,
+          discount: targetRes?.discount || "",
+        };
+      }).filter((dish) => {
+        if (searchVegOnly && !dish.isVeg && !dish.isVegetarian) return false;
+        if (searchNonVegOnly && (dish.isVeg || dish.isVegetarian)) return false;
+        if (searchPriceFilter === "under-99" && Number(dish.price) > 99) return false;
+        if (searchPriceFilter === "under-199" && Number(dish.price) > 199) return false;
+        if (searchPriceFilter === "under-299" && Number(dish.price) > 299) return false;
+        if (searchPriceFilter === "above-299" && Number(dish.price) < 299) return false;
+        return true;
+      })
+    : restaurants
+        .flatMap((restaurant) =>
+          restaurant.menu.map((item) => ({
+            ...item,
+            restaurantId: restaurant.id,
+            restaurantName: restaurant.name,
+            restaurantRating: restaurant.rating,
+            deliveryTime: restaurant.deliveryTime,
+            hasPromoBadge: restaurant.isPromoBadge,
+            discount: restaurant.discount,
+          })),
+        )
+        .filter((dish) => {
+          const matchesSearch = debouncedSearchQuery.trim()
+            ? dish.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            dish.category.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            dish.description.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            dish.restaurantName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+            : true;
+          if (!matchesSearch) return false;
+          if (searchVegOnly && !dish.isVeg) return false;
+          if (searchNonVegOnly && dish.isVeg) return false;
+          if (searchPriceFilter === "under-99" && Number(dish.price) > 99)
+            return false;
+          if (searchPriceFilter === "under-199" && Number(dish.price) > 199)
+            return false;
+          if (searchPriceFilter === "under-299" && Number(dish.price) > 299)
+            return false;
+          if (searchPriceFilter === "above-299" && Number(dish.price) < 299)
+            return false;
+          if (searchRatingFilter === "4.5" && dish.restaurantRating < 4.5)
+            return false;
+          if (searchRatingFilter === "4.0" && dish.restaurantRating < 4)
+            return false;
+          if (searchDeliveryTimeFilter !== "all") {
+            const minTime = parseInt(dish.deliveryTime, 10);
+            if (searchDeliveryTimeFilter === "under-30" && minTime > 30)
+              return false;
+            if (searchDeliveryTimeFilter === "under-45" && minTime > 45)
+              return false;
+          }
+          if (searchHasOffersOnly && !dish.hasPromoBadge) return false;
+          return true;
+        });
 
   const searchedRestaurants = restaurants.filter((restaurant) => {
     const matchesSearch = debouncedSearchQuery.trim()
@@ -836,6 +938,9 @@ export default function SearchPage({
           id="voice-search-modal"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
+              if (recognitionRef.current) {
+                try { recognitionRef.current.stop(); } catch {}
+              }
               setIsVoiceSearching(false);
             }
           }}
