@@ -6,27 +6,91 @@ import { notificationService } from "./notificationService";
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 
 export const dinerService = {
-  // Fetch deliverable restaurant catalog (GET /api/v1/restaurants?lat=...&lng=...)
-  async getRestaurants(locationCoords = null) {
+  // Fetch deliverable restaurant catalog (GET /api/v1/restaurants?lat=...&lng=...&page=...&limit=...)
+  async getRestaurants(locationCoords = null, options = {}) {
+    let params = {};
+    let queryOpts = typeof options === "object" && options !== null ? options : {};
+    
+    // Support passing pagination options as first argument if locationCoords is an object without lat/lng
+    if (locationCoords && typeof locationCoords === "object" && !locationCoords.lat && !locationCoords.lng) {
+      if (locationCoords.page || locationCoords.limit || locationCoords.returnPagination) {
+        queryOpts = locationCoords;
+      }
+    } else if (locationCoords?.lat && locationCoords?.lng) {
+      params.lat = locationCoords.lat;
+      params.lng = locationCoords.lng;
+    }
+
+    if (queryOpts.page) params.page = queryOpts.page;
+    if (queryOpts.limit) params.limit = queryOpts.limit;
+
     if (USE_MOCK) {
       await new Promise((resolve) => setTimeout(resolve, 200));
-      return RESTAURANTS.map(normalizeRestaurant);
-    } else {
-      const params = {};
-      if (locationCoords?.lat && locationCoords?.lng) {
-        params.lat = locationCoords.lat;
-        params.lng = locationCoords.lng;
+      let list = RESTAURANTS.map(normalizeRestaurant);
+      const page = Number(params.page);
+      const limit = Number(params.limit);
+
+      if (page || limit || queryOpts.returnPagination) {
+        const p = page || 1;
+        const l = limit || 10;
+        const total = list.length;
+        const totalPages = Math.ceil(total / l) || 1;
+        const start = (p - 1) * l;
+        const sliced = list.slice(start, start + l);
+
+        const paginationObj = {
+          total,
+          page: p,
+          limit: l,
+          totalPages,
+        };
+        sliced.pagination = paginationObj;
+
+        if (queryOpts.returnPagination) {
+          return {
+            restaurants: sliced,
+            pagination: paginationObj,
+          };
+        }
+        return sliced;
       }
+      return list;
+    } else {
       const response = await apiClient.get("/v1/restaurants", { params });
       let list = [];
-      if (Array.isArray(response.data)) {
-        list = response.data;
-      } else if (Array.isArray(response.data?.data)) {
-        list = response.data.data;
-      } else if (Array.isArray(response.data?.restaurants)) {
-        list = response.data.restaurants;
+      let pagination = null;
+
+      const resPayload = response.data;
+      const resData = resPayload?.data || resPayload;
+
+      if (Array.isArray(resData)) {
+        list = resData;
+      } else if (resData?.restaurants && Array.isArray(resData.restaurants)) {
+        list = resData.restaurants;
+        pagination = resData.pagination || null;
+      } else if (Array.isArray(resPayload?.restaurants)) {
+        list = resPayload.restaurants;
+        pagination = resPayload.pagination || null;
       }
-      return list.map(normalizeRestaurant);
+
+      const normalizedList = list.map(normalizeRestaurant);
+      if (pagination) {
+        normalizedList.pagination = pagination;
+      }
+
+      if (queryOpts.returnPagination) {
+        return {
+          restaurants: normalizedList,
+          pagination: pagination || {
+            total: normalizedList.length,
+            page: Number(params.page) || 1,
+            limit: Number(params.limit) || 10,
+            totalPages: Math.ceil(normalizedList.length / (Number(params.limit) || 10)) || 1,
+          },
+        };
+      }
+
+      return normalizedList;
     }
   },
 

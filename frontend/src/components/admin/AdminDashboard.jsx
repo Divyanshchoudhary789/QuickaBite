@@ -137,11 +137,45 @@ export default function AdminDashboard({
     }
   }, [activeSubTab]);
 
+  const [restaurantPage, setRestaurantPage] = useState(1);
+  const [restaurantLimit, setRestaurantLimit] = useState(10);
+  const [restaurantPagination, setRestaurantPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  });
+
   useEffect(() => {
     const loadRestaurants = async () => {
       setIsLoadingKitchens(true);
       try {
-        const list = await dinerService.getRestaurants();
+        const resData = await dinerService.getRestaurants(null, {
+          page: restaurantPage,
+          limit: restaurantLimit,
+          returnPagination: true,
+        });
+
+        let list = [];
+        let pag = null;
+
+        if (Array.isArray(resData)) {
+          list = resData;
+          pag = resData.pagination || {
+            total: list.length,
+            page: restaurantPage,
+            limit: restaurantLimit,
+            totalPages: Math.ceil(list.length / restaurantLimit) || 1,
+          };
+        } else if (resData && Array.isArray(resData.restaurants)) {
+          list = resData.restaurants;
+          pag = resData.pagination || null;
+        }
+
+        if (pag) {
+          setRestaurantPagination(pag);
+        }
+
         if (import.meta.env.VITE_USE_MOCK === "false") {
           try {
             const menuData = await dinerService.getAllMenu();
@@ -183,10 +217,16 @@ export default function AdminDashboard({
         setIsLoadingKitchens(false);
       }
     };
-    if (import.meta.env.VITE_USE_MOCK === "false" && (activeSubTab === "restaurants" || activeSubTab === "menu" || activeSubTab === "overview" || !activeSubTab)) {
+    if (
+      import.meta.env.VITE_USE_MOCK === "false" &&
+      (activeSubTab === "restaurants" ||
+        activeSubTab === "menu" ||
+        activeSubTab === "overview" ||
+        !activeSubTab)
+    ) {
       loadRestaurants();
     }
-  }, [activeSubTab]);
+  }, [activeSubTab, restaurantPage, restaurantLimit]);
   const [showAddResModal, setShowAddResModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null);
   const [isSubmittingRes, setIsSubmittingRes] = useState(false);
@@ -1382,6 +1422,11 @@ export default function AdminDashboard({
                   }}
                   onEditRestaurantClick={handleOpenEditResModal}
                   onDeleteRestaurantClick={handleDeleteRestaurant}
+                  restaurantPagination={restaurantPagination}
+                  restaurantPage={restaurantPage}
+                  setRestaurantPage={setRestaurantPage}
+                  restaurantLimit={restaurantLimit}
+                  setRestaurantLimit={setRestaurantLimit}
                 />
               )}
 

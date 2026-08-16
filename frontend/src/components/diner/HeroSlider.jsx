@@ -114,6 +114,8 @@ export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSe
             <img
               src={s.image}
               alt=""
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover object-center"
               referrerPolicy="no-referrer"
             />
@@ -176,6 +178,8 @@ export default function HeroSlider({ onSearchClick, currentLocation, onCuisineSe
                 key={idx}
                 src={s.image}
                 alt={s.title}
+                loading="lazy"
+                decoding="async"
                 referrerPolicy="no-referrer"
                 className={`absolute inset-0 w-full h-full object-cover rounded-3xl border-4 border-white/40 shadow-2xl transition-all duration-700 transform ${idx === currentSlide ? "opacity-100 scale-100 rotate-1" : "opacity-0 scale-95 -rotate-2"}`}
               />

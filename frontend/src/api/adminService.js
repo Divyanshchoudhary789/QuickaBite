@@ -685,18 +685,77 @@ export const adminService = {
     }
   },
 
-  async getAdminRestaurants() {
+  async getAdminRestaurants(queryParams = {}) {
+    let params = {};
+    if (queryParams?.page) params.page = queryParams.page;
+    if (queryParams?.limit) params.limit = queryParams.limit;
+
     if (USE_MOCK) {
       const cached = localStorage.getItem("globaleats_restaurants");
-      return cached ? JSON.parse(cached) : [];
+      const list = cached ? JSON.parse(cached) : [];
+      const normalized = list.map(normalizeRestaurant);
+      const page = Number(params.page);
+      const limit = Number(params.limit);
+
+      if (page || limit || queryParams?.returnPagination) {
+        const p = page || 1;
+        const l = limit || 10;
+        const total = normalized.length;
+        const totalPages = Math.ceil(total / l) || 1;
+        const start = (p - 1) * l;
+        const sliced = normalized.slice(start, start + l);
+
+        const paginationObj = { total, page: p, limit: l, totalPages };
+        sliced.pagination = paginationObj;
+
+        if (queryParams?.returnPagination) {
+          return { restaurants: sliced, pagination: paginationObj };
+        }
+        return sliced;
+      }
+      return normalized;
     } else {
       try {
-        const response = await apiClient.get("/v1/restaurants");
-        const raw = response.data?.data || response.data?.restaurants || response.data;
-        return Array.isArray(raw) ? raw.map(normalizeRestaurant) : [];
+        const response = await apiClient.get("/v1/restaurants", { params });
+        const resPayload = response.data;
+        const resData = resPayload?.data || resPayload;
+
+        let list = [];
+        let pagination = null;
+
+        if (Array.isArray(resData)) {
+          list = resData;
+        } else if (resData && typeof resData === "object") {
+          list = Array.isArray(resData.restaurants) ? resData.restaurants : [];
+          pagination = resData.pagination || null;
+        } else if (Array.isArray(resPayload?.restaurants)) {
+          list = resPayload.restaurants;
+          pagination = resPayload.pagination || null;
+        }
+
+        const normalized = list.map(normalizeRestaurant).filter(Boolean);
+        if (pagination) {
+          normalized.pagination = pagination;
+        }
+
+        if (queryParams?.returnPagination) {
+          return {
+            restaurants: normalized,
+            pagination: pagination || {
+              total: normalized.length,
+              page: Number(params.page) || 1,
+              limit: Number(params.limit) || 10,
+              totalPages: Math.ceil(normalized.length / (Number(params.limit) || 10)) || 1,
+            },
+          };
+        }
+
+        return normalized;
       } catch (err) {
         console.warn("getAdminRestaurants API error:", err?.message || err);
-        return [];
+        return queryParams?.returnPagination
+          ? { restaurants: [], pagination: { total: 0, page: 1, limit: 10, totalPages: 0 } }
+          : [];
       }
     }
   },
@@ -705,17 +764,82 @@ export const adminService = {
     if (USE_MOCK) {
       const cached = localStorage.getItem("globaleats_orders");
       const list = cached ? JSON.parse(cached) : [];
-      return Array.isArray(list) ? list.map(normalizeOrder).filter(Boolean) : [];
+      const normalizedList = Array.isArray(list) ? list.map(normalizeOrder).filter(Boolean) : [];
+      if (queryParams?.returnFullPayload) {
+        return {
+          stats: {
+            totalOrders: normalizedList.length,
+            received: normalizedList.filter(o => o.status === "received" || o.status === "pending").length,
+            accepted: normalizedList.filter(o => o.status === "accepted" || o.status === "confirmed").length,
+            preparing: normalizedList.filter(o => o.status === "preparing").length,
+            dispatched: normalizedList.filter(o => o.status === "dispatched" || o.status === "out_for_delivery").length,
+            delivered: normalizedList.filter(o => o.status === "delivered").length,
+            rejected: normalizedList.filter(o => o.status === "rejected").length,
+          },
+          orders: normalizedList,
+          pagination: {
+            total: normalizedList.length,
+            page: Number(queryParams.page) || 1,
+            limit: Number(queryParams.limit) || 10,
+            totalPages: Math.ceil(normalizedList.length / (Number(queryParams.limit) || 10)) || 1
+          }
+        };
+      }
+      return normalizedList;
     } else {
       try {
-        const response = await apiClient.get("/v1/riders/dispatch-board", { params: queryParams });
-        const raw = response.data?.data || response.data?.orders || response.data;
-        return Array.isArray(raw) ? raw.map(normalizeOrder).filter(Boolean) : [];
+        const response = await apiClient.get("/v1/admin/dispatch", { params: queryParams });
+        const payload = response.data;
+        const resData = payload?.data || payload;
+
+        let rawOrders = [];
+        let stats = null;
+        let pagination = null;
+
+        if (Array.isArray(resData)) {
+          rawOrders = resData;
+        } else if (resData && typeof resData === "object") {
+          rawOrders = Array.isArray(resData.orders) ? resData.orders : [];
+          stats = resData.stats || null;
+          pagination = resData.pagination || null;
+        } else if (Array.isArray(payload?.orders)) {
+          rawOrders = payload.orders;
+          stats = payload.stats || null;
+          pagination = payload.pagination || null;
+        }
+
+        const normalizedOrders = rawOrders.map(normalizeOrder).filter(Boolean);
+
+        if (queryParams?.returnFullPayload) {
+          return {
+            stats: stats || {},
+            orders: normalizedOrders,
+            pagination: pagination || {
+              total: normalizedOrders.length,
+              page: Number(queryParams.page) || 1,
+              limit: Number(queryParams.limit) || 10,
+              totalPages: 1
+            }
+          };
+        }
+
+        if (stats || pagination) {
+          normalizedOrders.stats = stats;
+          normalizedOrders.pagination = pagination;
+        }
+
+        return normalizedOrders;
       } catch (err) {
-        console.warn("getDispatchBoard API call failed, fetching manager incoming orders fallback:", err?.message || err);
-        const response = await apiClient.get("/v1/orders/manager/incoming");
-        const raw = response.data?.data || response.data?.orders || response.data;
-        return Array.isArray(raw) ? raw.map(normalizeOrder).filter(Boolean) : [];
+        console.warn("getDispatchBoard API (/v1/admin/dispatch) call failed, falling back:", err?.message || err);
+        try {
+          const fallbackRes = await apiClient.get("/v1/orders/manager/incoming");
+          const raw = fallbackRes.data?.data || fallbackRes.data?.orders || fallbackRes.data;
+          const normalized = Array.isArray(raw) ? raw.map(normalizeOrder).filter(Boolean) : [];
+          return queryParams?.returnFullPayload ? { stats: {}, orders: normalized, pagination: null } : normalized;
+        } catch (fbErr) {
+          console.warn("Fallback incoming orders also failed:", fbErr?.message || fbErr);
+          return queryParams?.returnFullPayload ? { stats: {}, orders: [], pagination: null } : [];
+        }
       }
     }
   },
@@ -1112,29 +1236,8 @@ export const adminService = {
     return normalized;
   },
 
-  async getAdminRestaurants() {
-    try {
-      const response = await apiClient.get("/v1/admin/restaurants");
-      const rawPayload = response.data;
-      const rawData = rawPayload?.data || rawPayload;
-      const list = Array.isArray(rawData)
-        ? rawData
-        : Array.isArray(rawData?.restaurants)
-          ? rawData.restaurants
-          : Array.isArray(rawPayload?.restaurants)
-            ? rawPayload.restaurants
-            : [];
-      const normalized = list.map(normalizeRestaurant).filter(Boolean);
-      if (normalized.length > 0) {
-        return normalized;
-      }
-    } catch (err) {
-      console.warn("getAdminRestaurants live API call failed, using mock fallback:", err?.message || err);
-    }
-
-    const cached = localStorage.getItem("globaleats_restaurants");
-    const list = cached ? JSON.parse(cached) : [];
-    return list.map(normalizeRestaurant).filter(Boolean);
+  async getAdminRestaurantsAlias(queryParams = {}) {
+    return this.getAdminRestaurants(queryParams);
   },
 
   // WhatsApp Marketing & Console APIs (8 Endpoints Integration)

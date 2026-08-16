@@ -72,6 +72,11 @@ export default function MenuManagementTab({
   onEditRestaurantClick,
   onDeleteRestaurantClick,
   isLoadingKitchens = false,
+  restaurantPagination,
+  restaurantPage = 1,
+  setRestaurantPage,
+  restaurantLimit = 10,
+  setRestaurantLimit,
 }) {
   const [activeCatalogTab, setActiveCatalogTab] = useState("dishes");
   const [viewMode, setViewMode] = useState("list");
@@ -1389,7 +1394,8 @@ export default function MenuManagementTab({
               </div>
             </>
           ) : (
-            <div
+            <>
+              <div
               className="overflow-auto max-h-[480px] rounded-2xl border border-neutral-150 relative scrollbar-thin scrollbar-thumb-neutral-200 scrollbar-track-transparent"
               id="kitchens-table-container"
             >
@@ -1552,7 +1558,51 @@ export default function MenuManagementTab({
                 </tbody>
               </table>
             </div>
-          )}
+            {restaurantPagination && setRestaurantPage && (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-neutral-150 pt-4 px-2">
+                <div className="text-xs font-semibold text-neutral-500">
+                  Showing Page <span className="font-black text-neutral-900">{restaurantPagination.page || restaurantPage}</span> of{" "}
+                  <span className="font-black text-neutral-900">{restaurantPagination.totalPages || 1}</span> (Total{" "}
+                  <span className="font-black text-brand-orange">{restaurantPagination.total || restaurantsList.length}</span> kitchens)
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={restaurantPage <= 1}
+                    onClick={() => setRestaurantPage((prev) => Math.max(1, prev - 1))}
+                    className="px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-800 text-xs font-black rounded-xl transition cursor-pointer"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs font-black px-2.5 py-1 bg-orange-50 text-brand-orange border border-orange-200 rounded-lg">
+                    {restaurantPage}
+                  </span>
+                  <button
+                    disabled={restaurantPage >= (restaurantPagination.totalPages || 1)}
+                    onClick={() => setRestaurantPage((prev) => prev + 1)}
+                    className="px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-800 text-xs font-black rounded-xl transition cursor-pointer"
+                  >
+                    Next
+                  </button>
+                  {setRestaurantLimit && (
+                    <select
+                      value={restaurantLimit}
+                      onChange={(e) => {
+                        setRestaurantLimit(Number(e.target.value));
+                        setRestaurantPage(1);
+                      }}
+                      className="ml-2 bg-neutral-50 border border-neutral-200 rounded-xl px-2.5 py-1 text-xs font-bold text-neutral-800 outline-none cursor-pointer"
+                    >
+                      <option value={5}>5 / page</option>
+                      <option value={10}>10 / page</option>
+                      <option value={20}>20 / page</option>
+                      <option value={50}>50 / page</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
         </>
       )}
 

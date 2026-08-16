@@ -979,9 +979,9 @@ export default function HomePage({
                             onClick={(e) => {
                               e.stopPropagation();
                               if (toggleFavoriteDish) {
-                                toggleFavoriteDish(dish.id || dish._id, e, dish.name);
+                                toggleFavoriteDish(dish.id || dish._id, triggerToast);
                               } else if (handleToggleFavoriteDish) {
-                                handleToggleFavoriteDish(dish.id || dish._id, e, dish.name);
+                                handleToggleFavoriteDish(dish.id || dish._id);
                               } else {
                                 triggerToast(`Added ${dish.name} to favorites!`);
                               }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, MapPin } from "lucide-react";
@@ -12,29 +12,31 @@ import {
   INITIAL_NOTIFICATIONS,
 } from "./data";
 import Navbar from "./components/common/Navbar";
-import SearchPage from "./components/diner/SearchPage";
-import OffersPage from "./components/diner/OffersPage";
 import HeroSlider from "./components/diner/HeroSlider";
-import ReelPlayer from "./components/diner/ReelPlayer";
-import RestaurantDetailModal from "./components/diner/RestaurantDetailModal";
-import CartDrawer from "./components/diner/CartDrawer";
-import ActiveOrderTracker from "./components/diner/ActiveOrderTracker";
-import ShoppingCartPage from "./components/diner/ShoppingCartPage";
-import CheckoutPage from "./components/diner/CheckoutPage";
-import OrdersPage from "./components/diner/OrdersPage";
-import ProfilePage from "./components/diner/ProfilePage";
-import FavoritesPage from "./components/diner/FavoritesPage";
-import SupportPage from "./components/diner/SupportPage";
-import AuthPage from "./components/common/AuthPage";
 import HomePage from "./components/diner/HomePage";
-import AdminDashboard from "./components/admin/AdminDashboard";
-import ManagerDashboard from "./components/manager/ManagerDashboard";
 import CloudKitchenSection from "./components/diner/CloudKitchenSection";
-import BrandManagementTab from "./components/admin/BrandManagementTab";
 import BottomNavbar from "./components/common/BottomNavbar";
 import CartConflictModal from "./components/diner/CartConflictModal";
 import FloatingDecorations from "./components/common/FloatingDecorations";
 import LandingLoader from "./components/common/LandingLoader";
+
+// Lazy-loaded page view components & heavy overlays
+const SearchPage = lazy(() => import("./components/diner/SearchPage"));
+const OffersPage = lazy(() => import("./components/diner/OffersPage"));
+const OrdersPage = lazy(() => import("./components/diner/OrdersPage"));
+const ProfilePage = lazy(() => import("./components/diner/ProfilePage"));
+const FavoritesPage = lazy(() => import("./components/diner/FavoritesPage"));
+const SupportPage = lazy(() => import("./components/diner/SupportPage"));
+const ShoppingCartPage = lazy(() => import("./components/diner/ShoppingCartPage"));
+const CheckoutPage = lazy(() => import("./components/diner/CheckoutPage"));
+const AdminDashboard = lazy(() => import("./components/admin/AdminDashboard"));
+const ManagerDashboard = lazy(() => import("./components/manager/ManagerDashboard"));
+const BrandManagementTab = lazy(() => import("./components/admin/BrandManagementTab"));
+const ReelPlayer = lazy(() => import("./components/diner/ReelPlayer"));
+const RestaurantDetailModal = lazy(() => import("./components/diner/RestaurantDetailModal"));
+const CartDrawer = lazy(() => import("./components/diner/CartDrawer"));
+const ActiveOrderTracker = lazy(() => import("./components/diner/ActiveOrderTracker"));
+const AuthPage = lazy(() => import("./components/common/AuthPage"));
 
 import { authService } from "./api/authService";
 import { dinerService, normalizeMenuItem } from "./api/dinerService";
@@ -284,6 +286,8 @@ function AppContent() {
   };
 
   const [userLocationCoords, setUserLocationCoords] = useState(null);
+  const [isLocationResolved, setIsLocationResolved] = useState(false);
+  const lastFetchedCoordsRef = useRef(null);
   const [isGpsDenied, setIsGpsDenied] = useState(false);
   const [showGpsHelpModal, setShowGpsHelpModal] = useState(false);
 
@@ -360,6 +364,7 @@ function AppContent() {
           setIsGpsDenied(true);
           setCurrentLocation("");
         }
+        setIsLocationResolved(true);
       }
     };
     resolveLocation();
@@ -369,10 +374,23 @@ function AppContent() {
   }, [isLoggedIn, profile]);
 
   useEffect(() => {
+    if (!isLocationResolved && userLocationCoords === null) {
+      return;
+    }
+
+    const currentLat = userLocationCoords?.lat ?? null;
+    const currentLng = userLocationCoords?.lng ?? null;
+    const coordKey = `${currentLat},${currentLng}`;
+
+    if (lastFetchedCoordsRef.current === coordKey) {
+      return;
+    }
+
     const loadRestaurants = async () => {
       setIsLoadingRestaurants(true);
       try {
         const list = await dinerService.getRestaurants(userLocationCoords);
+        lastFetchedCoordsRef.current = coordKey;
 
         if (import.meta.env.VITE_USE_MOCK === "false") {
           try {
@@ -411,7 +429,7 @@ function AppContent() {
       }
     };
     loadRestaurants();
-  }, [userLocationCoords?.lat, userLocationCoords?.lng]);
+  }, [userLocationCoords?.lat, userLocationCoords?.lng, isLocationResolved]);
   const [isExploreMoreUnlocked, setIsExploreMoreUnlocked] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [preAppliedCoupon, setPreAppliedCoupon] = useState("");
@@ -723,26 +741,32 @@ function AppContent() {
             />
           )}
         </AnimatePresence>
-        <AuthPage
-          onLoginSuccess={(profileData) => {
-            // Auth state (isLoggedIn, userRole, profile) is already set inside
-            // AuthContext by verifyLoginOtp / verifySignupOtp. We only handle routing.
-            const role = profileData?.role || "user";
-            if (role === "admin") {
-              navigate("/admin", { replace: true });
-            } else if (role === "manager") {
-              navigate("/manager", { replace: true });
-            } else {
-              let redirectPath = location.state?.from || "/home";
-              if (redirectPath === "/login") {
-                redirectPath = "/home";
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-[60vh] w-full py-12">
+            <div className="w-10 h-10 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+          </div>
+        }>
+          <AuthPage
+            onLoginSuccess={(profileData) => {
+              // Auth state (isLoggedIn, userRole, profile) is already set inside
+              // AuthContext by verifyLoginOtp / verifySignupOtp. We only handle routing.
+              const role = profileData?.role || "user";
+              if (role === "admin") {
+                navigate("/admin", { replace: true });
+              } else if (role === "manager") {
+                navigate("/manager", { replace: true });
+              } else {
+                let redirectPath = location.state?.from || "/home";
+                if (redirectPath === "/login") {
+                  redirectPath = "/home";
+                }
+                navigate(redirectPath, { replace: true });
               }
-              navigate(redirectPath, { replace: true });
-            }
-          }}
-          onBackToHome={() => navigate("/home")}
-          triggerToast={triggerToast}
-        />
+            }}
+            onBackToHome={() => navigate("/home")}
+            triggerToast={triggerToast}
+          />
+        </Suspense>
         {toast && (
           <div
             className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] bg-gray-950 text-white font-black text-xs px-6 py-4 rounded-full shadow-2xl flex items-center gap-2 border border-neutral-800 animate-slide-up"
@@ -807,244 +831,255 @@ function AppContent() {
           className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 relative"
           id="viewports-stage"
         >
-          {activeTab === "home" &&
-            userRole !== "admin" &&
-            userRole !== "manager" && (
-              <HomePage
+          <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[50vh] w-full py-12">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+                <span className="text-xs font-semibold text-neutral-500 tracking-wide animate-pulse">Loading content...</span>
+              </div>
+            </div>
+          }>
+            {activeTab === "home" &&
+              userRole !== "admin" &&
+              userRole !== "manager" && (
+                <HomePage
+                  restaurants={restaurants}
+                  currentLocation={currentLocation}
+                  onRequestGpsAgain={handleRequestGpsAgain}
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
+                  isCuisineExpanded={isCuisineExpanded}
+                  setIsCuisineExpanded={setIsCuisineExpanded}
+                  isPopularCuisinesExpanded={isPopularCuisinesExpanded}
+                  setIsPopularCuisinesExpanded={setIsPopularCuisinesExpanded}
+                  triggerToast={triggerToast}
+                  cartItems={cartItems}
+                  handleAddToCart={handleAddToCart}
+                  handleRemoveFromCart={handleRemoveFromCart}
+                  filterFastDelivery={filterFastDelivery}
+                  setFilterFastDelivery={setFilterFastDelivery}
+                  filterTopRated={filterTopRated}
+                  setFilterTopRated={setFilterTopRated}
+                  filterPureVeg={filterPureVeg}
+                  setFilterPureVeg={setFilterPureVeg}
+                  filterOffers={filterOffers}
+                  setFilterOffers={setFilterOffers}
+                  filterPrice={filterPrice}
+                  setFilterPrice={setFilterPrice}
+                  filteredRestaurants={filteredRestaurants}
+                  setSelectedRestaurant={handleSetSelectedRestaurant}
+                  favorites={favorites}
+                  handleToggleFavorite={handleToggleFavorite}
+                  isExploreMoreUnlocked={isExploreMoreUnlocked}
+                  handleToggleRadius={handleToggleRadius}
+                  setActiveReelId={handleSetActiveReelId}
+                  setActiveTab={navigateWithAuth}
+                />
+              )}
+
+            {/* TAB 2: SEARCH DIRECT VIEW */}
+            {activeTab === "search" && (
+              <SearchPage
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
                 restaurants={restaurants}
-                currentLocation={currentLocation}
-                onRequestGpsAgain={handleRequestGpsAgain}
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                isCuisineExpanded={isCuisineExpanded}
-                setIsCuisineExpanded={setIsCuisineExpanded}
-                isPopularCuisinesExpanded={isPopularCuisinesExpanded}
-                setIsPopularCuisinesExpanded={setIsPopularCuisinesExpanded}
-                triggerToast={triggerToast}
-                cartItems={cartItems}
-                handleAddToCart={handleAddToCart}
-                handleRemoveFromCart={handleRemoveFromCart}
-                filterFastDelivery={filterFastDelivery}
-                setFilterFastDelivery={setFilterFastDelivery}
-                filterTopRated={filterTopRated}
-                setFilterTopRated={setFilterTopRated}
-                filterPureVeg={filterPureVeg}
-                setFilterPureVeg={setFilterPureVeg}
-                filterOffers={filterOffers}
-                setFilterOffers={setFilterOffers}
-                filterPrice={filterPrice}
-                setFilterPrice={setFilterPrice}
-                filteredRestaurants={filteredRestaurants}
-                setSelectedRestaurant={handleSetSelectedRestaurant}
-                favorites={favorites}
-                handleToggleFavorite={handleToggleFavorite}
-                isExploreMoreUnlocked={isExploreMoreUnlocked}
-                handleToggleRadius={handleToggleRadius}
-                setActiveReelId={handleSetActiveReelId}
-                setActiveTab={navigateWithAuth}
-              />
-            )}
-
-          {/* TAB 2: SEARCH DIRECT VIEW */}
-          {activeTab === "search" && (
-            <SearchPage
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              restaurants={restaurants}
-              onAddToCart={handleAddToCart}
-              setSelectedRestaurant={handleSetSelectedRestaurant}
-              setActiveTab={navigateWithAuth}
-              triggerToast={triggerToast}
-              isLoading={isLoadingRestaurants}
-            />
-          )}
-
-          {/* TAB 3: OFFERS VIEW */}
-          {activeTab === "offers" && (
-            <OffersPage
-              preAppliedCoupon={preAppliedCoupon}
-              setPreAppliedCoupon={setPreAppliedCoupon}
-              triggerToast={triggerToast}
-            />
-          )}
-
-          {/* TAB 5: MY ORDERS HISTORY */}
-          {activeTab === "orders" &&
-            (activeOrder ? (
-              <ActiveOrderTracker
-                order={activeOrder}
-                onClose={() => {
-                  setActiveOrder(null);
-                }}
-                triggerToast={triggerToast}
-              />
-            ) : (
-              <OrdersPage
-                orders={orders}
-                setOrders={setOrders}
-                activeOrder={activeOrder}
-                setActiveOrder={setActiveOrder}
                 onAddToCart={handleAddToCart}
-                setIsCartOpen={handleSetIsCartOpen}
+                setSelectedRestaurant={handleSetSelectedRestaurant}
                 setActiveTab={navigateWithAuth}
                 triggerToast={triggerToast}
-              />
-            ))}
-
-          {/* TAB 4: MY PROFILE PREFERENCES */}
-          {activeTab === "profile" && (
-            <ProfilePage
-              setSelectedRestaurant={handleSetSelectedRestaurant}
-              setActiveTab={navigateWithAuth}
-              triggerToast={triggerToast}
-              setIsLoggedIn={setIsLoggedIn}
-            />
-          )}
-
-          {/* TAB 10: ADMIN DASHBOARD */}
-          {(activeTab === "home" || activeTab === "admin") &&
-            userRole === "admin" && (
-              <AdminDashboard
-                orders={orders}
-                setOrders={setOrders}
-                activeOrder={activeOrder}
-                setActiveOrder={setActiveOrder}
-                triggerToast={triggerToast}
-                setActiveTab={navigateWithAuth}
-                notifications={notifications}
-                setNotifications={setNotifications}
-                adminSubTab={adminSubTab}
-                setAdminSubTab={setAdminSubTab}
-                userRole={userRole}
-                marketingSubTab={marketingSubTab}
-                setMarketingSubTab={setMarketingSubTab}
+                isLoading={isLoadingRestaurants}
               />
             )}
 
-          {/* TAB 12: MANAGER DASHBOARD */}
-          {(activeTab === "home" || activeTab === "manager") &&
-            userRole === "manager" && (
-              <ManagerDashboard
-                orders={orders}
-                setOrders={setOrders}
+            {/* TAB 3: OFFERS VIEW */}
+            {activeTab === "offers" && (
+              <OffersPage
+                preAppliedCoupon={preAppliedCoupon}
+                setPreAppliedCoupon={setPreAppliedCoupon}
                 triggerToast={triggerToast}
-                setHideBottomNavbar={setHideBottomNavbar}
               />
             )}
 
-          {/* TAB 11: VIRTUAL BRAND MANAGEMENT */}
-          {activeTab === "brands" &&
-            (userRole === "admin" || userRole === "manager") && (
-              <div
-                className="bg-cream-base p-4 sm:p-6"
-                id="admin-brands-tab-viewport"
-              >
-                <BrandManagementTab
-                  orders={orders}
+            {/* TAB 5: MY ORDERS HISTORY */}
+            {activeTab === "orders" &&
+              (activeOrder ? (
+                <ActiveOrderTracker
+                  order={activeOrder}
+                  onClose={() => {
+                    setActiveOrder(null);
+                  }}
                   triggerToast={triggerToast}
                 />
-              </div>
+              ) : (
+                <OrdersPage
+                  orders={orders}
+                  setOrders={setOrders}
+                  activeOrder={activeOrder}
+                  setActiveOrder={setActiveOrder}
+                  onAddToCart={handleAddToCart}
+                  setIsCartOpen={handleSetIsCartOpen}
+                  setActiveTab={navigateWithAuth}
+                  triggerToast={triggerToast}
+                />
+              ))}
+
+            {/* TAB 4: MY PROFILE PREFERENCES */}
+            {activeTab === "profile" && (
+              <ProfilePage
+                setSelectedRestaurant={handleSetSelectedRestaurant}
+                setActiveTab={navigateWithAuth}
+                triggerToast={triggerToast}
+                setIsLoggedIn={setIsLoggedIn}
+              />
             )}
 
-          {/* TAB 8: FAVORITES VIEW */}
-          {activeTab === "favorites" && (
-            <FavoritesPage
-              favorites={favorites}
-              setFavorites={setFavorites}
-              favoriteDishes={favoriteDishes}
-              setFavoriteDishes={setFavoriteDishes}
-              restaurants={restaurants}
-              onAddToCart={handleAddToCart}
-              setSelectedRestaurant={handleSetSelectedRestaurant}
-              setActiveTab={navigateWithAuth}
-              triggerToast={triggerToast}
-            />
-          )}
+            {/* TAB 10: ADMIN DASHBOARD */}
+            {(activeTab === "home" || activeTab === "admin") &&
+              userRole === "admin" && (
+                <AdminDashboard
+                  orders={orders}
+                  setOrders={setOrders}
+                  activeOrder={activeOrder}
+                  setActiveOrder={setActiveOrder}
+                  triggerToast={triggerToast}
+                  setActiveTab={navigateWithAuth}
+                  notifications={notifications}
+                  setNotifications={setNotifications}
+                  adminSubTab={adminSubTab}
+                  setAdminSubTab={setAdminSubTab}
+                  userRole={userRole}
+                  marketingSubTab={marketingSubTab}
+                  setMarketingSubTab={setMarketingSubTab}
+                />
+              )}
 
-          {/* TAB 6: SHOPPING CART PAGE */}
-          {activeTab === "cart" && (
-            <ShoppingCartPage
-              cartItems={cartItems}
-              restaurantName={cartRestaurant?.name || ""}
-              restaurantId={cartRestaurant?.id || ""}
-              onAddToCart={handleAddToCart}
-              onRemoveFromCart={handleRemoveFromCart}
-              onClearCart={clearCart}
-              onCheckoutSuccess={handleCheckoutSuccess}
-              setActiveTab={navigateWithAuth}
-              triggerToast={triggerToast}
-              preAppliedCoupon={preAppliedCoupon}
-              setPreAppliedCoupon={setPreAppliedCoupon}
-            />
-          )}
+            {/* TAB 12: MANAGER DASHBOARD */}
+            {(activeTab === "home" || activeTab === "manager") &&
+              userRole === "manager" && (
+                <ManagerDashboard
+                  orders={orders}
+                  setOrders={setOrders}
+                  triggerToast={triggerToast}
+                  setHideBottomNavbar={setHideBottomNavbar}
+                />
+              )}
 
-          {/* TAB 7: SECURE CHECKOUT PAGE */}
-          {activeTab === "checkout" && (
-            <CheckoutPage
-              cartItems={cartItems}
-              restaurantName={cartRestaurant?.name || ""}
-              restaurantId={cartRestaurant?.id || ""}
-              onClearCart={clearCart}
-              onCheckoutSuccess={handleCheckoutSuccess}
-              setActiveTab={navigateWithAuth}
-              triggerToast={triggerToast}
-              preAppliedCoupon={preAppliedCoupon}
-              setPreAppliedCoupon={setPreAppliedCoupon}
-            />
-          )}
+            {/* TAB 11: VIRTUAL BRAND MANAGEMENT */}
+            {activeTab === "brands" &&
+              (userRole === "admin" || userRole === "manager") && (
+                <div
+                  className="bg-cream-base p-4 sm:p-6"
+                  id="admin-brands-tab-viewport"
+                >
+                  <BrandManagementTab
+                    orders={orders}
+                    triggerToast={triggerToast}
+                  />
+                </div>
+              )}
 
-          {/* SUPPORT CENTER VIEW */}
-          {activeTab === "support" && (
-            <SupportPage
-              orders={orders}
-              triggerToast={triggerToast}
-              setActiveTab={navigateWithAuth}
-            />
-          )}
+            {/* TAB 8: FAVORITES VIEW */}
+            {activeTab === "favorites" && (
+              <FavoritesPage
+                favorites={favorites}
+                setFavorites={setFavorites}
+                favoriteDishes={favoriteDishes}
+                setFavoriteDishes={setFavoriteDishes}
+                restaurants={restaurants}
+                onAddToCart={handleAddToCart}
+                setSelectedRestaurant={handleSetSelectedRestaurant}
+                setActiveTab={navigateWithAuth}
+                triggerToast={triggerToast}
+              />
+            )}
+
+            {/* TAB 6: SHOPPING CART PAGE */}
+            {activeTab === "cart" && (
+              <ShoppingCartPage
+                cartItems={cartItems}
+                restaurantName={cartRestaurant?.name || ""}
+                restaurantId={cartRestaurant?.id || ""}
+                onAddToCart={handleAddToCart}
+                onRemoveFromCart={handleRemoveFromCart}
+                onClearCart={clearCart}
+                onCheckoutSuccess={handleCheckoutSuccess}
+                setActiveTab={navigateWithAuth}
+                triggerToast={triggerToast}
+                preAppliedCoupon={preAppliedCoupon}
+                setPreAppliedCoupon={setPreAppliedCoupon}
+              />
+            )}
+
+            {/* TAB 7: SECURE CHECKOUT PAGE */}
+            {activeTab === "checkout" && (
+              <CheckoutPage
+                cartItems={cartItems}
+                restaurantName={cartRestaurant?.name || ""}
+                restaurantId={cartRestaurant?.id || ""}
+                onClearCart={clearCart}
+                onCheckoutSuccess={handleCheckoutSuccess}
+                setActiveTab={navigateWithAuth}
+                triggerToast={triggerToast}
+                preAppliedCoupon={preAppliedCoupon}
+                setPreAppliedCoupon={setPreAppliedCoupon}
+              />
+            )}
+
+            {/* SUPPORT CENTER VIEW */}
+            {activeTab === "support" && (
+              <SupportPage
+                orders={orders}
+                triggerToast={triggerToast}
+                setActiveTab={navigateWithAuth}
+              />
+            )}
+          </Suspense>
         </main>
 
-        {/* 2. Slide Drawer for Cart */}
-        <CartDrawer
-          isOpen={isCartOpen}
-          onClose={() => handleSetIsCartOpen(false)}
-          cartItems={cartItems}
-          restaurantId={cartRestaurant?.id || ""}
-          restaurantName={cartRestaurant?.name || ""}
-          onAddToCart={handleAddToCart}
-          onRemoveFromCart={handleRemoveFromCart}
-          onClearCart={clearCart}
-          onCheckoutSuccess={handleCheckoutSuccess}
-          onProceedToCheckout={() => navigateWithAuth("checkout")}
-        />
-
-        {/* 3. Restaurant Detail Modal */}
-        {selectedRestaurant && (
-          <RestaurantDetailModal
-            restaurant={selectedRestaurant}
-            cartItems={cartItems.filter(
-              (item) => cartRestaurant?.id === selectedRestaurant.id,
-            )}
-            onClose={() => handleSetSelectedRestaurant(null)}
+        <Suspense fallback={null}>
+          {/* 2. Slide Drawer for Cart */}
+          <CartDrawer
+            isOpen={isCartOpen}
+            onClose={() => handleSetIsCartOpen(false)}
+            cartItems={cartItems}
+            restaurantId={cartRestaurant?.id || ""}
+            restaurantName={cartRestaurant?.name || ""}
             onAddToCart={handleAddToCart}
             onRemoveFromCart={handleRemoveFromCart}
-            favoriteDishes={favoriteDishes}
-            onToggleFavoriteDish={handleToggleFavoriteDish}
-            onViewCart={() => {
-              setSelectedRestaurant(null);
-              navigate("/cart");
-            }}
+            onClearCart={clearCart}
+            onCheckoutSuccess={handleCheckoutSuccess}
+            onProceedToCheckout={() => navigateWithAuth("checkout")}
           />
-        )}
 
-        {/* 4. Reels vertical full screen player */}
-        {activeReelId && (
-          <ReelPlayer
-            reels={reels}
-            initialReelId={activeReelId}
-            onClose={() => handleSetActiveReelId(null)}
-            onAddToCart={handleAddToCart}
-          />
-        )}
+          {/* 3. Restaurant Detail Modal */}
+          {selectedRestaurant && (
+            <RestaurantDetailModal
+              restaurant={selectedRestaurant}
+              cartItems={cartItems.filter(
+                (item) => cartRestaurant?.id === selectedRestaurant.id,
+              )}
+              onClose={() => handleSetSelectedRestaurant(null)}
+              onAddToCart={handleAddToCart}
+              onRemoveFromCart={handleRemoveFromCart}
+              favoriteDishes={favoriteDishes}
+              onToggleFavoriteDish={handleToggleFavoriteDish}
+              onViewCart={() => {
+                setSelectedRestaurant(null);
+                navigate("/cart");
+              }}
+            />
+          )}
+
+          {/* 4. Reels vertical full screen player */}
+          {activeReelId && (
+            <ReelPlayer
+              reels={reels}
+              initialReelId={activeReelId}
+              onClose={() => handleSetActiveReelId(null)}
+              onAddToCart={handleAddToCart}
+            />
+          )}
+        </Suspense>
 
         {/* 5. Sticky Bottom Navigation Bar (Responsive floating dock) */}
         {!hideBottomNavbar && activeTab !== "admin" && userRole !== "admin" && (
