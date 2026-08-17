@@ -31,7 +31,6 @@ export default function AuthPage({
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [otpChannel, setOtpChannel] = useState("call");
-  const [agreeTerms, setAgreeTerms] = useState(false);
   const [selectedRole, setSelectedRole] = useState("user");
   // pendingUser tracks { phone, name, role, otpChannel, flow: "login"|"signup" }
   const [pendingUser, setPendingUser] = useState(null);
@@ -210,10 +209,6 @@ export default function AuthPage({
     e.preventDefault();
     if (!name || !phone) {
       triggerToast("Please complete all registration fields.");
-      return;
-    }
-    if (!agreeTerms) {
-      triggerToast("You must agree to the Terms and Conditions.");
       return;
     }
 
@@ -638,37 +633,6 @@ export default function AuthPage({
                     </div>
                   </div>
 
-                  {/* Receive OTP Via fields */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                      Receive OTP Via
-                    </label>
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setOtpChannel("sms")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "sms"
-                          ? "border-blue-500 bg-blue-50/50 text-blue-700 font-black shadow-xs"
-                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                          }`}
-                      >
-                        <Smartphone className="h-4 w-4" />
-                        <span>SMS</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOtpChannel("call")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "call"
-                          ? "border-amber-500 bg-amber-50/50 text-amber-700 font-black shadow-xs"
-                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                          }`}
-                      >
-                        <PhoneIcon className="h-4 w-4 text-amber-500" />
-                        <span>Voice Call</span>
-                      </button>
-                    </div>
-                  </div>
-
                   {/* Submit Button */}
                   <button
                     type="submit"
@@ -794,58 +758,6 @@ export default function AuthPage({
                       </div>
                     </div>
                   </div>
-
-                  {/* Receive OTP Via fields */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                      Receive OTP Via
-                    </label>
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setOtpChannel("sms")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "sms"
-                          ? "border-blue-500 bg-blue-50/50 text-blue-700 font-black shadow-xs"
-                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                          }`}
-                      >
-                        <Smartphone className="h-4 w-4" />
-                        <span>SMS</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOtpChannel("call")}
-                        className={`py-3 px-2 rounded-2xl text-[10px] font-black transition-all flex flex-col items-center justify-center gap-1.5 border-2 cursor-pointer ${otpChannel === "call"
-                          ? "border-amber-500 bg-amber-50/50 text-amber-700 font-black shadow-xs"
-                          : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300 hover:text-neutral-600"
-                          }`}
-                      >
-                        <PhoneIcon className="h-4 w-4 text-amber-500" />
-                        <span>Voice Call</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Terms checkbox */}
-                  <label className="flex items-start gap-2.5 pt-1 select-none cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={agreeTerms}
-                      onChange={(e) => setAgreeTerms(e.target.checked)}
-                      className="accent-brand-orange h-4 w-4 mt-0.5 rounded cursor-pointer"
-                    />
-                    <span className="text-[10px] text-neutral-400 font-semibold leading-tight">
-                      I agree to the{" "}
-                      <span className="text-brand-orange font-bold hover:underline">
-                        Terms of Service
-                      </span>
-                      ,{" "}
-                      <span className="text-brand-orange font-bold hover:underline">
-                        Privacy Policy
-                      </span>{" "}
-                      and culinary safety codes.
-                    </span>
-                  </label>
 
                   <button
                     type="submit"

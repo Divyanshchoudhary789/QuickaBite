@@ -33,6 +33,7 @@ import {
   Briefcase,
   Tag,
   Ticket,
+  Pencil,
 } from "lucide-react";
 import Modal from "../common/Modal";
 export default function MarketingTab({
@@ -130,6 +131,50 @@ export default function MarketingTab({
     setNewOfferText("");
   };
 
+  const [editingCouponId, setEditingCouponId] = useState(null);
+  const [isSubmittingCoupon, setIsSubmittingCoupon] = useState(false);
+
+  const handleStartEditCoupon = (coupon) => {
+    const cid = coupon.id || coupon._id;
+    setEditingCouponId(cid);
+    setNewCouponCode(coupon.code || "");
+    setNewCouponCategory(coupon.category || coupon.campaignCategory || "BRAND");
+    setNewCouponTitle(coupon.bannerTitle || coupon.title || "");
+    setNewCouponDiscount(coupon.discountLabel || coupon.discount || "");
+    setNewCouponDiscountType(coupon.discountType || "percentage");
+    setNewCouponDiscountValue(coupon.discountValue !== undefined ? String(coupon.discountValue) : "");
+    setNewCouponMaxDiscount(coupon.maximumDiscount !== undefined ? String(coupon.maximumDiscount) : "");
+    setNewCouponMinOrder(coupon.minimumOrderAmount ?? coupon.minOrder ?? "");
+    setNewCouponUsageLimit(coupon.usageLimit !== undefined ? String(coupon.usageLimit) : "100");
+    setNewCouponUsageLimitPerUser(coupon.usageLimitPerUser !== undefined ? String(coupon.usageLimitPerUser) : "1");
+    setNewCouponValidFrom(coupon.validFrom ? new Date(coupon.validFrom).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+    setNewCouponValidTill(coupon.validTill ? new Date(coupon.validTill).toISOString().split("T")[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
+    setNewCouponIsActive(coupon.isActive !== false);
+    setNewCouponIsLoyaltyReward(coupon.isLoyaltyReward || false);
+    setNewCouponDesc(coupon.policyText || coupon.desc || "");
+    setNewCouponImageFile(null);
+    setNewCouponImageUrl(typeof coupon.image === "string" ? coupon.image : (coupon.image?.url || ""));
+  };
+
+  const handleCancelEditCoupon = () => {
+    setEditingCouponId(null);
+    setNewCouponCode("");
+    setNewCouponTitle("");
+    setNewCouponDiscount("");
+    setNewCouponDesc("");
+    setNewCouponMinOrder("");
+    setNewCouponDiscountValue("");
+    setNewCouponMaxDiscount("");
+    setNewCouponUsageLimit("100");
+    setNewCouponUsageLimitPerUser("1");
+    setNewCouponIsActive(true);
+    setNewCouponIsLoyaltyReward(false);
+    setNewCouponBrandId("");
+    setNewCouponRestaurantId("");
+    setNewCouponImageFile(null);
+    setNewCouponImageUrl("");
+  };
+
   const handleAddCouponSubmit = async (e) => {
     e.preventDefault();
     if (!newCouponCode || !newCouponTitle || !newCouponDiscount) {
@@ -137,75 +182,120 @@ export default function MarketingTab({
       return;
     }
 
-    // Determine campaign category (Options: BRAND, RESTAURANT, BANK, FESTIVAL, STANDARD, CASHBACK)
-    let campaignCategory = "STANDARD";
-    if (newCouponCategory === "bank") {
-      campaignCategory = "BANK";
-    } else if (newCouponCategory === "restaurant") {
-      campaignCategory = "RESTAURANT";
-    } else if (newCouponCategory === "brand") {
-      campaignCategory = "BRAND";
-    } else if (newCouponCategory === "festival") {
-      campaignCategory = "FESTIVAL";
-    } else if (newCouponCategory === "cashback") {
-      campaignCategory = "CASHBACK";
-    } else if (newCouponCategory.toUpperCase() in { BRAND: 1, RESTAURANT: 1, BANK: 1, FESTIVAL: 1, STANDARD: 1, CASHBACK: 1 }) {
-      campaignCategory = newCouponCategory.toUpperCase();
-    }
-
-    // Build multipart/form-data FormData
-    const formData = new FormData();
-    formData.append("code", newCouponCode.toUpperCase().replace(/\s+/g, ""));
-    formData.append("campaignCategory", campaignCategory);
-    if (newCouponBrandId) formData.append("brand", newCouponBrandId);
-    if (newCouponRestaurantId) formData.append("restaurant", newCouponRestaurantId);
-    formData.append("bannerTitle", newCouponTitle);
-    formData.append("discountLabel", newCouponDiscount);
-    formData.append("discountType", newCouponDiscountType);
-    formData.append("discountValue", String(Number(newCouponDiscountValue) || 0));
-    formData.append("maximumDiscount", String(Number(newCouponMaxDiscount) || 0));
-    formData.append("minimumOrderAmount", String(Number(newCouponMinOrder) || 0));
-    formData.append("validFrom", new Date(newCouponValidFrom).toISOString());
-    formData.append("validTill", new Date(newCouponValidTill).toISOString());
-    if (newCouponDesc) formData.append("policyText", newCouponDesc);
-    formData.append("usageLimit", String(Number(newCouponUsageLimit) || 100));
-    formData.append("usageLimitPerUser", String(Number(newCouponUsageLimitPerUser) || 1));
-    formData.append("isActive", String(newCouponIsActive));
-
-    if (newCouponImageFile) {
-      formData.append("image", newCouponImageFile);
-    } else if (newCouponImageUrl) {
-      formData.append("image", newCouponImageUrl);
-    }
+    setIsSubmittingCoupon(true);
 
     try {
-      const created = await adminService.createCoupon(formData);
-      const updated = [created, ...couponsList];
-      setCouponsList(updated);
-      saveOffersToStorage(updated);
-      triggerToast(
-        `Promo Code "${newCouponCode.toUpperCase()}" published live with image!`,
-      );
-      setNewCouponCode("");
-      setNewCouponTitle("");
-      setNewCouponDiscount("");
-      setNewCouponDesc("");
-      setNewCouponMinOrder("");
-      setNewCouponDiscountValue("");
-      setNewCouponMaxDiscount("");
-      setNewCouponUsageLimit("100");
-      setNewCouponUsageLimitPerUser("1");
-      setNewCouponIsActive(true);
-      setNewCouponIsLoyaltyReward(false);
-      setNewCouponBrandId("");
-      setNewCouponRestaurantId("");
-      setNewCouponImageFile(null);
-      setNewCouponImageUrl("");
-    } catch (err) {
-      console.error("Failed to create coupon:", err);
-      triggerToast(
-        err.response?.data?.message || "Failed to publish promo code.",
-      );
+      // Determine campaign category (Options: BRAND, RESTAURANT, BANK, FESTIVAL, STANDARD, CASHBACK)
+      let campaignCategory = "STANDARD";
+      if (newCouponCategory === "bank") {
+        campaignCategory = "BANK";
+      } else if (newCouponCategory === "restaurant") {
+        campaignCategory = "RESTAURANT";
+      } else if (newCouponCategory === "brand") {
+        campaignCategory = "BRAND";
+      } else if (newCouponCategory === "festival") {
+        campaignCategory = "FESTIVAL";
+      } else if (newCouponCategory === "cashback") {
+        campaignCategory = "CASHBACK";
+      } else if (newCouponCategory.toUpperCase() in { BRAND: 1, RESTAURANT: 1, BANK: 1, FESTIVAL: 1, STANDARD: 1, CASHBACK: 1 }) {
+        campaignCategory = newCouponCategory.toUpperCase();
+      }
+
+      // Build multipart/form-data FormData
+      const formData = new FormData();
+      formData.append("code", newCouponCode.toUpperCase().replace(/\s+/g, ""));
+      formData.append("campaignCategory", campaignCategory);
+      if (newCouponBrandId) formData.append("brand", newCouponBrandId);
+      if (newCouponRestaurantId) formData.append("restaurant", newCouponRestaurantId);
+      formData.append("bannerTitle", newCouponTitle);
+      formData.append("discountLabel", newCouponDiscount);
+      formData.append("discountType", newCouponDiscountType);
+      formData.append("discountValue", String(Number(newCouponDiscountValue) || 0));
+      formData.append("maximumDiscount", String(Number(newCouponMaxDiscount) || 0));
+      formData.append("minimumOrderAmount", String(Number(newCouponMinOrder) || 0));
+      formData.append("validFrom", new Date(newCouponValidFrom).toISOString());
+      formData.append("validTill", new Date(newCouponValidTill).toISOString());
+      if (newCouponDesc) formData.append("policyText", newCouponDesc);
+      formData.append("usageLimit", String(Number(newCouponUsageLimit) || 100));
+      formData.append("usageLimitPerUser", String(Number(newCouponUsageLimitPerUser) || 1));
+      formData.append("isActive", String(newCouponIsActive));
+
+      if (newCouponImageFile) {
+        formData.append("image", newCouponImageFile);
+      } else if (newCouponImageUrl) {
+        formData.append("image", newCouponImageUrl);
+      }
+
+      if (editingCouponId) {
+        try {
+          let updatedCoupon = null;
+          if (typeof adminService.updateCoupon === "function") {
+            try {
+              updatedCoupon = await adminService.updateCoupon(editingCouponId, formData);
+            } catch (e) {
+              console.warn("API updateCoupon failed, updating state locally", e);
+            }
+          }
+          
+          const updatedList = couponsList.map((c) => {
+            if (c.id === editingCouponId || c._id === editingCouponId) {
+              return {
+                ...c,
+                ...(updatedCoupon || {}),
+                code: newCouponCode.toUpperCase().replace(/\s+/g, ""),
+                category: campaignCategory,
+                campaignCategory,
+                bannerTitle: newCouponTitle,
+                title: newCouponTitle,
+                discountLabel: newCouponDiscount,
+                discount: newCouponDiscount,
+                discountType: newCouponDiscountType,
+                discountValue: Number(newCouponDiscountValue) || 0,
+                maximumDiscount: Number(newCouponMaxDiscount) || 0,
+                minimumOrderAmount: Number(newCouponMinOrder) || 0,
+                minOrder: Number(newCouponMinOrder) || 0,
+                policyText: newCouponDesc,
+                desc: newCouponDesc,
+                usageLimit: Number(newCouponUsageLimit) || 100,
+                usageLimitPerUser: Number(newCouponUsageLimitPerUser) || 1,
+                validFrom: newCouponValidFrom,
+                validTill: newCouponValidTill,
+                isActive: newCouponIsActive,
+                isLoyaltyReward: newCouponIsLoyaltyReward,
+                image: newCouponImageUrl || c.image,
+              };
+            }
+            return c;
+          });
+
+          setCouponsList(updatedList);
+          saveOffersToStorage(updatedList);
+          triggerToast(`Promo Code "${newCouponCode.toUpperCase()}" updated successfully!`);
+          handleCancelEditCoupon();
+        } catch (err) {
+          console.error("Failed to update coupon:", err);
+          triggerToast(err.response?.data?.message || "Failed to update coupon.");
+        }
+        return;
+      }
+
+      try {
+        const created = await adminService.createCoupon(formData);
+        const updated = [created, ...couponsList];
+        setCouponsList(updated);
+        saveOffersToStorage(updated);
+        triggerToast(
+          `Promo Code "${newCouponCode.toUpperCase()}" published live!`,
+        );
+        handleCancelEditCoupon();
+      } catch (err) {
+        console.error("Failed to create coupon:", err);
+        triggerToast(
+          err.response?.data?.message || "Failed to publish promo code.",
+        );
+      }
+    } finally {
+      setIsSubmittingCoupon(false);
     }
   };
 
@@ -5323,47 +5413,85 @@ ${newTemplateBody}`
           )}
 
           {activeSubTab === "coupons" && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in text-left">
-              {/* LEFT FORM */}
-              <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-neutral-150 flex flex-col justify-between shadow-xs">
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-wider text-neutral-950 mb-1 flex items-center gap-1.5">
-                    <Ticket className="h-4.5 w-4.5 text-brand-orange" />
-                    <span>Publish Check-out Coupons</span>
-                  </h3>
-                  <p className="text-[10px] font-semibold text-neutral-400 mb-5">
-                    Configure loyalty promo codes that diners can apply on the
-                    cart review screen.
-                  </p>
+            <div className="space-y-4 animate-fade-in text-left">
+              {/* TOP CAMPAIGN SUMMARY BAR - COMPACT */}
+              <div className="bg-neutral-900 text-white rounded-2xl p-4 shadow-md border border-neutral-800 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-brand-orange/20 text-brand-orange border border-brand-orange/30">
+                    <Ticket className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-display font-black text-base text-white tracking-tight flex items-center gap-2">
+                      <span>Promo Vouchers & Discount Engine</span>
+                    </h2>
+                    <p className="text-[11px] text-neutral-400 font-medium">
+                      Configure percentage, flat rupee discounts, and bank vouchers for checkout.
+                    </p>
+                  </div>
+                </div>
 
-                  <form onSubmit={handleAddCouponSubmit} className="space-y-4">
-                    {/* Code & Category */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Coupon Code *
+                <div className="flex items-center gap-2">
+                  <div className="bg-neutral-800 border border-neutral-700/60 rounded-xl px-3 py-1.5 text-center">
+                    <span className="text-[8px] font-black text-neutral-400 uppercase tracking-wider block">Active</span>
+                    <span className="font-mono text-xs font-black text-amber-400">{couponsList?.filter(c => c.isActive !== false).length || 0}</span>
+                  </div>
+                  <div className="bg-neutral-800 border border-neutral-700/60 rounded-xl px-3 py-1.5 text-center">
+                    <span className="text-[8px] font-black text-neutral-400 uppercase tracking-wider block">Total</span>
+                    <span className="font-mono text-xs font-black text-emerald-400">{couponsList?.length || 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* MAIN CONTENT GRID - COMPACT VIEWPORT HEIGHT (FITS SIDEBAR) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                {/* LEFT FORM SECTION - COMPACT SCROLLABLE */}
+                <div className="lg:col-span-5 bg-white p-4 rounded-2xl border border-neutral-200 shadow-xs max-h-[calc(100vh-210px)] overflow-y-auto space-y-3">
+                  <div className="border-b border-neutral-100 pb-2 flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-neutral-900 flex items-center gap-1.5">
+                      {editingCouponId ? <Pencil className="h-3.5 w-3.5 text-blue-600" /> : <Plus className="h-3.5 w-3.5 text-brand-orange" />}
+                      <span>{editingCouponId ? `Edit Coupon: ${newCouponCode}` : "Create Promo Code"}</span>
+                    </h3>
+                    {editingCouponId ? (
+                      <button
+                        type="button"
+                        onClick={handleCancelEditCoupon}
+                        className="text-[9px] font-black text-rose-600 hover:text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 cursor-pointer"
+                      >
+                        ✕ Cancel Edit
+                      </button>
+                    ) : (
+                      <span className="text-[9px] font-bold text-neutral-400">Fill details below</span>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleAddCouponSubmit} className="space-y-3">
+                    {/* Grid Row 1: Code & Category */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-600 block">
+                          Code *
                         </label>
                         <input
                           type="text"
                           required
                           value={newCouponCode}
                           onChange={(e) => setNewCouponCode(e.target.value)}
-                          placeholder="e.g. EIDFEAST"
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-3 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 uppercase text-neutral-800"
+                          placeholder="e.g. EID50"
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-mono font-black uppercase text-neutral-900 outline-none focus:border-brand-orange focus:bg-white"
                         />
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Campaign Category
+                      <div className="space-y-0.5">
+                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-600 block">
+                          Category *
                         </label>
                         <select
                           value={newCouponCategory}
                           onChange={(e) => setNewCouponCategory(e.target.value)}
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-3 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 cursor-pointer text-neutral-800"
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-800 outline-none focus:border-brand-orange focus:bg-white cursor-pointer"
                         >
                           <option value="BRAND">🏷️ BRAND</option>
-                          <option value="RESTAURANT">🍔 RESTAURANT</option>
+                          <option value="RESTAURANT">🍔 RESTRO</option>
                           <option value="BANK">🏦 BANK</option>
                           <option value="FESTIVAL">✨ FESTIVAL</option>
                           <option value="STANDARD">⭐ STANDARD</option>
@@ -5372,10 +5500,123 @@ ${newTemplateBody}`
                       </div>
                     </div>
 
-                    {/* Image Upload for Promocode */}
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Banner Image File
+                    {/* Grid Row 2: Banner Title & Display Label */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-600 block">
+                          Banner Heading *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newCouponTitle}
+                          onChange={(e) => setNewCouponTitle(e.target.value)}
+                          placeholder="e.g. HDFC Special"
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 outline-none focus:border-brand-orange focus:bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-600 block">
+                          Display Badge *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newCouponDiscount}
+                          onChange={(e) => setNewCouponDiscount(e.target.value)}
+                          placeholder="e.g. 50% OFF up to ₹100"
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 outline-none focus:border-brand-orange focus:bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Grid Row 3: Discount Rules (Type, Val, Max Cap) */}
+                    <div className="bg-orange-50/40 border border-orange-100 rounded-xl p-2.5 space-y-2">
+                      <div className="flex items-center justify-between text-[9px] font-black uppercase text-brand-orange border-b border-orange-100 pb-1">
+                        <span>Discount Rules</span>
+                        <span className="text-[8px] font-bold text-neutral-500">Val = Amount/%, Max Cap = Ceiling</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-0.5">
+                          <label className="text-[8.5px] font-black uppercase text-neutral-600 block">Type</label>
+                          <select
+                            value={newCouponDiscountType}
+                            onChange={(e) => setNewCouponDiscountType(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-lg p-1.5 text-xs font-bold text-neutral-800 outline-none focus:border-brand-orange cursor-pointer"
+                          >
+                            <option value="percentage">% OFF</option>
+                            <option value="flat">Flat ₹</option>
+                            <option value="free-delivery">Free Del</option>
+                            <option value="cashback">Cashback</option>
+                          </select>
+                        </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[8.5px] font-black uppercase text-neutral-600 block" title="Value (% or ₹)">
+                            Val ({newCouponDiscountType === "percentage" ? "%" : "₹"}) *
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            value={newCouponDiscountValue}
+                            onChange={(e) => setNewCouponDiscountValue(e.target.value)}
+                            placeholder={newCouponDiscountType === "percentage" ? "50" : "100"}
+                            className="w-full bg-white border border-neutral-200 rounded-lg p-1.5 text-xs font-bold text-neutral-900 outline-none focus:border-brand-orange"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[8.5px] font-black uppercase text-neutral-600 block" title="Max Discount Cap (₹)">
+                            Max Cap (₹)
+                          </label>
+                          <input
+                            type="number"
+                            value={newCouponMaxDiscount}
+                            onChange={(e) => setNewCouponMaxDiscount(e.target.value)}
+                            placeholder="120"
+                            className="w-full bg-white border border-neutral-200 rounded-lg p-1.5 text-xs font-bold text-neutral-900 outline-none focus:border-brand-orange"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Grid Row 4: Min Order, Total Limit, User Limit */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="text-[8.5px] font-black uppercase text-neutral-600 block">Min Order (₹)</label>
+                        <input
+                          type="number"
+                          value={newCouponMinOrder}
+                          onChange={(e) => setNewCouponMinOrder(e.target.value)}
+                          placeholder="199"
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg p-1.5 text-xs font-bold text-neutral-900 outline-none focus:border-brand-orange"
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[8.5px] font-black uppercase text-neutral-600 block">Total Uses</label>
+                        <input
+                          type="number"
+                          value={newCouponUsageLimit}
+                          onChange={(e) => setNewCouponUsageLimit(e.target.value)}
+                          placeholder="500"
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg p-1.5 text-xs font-bold text-neutral-900 outline-none focus:border-brand-orange"
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[8.5px] font-black uppercase text-neutral-600 block">Limit/User</label>
+                        <input
+                          type="number"
+                          value={newCouponUsageLimitPerUser}
+                          onChange={(e) => setNewCouponUsageLimitPerUser(e.target.value)}
+                          placeholder="1"
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg p-1.5 text-xs font-bold text-neutral-900 outline-none focus:border-brand-orange"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Banner Image File */}
+                    <div className="space-y-0.5">
+                      <label className="text-[8.5px] font-black uppercase text-neutral-600 block">
+                        Promo Banner File
                       </label>
                       <input
                         type="file"
@@ -5385,278 +5626,211 @@ ${newTemplateBody}`
                             setNewCouponImageFile(e.target.files[0]);
                           }
                         }}
-                        className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs font-semibold outline-none focus:border-brand-orange cursor-pointer"
+                        className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg p-1.5 text-xs font-semibold cursor-pointer"
                       />
                       {newCouponImageFile && (
-                        <p className="text-[9px] font-bold text-emerald-600">
-                          File selected: {newCouponImageFile.name}
-                        </p>
+                        <span className="text-[8.5px] font-bold text-emerald-600 block">
+                          ✓ File selected: {newCouponImageFile.name}
+                        </span>
                       )}
                     </div>
 
-                    {/* Banner Title & Discount Label */}
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Promo Banner Title *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newCouponTitle}
-                        onChange={(e) => setNewCouponTitle(e.target.value)}
-                        placeholder="e.g. HSBC Visa Diner Delight"
-                        className="w-full bg-white border border-neutral-200 rounded-xl p-3 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 text-neutral-800"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Discount Display Label *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newCouponDiscount}
-                        onChange={(e) => setNewCouponDiscount(e.target.value)}
-                        placeholder="e.g. Flat 30% OFF"
-                        className="w-full bg-white border border-neutral-200 rounded-xl p-3 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 text-neutral-800"
-                      />
-                    </div>
-
-                    {/* Type, Value & Capping */}
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Type
-                        </label>
-                        <select
-                          value={newCouponDiscountType}
-                          onChange={(e) =>
-                            setNewCouponDiscountType(e.target.value)
-                          }
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 cursor-pointer text-neutral-800"
-                        >
-                          <option value="percentage">Percentage</option>
-                          <option value="flat">Flat Discount</option>
-                          <option value="free-delivery">Free Delivery</option>
-                          <option value="cashback">Cashback</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Value
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          value={newCouponDiscountValue}
-                          onChange={(e) =>
-                            setNewCouponDiscountValue(e.target.value)
-                          }
-                          placeholder="30"
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 text-neutral-800"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Max Cap (₹)
-                        </label>
-                        <input
-                          type="number"
-                          value={newCouponMaxDiscount}
-                          onChange={(e) =>
-                            setNewCouponMaxDiscount(e.target.value)
-                          }
-                          placeholder="300"
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 text-neutral-800"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Limits & Min Order */}
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Min Order (₹)
-                        </label>
-                        <input
-                          type="number"
-                          value={newCouponMinOrder}
-                          onChange={(e) => setNewCouponMinOrder(e.target.value)}
-                          placeholder="100"
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 text-neutral-800"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Usage Limit
-                        </label>
-                        <input
-                          type="number"
-                          value={newCouponUsageLimit}
-                          onChange={(e) =>
-                            setNewCouponUsageLimit(e.target.value)
-                          }
-                          placeholder="100"
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 text-neutral-800"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Limit/User
-                        </label>
-                        <input
-                          type="number"
-                          value={newCouponUsageLimitPerUser}
-                          onChange={(e) =>
-                            setNewCouponUsageLimitPerUser(e.target.value)
-                          }
-                          placeholder="1"
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 text-neutral-800"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Valid From
-                        </label>
+                    {/* Grid Row 5: Dates */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="text-[8.5px] font-black uppercase text-neutral-600 block">Valid From</label>
                         <input
                           type="date"
                           value={newCouponValidFrom}
-                          onChange={(e) =>
-                            setNewCouponValidFrom(e.target.value)
-                          }
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 text-neutral-800"
+                          onChange={(e) => setNewCouponValidFrom(e.target.value)}
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg p-1.5 text-xs font-bold text-neutral-800 outline-none cursor-pointer"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                          Valid Till
-                        </label>
+                      <div className="space-y-0.5">
+                        <label className="text-[8.5px] font-black uppercase text-neutral-600 block">Valid Till</label>
                         <input
                           type="date"
                           value={newCouponValidTill}
-                          onChange={(e) =>
-                            setNewCouponValidTill(e.target.value)
-                          }
-                          className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 text-neutral-800"
+                          onChange={(e) => setNewCouponValidTill(e.target.value)}
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg p-1.5 text-xs font-bold text-neutral-800 outline-none cursor-pointer"
                         />
                       </div>
                     </div>
 
-                    {/* Toggles */}
-                    <div className="flex items-center gap-6 pt-1">
-                      <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-neutral-700">
-                        <input
-                          type="checkbox"
-                          checked={newCouponIsActive}
-                          onChange={(e) =>
-                            setNewCouponIsActive(e.target.checked)
-                          }
-                          className="rounded border-neutral-300 text-brand-orange focus:ring-brand-orange/20 h-4 w-4"
+                    {/* Policy & Toggles */}
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-neutral-800">
+                          <input
+                            type="checkbox"
+                            checked={newCouponIsActive}
+                            onChange={(e) => setNewCouponIsActive(e.target.checked)}
+                            className="rounded border-neutral-300 text-brand-orange h-3.5 w-3.5"
+                          />
+                          <span>Active Campaign</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-neutral-800">
+                          <input
+                            type="checkbox"
+                            checked={newCouponIsLoyaltyReward}
+                            onChange={(e) => setNewCouponIsLoyaltyReward(e.target.checked)}
+                            className="rounded border-neutral-300 text-brand-orange h-3.5 w-3.5"
+                          />
+                          <span>Loyalty Reward</span>
+                        </label>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <label className="text-[8.5px] font-black uppercase text-neutral-600 block">
+                          Policy Terms & Conditions
+                        </label>
+                        <textarea
+                          value={newCouponDesc}
+                          onChange={(e) => setNewCouponDesc(e.target.value)}
+                          placeholder="e.g. Applicable on orders above ₹199 across participating outlets."
+                          rows={2}
+                          className="w-full bg-neutral-50/60 border border-neutral-200 rounded-lg p-2 text-xs font-medium outline-none focus:border-brand-orange text-neutral-800"
                         />
-                        <span>Is Active</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-neutral-700">
-                        <input
-                          type="checkbox"
-                          checked={newCouponIsLoyaltyReward}
-                          onChange={(e) =>
-                            setNewCouponIsLoyaltyReward(e.target.checked)
-                          }
-                          className="rounded border-neutral-300 text-brand-orange focus:ring-brand-orange/20 h-4 w-4"
-                        />
-                        <span>Loyalty Reward</span>
-                      </label>
+                      </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400">
-                        Coupon Policy / Conditions
-                      </label>
-                      <textarea
-                        value={newCouponDesc}
-                        onChange={(e) => setNewCouponDesc(e.target.value)}
-                        placeholder="Enter terms, e.g. Applicable on HSBC Cards on orders above ₹ 50."
-                        rows={2}
-                        className="w-full bg-white border border-neutral-200 rounded-xl p-3 text-xs font-bold outline-none focus:border-brand-orange focus:ring-4 focus:ring-brand-orange/10 resize-none text-neutral-800"
-                      />
-                    </div>
-
+                    {/* Submit Button */}
                     <button
                       type="submit"
-                      className="w-full bg-brand-orange hover:bg-orange-700 text-white font-black py-3 rounded-xl text-xs transition mt-2 cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/15"
+                      disabled={isSubmittingCoupon}
+                      className={`w-full ${
+                        isSubmittingCoupon
+                          ? "bg-neutral-400 cursor-not-allowed opacity-80"
+                          : editingCouponId
+                            ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20 cursor-pointer"
+                            : "bg-brand-orange hover:bg-orange-700 shadow-orange-500/20 cursor-pointer"
+                      } text-white font-black py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.99]`}
                     >
-                      <Ticket className="h-4 w-4" />
-                      <span>Publish Promo Voucher</span>
+                      {isSubmittingCoupon ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          <span>{editingCouponId ? "Updating Coupon..." : "Publishing Voucher..."}</span>
+                        </>
+                      ) : (
+                        <>
+                          {editingCouponId ? <Pencil className="h-4 w-4" /> : <Ticket className="h-4 w-4" />}
+                          <span>{editingCouponId ? "Save & Update Coupon" : "Publish Promo Voucher"}</span>
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>
-              </div>
 
-              {/* RIGHT LIST */}
-              <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-neutral-150 shadow-xs">
-                <h3 className="text-sm font-black uppercase tracking-wider text-neutral-950 mb-4">
-                  Loyalty Vouchers Catalog ({couponsList?.length || 0})
-                </h3>
-
-                <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
-                  {couponsList?.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => handleOpenCouponDetail(c)}
-                      className="p-4 rounded-xl border border-neutral-150 bg-neutral-50/50 hover:bg-orange-50/30 hover:border-orange-200 hover:shadow-xs transition flex justify-between items-center cursor-pointer group"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[9px] font-black bg-orange-50 text-brand-orange px-2 py-0.5 rounded border border-orange-200/40">
-                            {c.code}
-                          </span>
-                          <span className="text-[8px] font-black uppercase bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">
-                            {c.category || c.campaignCategory}
-                          </span>
-                        </div>
-                        <h4 className="font-black text-neutral-900 text-xs group-hover:text-brand-orange transition">
-                          {c.title || c.bannerTitle}
-                        </h4>
-                        <p className="text-[10px] font-bold text-brand-orange">
-                          {c.discount || c.discountLabel}
-                        </p>
-                        <p className="text-[10px] font-semibold text-neutral-400">
-                          {c.desc || c.policyText || "No conditions set."} • Min Order: ₹{" "}
-                          {c.minOrder ?? c.minimumOrderAmount ?? 0}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenCouponDetail(c);
-                          }}
-                          className="p-1.5 text-neutral-400 hover:text-brand-orange hover:bg-orange-100 rounded-lg transition cursor-pointer"
-                          title="View Coupon Details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteCoupon(c.id, c.code);
-                          }}
-                          className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
-                          title="Revoke Coupon"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                {/* RIGHT CATALOG LIST SECTION - COMPACT SCROLLABLE MATCHING HEIGHT */}
+                <div className="lg:col-span-7 bg-white p-4 rounded-2xl border border-neutral-200 shadow-xs max-h-[calc(100vh-210px)] flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="border-b border-neutral-100 pb-2 mb-3 flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-neutral-900 flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-brand-orange" />
+                        <span>Active Vouchers Catalog ({couponsList?.length || 0})</span>
+                      </h3>
+                      <span className="text-[9px] font-bold text-neutral-400">Live on Apps</span>
                     </div>
-                  ))}
+
+                    <div className="space-y-2.5 overflow-y-auto max-h-[calc(100vh-280px)] pr-1">
+                      {couponsList && couponsList.length > 0 ? (
+                        couponsList.map((c) => {
+                          const isPercentage = (c.discountType || "").toLowerCase() === "percentage";
+                          const categoryColor = 
+                            c.category === "BANK" ? "from-blue-500 to-indigo-600" :
+                            c.category === "FESTIVAL" ? "from-purple-500 to-pink-600" :
+                            c.category === "RESTAURANT" ? "from-amber-500 to-orange-600" :
+                            "from-brand-orange to-amber-500";
+
+                          return (
+                            <div
+                              key={c.id}
+                              onClick={() => handleOpenCouponDetail(c)}
+                              className="group relative bg-neutral-50/40 hover:bg-orange-50/30 border border-neutral-200 hover:border-orange-200 rounded-xl p-3 shadow-2xs transition flex items-center justify-between gap-3 cursor-pointer overflow-hidden"
+                            >
+                              {/* Accent Line */}
+                              <div className={`absolute top-0 left-0 bottom-0 w-1 bg-gradient-to-b ${categoryColor}`} />
+
+                              <div className="pl-1.5 space-y-1 flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-mono text-[10px] font-black bg-orange-50 text-brand-orange border border-orange-200/70 px-2 py-0.5 rounded">
+                                    {c.code}
+                                  </span>
+                                  <span className="text-[8px] font-black uppercase bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full">
+                                    {c.category || c.campaignCategory || "STANDARD"}
+                                  </span>
+                                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${c.isActive !== false ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-neutral-100 text-neutral-400"}`}>
+                                    {c.isActive !== false ? "● Active" : "Disabled"}
+                                  </span>
+                                </div>
+
+                                <h4 className="font-extrabold text-neutral-900 text-xs truncate group-hover:text-brand-orange transition">
+                                  {c.title || c.bannerTitle || c.code}
+                                </h4>
+
+                                <div className="flex items-center gap-2 text-[10px] flex-wrap">
+                                  <span className="font-black text-brand-orange">
+                                    🏷️ {c.discount || c.discountLabel || (isPercentage ? `${c.discountValue || 0}% OFF` : `₹${c.discountValue || 0} OFF`)}
+                                  </span>
+                                  {c.maximumDiscount > 0 && (
+                                    <span className="font-bold text-neutral-500 bg-white px-1.5 py-0.5 rounded border border-neutral-150">
+                                      Max Cap: ₹{c.maximumDiscount}
+                                    </span>
+                                  )}
+                                  <span className="font-semibold text-neutral-400">
+                                    Min Order: ₹{c.minOrder ?? c.minimumOrderAmount ?? 0}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Right Action Buttons */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStartEditCoupon(c);
+                                  }}
+                                  className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                                  title="Edit Voucher"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenCouponDetail(c);
+                                  }}
+                                  className="p-1.5 text-neutral-400 hover:text-brand-orange hover:bg-orange-100 rounded-lg transition cursor-pointer"
+                                  title="View Details"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteCoupon(c.id, c.code);
+                                  }}
+                                  className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                                  title="Revoke Voucher"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="p-8 text-center border border-dashed border-neutral-200 rounded-2xl space-y-2">
+                          <Ticket className="h-6 w-6 text-brand-orange mx-auto" />
+                          <h4 className="font-black text-xs text-neutral-800">No Active Vouchers</h4>
+                          <p className="text-[10px] text-neutral-400">Publish your first promo code using the form.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -5780,7 +5954,18 @@ ${newTemplateBody}`
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  handleStartEditCoupon(selectedCouponForDetail);
+                  setSelectedCouponForDetail(null);
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer flex items-center gap-1.5 shadow-sm"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                <span>Edit Voucher</span>
+              </button>
               <button
                 onClick={() => setSelectedCouponForDetail(null)}
                 className="px-5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer"

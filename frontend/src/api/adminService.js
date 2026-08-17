@@ -25,7 +25,7 @@ export const normalizeUser = (u) => {
 
 export const adminService = {
   // Categories management (/api/v1/categories)
-  async getCategories() {
+  async getCategories(queryParams = {}) {
     if (USE_MOCK) {
       const cached = localStorage.getItem("globaleats_categories");
       return cached ? JSON.parse(cached) : [
@@ -35,8 +35,17 @@ export const adminService = {
         { _id: "64f1a2b3c4d5e6f7a8b9c0d4", name: "Desserts & Shakes", slug: "desserts-shakes", image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699", description: "Sweet delights, ice creams, and thick shakes", displayOrder: 4, isActive: true },
       ];
     } else {
-      const response = await apiClient.get("/v1/categories");
-      return response.data?.data || response.data;
+      try {
+        const params = { includeInactive: "true", all: "true", ...queryParams };
+        const response = await apiClient.get("/v1/categories", { params });
+        const resPayload = response.data;
+        const list = Array.isArray(resPayload?.data) ? resPayload.data : Array.isArray(resPayload?.categories) ? resPayload.categories : Array.isArray(resPayload) ? resPayload : [];
+        return list;
+      } catch (err) {
+        console.warn("getCategories with params error, falling back to standard /v1/categories:", err?.message || err);
+        const response = await apiClient.get("/v1/categories");
+        return response.data?.data || response.data?.categories || response.data || [];
+      }
     }
   },
 
@@ -57,6 +66,7 @@ export const adminService = {
       description: String(categoryPayload.description || "").trim(),
       image: String(categoryPayload.image || "").trim(),
       displayOrder: Number(categoryPayload.displayOrder) || 1,
+      isActive: categoryPayload.isActive !== undefined ? Boolean(categoryPayload.isActive) : true,
     };
     if (USE_MOCK) {
       const list = await this.getCategories();
@@ -83,6 +93,7 @@ export const adminService = {
       description: String(categoryPayload.description || "").trim(),
       image: String(categoryPayload.image || "").trim(),
       displayOrder: Number(categoryPayload.displayOrder) || 1,
+      isActive: categoryPayload.isActive !== undefined ? Boolean(categoryPayload.isActive) : true,
     };
     if (USE_MOCK) {
       const list = await this.getCategories();

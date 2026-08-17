@@ -35,7 +35,7 @@ export default function CategoryManagementTab({ triggerToast }) {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const data = await adminService.getCategories();
+      const data = await adminService.getCategories({ includeInactive: true, all: true });
       const list = Array.isArray(data) ? data : (data?.categories || data?.data || []);
       setCategories(list);
     } catch (err) {

@@ -1062,15 +1062,6 @@ export default function KitchenOperationsBoard({
                           className="pt-2.5 border-t border-neutral-100 flex gap-1.5 items-center"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <button
-                            type="button"
-                            onClick={() => handleOpenManagerChat(order)}
-                            className="bg-orange-50 hover:bg-orange-100 text-brand-orange border border-orange-200 p-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shrink-0"
-                            title="Open Customer Support Chat"
-                          >
-                            <MessageSquare className="h-3.5 w-3.5 text-brand-orange" />
-                            <span className="text-[9px] font-black uppercase">Chat</span>
-                          </button>
                           {col.id === "received" && (
                             <button
                               onClick={() =>

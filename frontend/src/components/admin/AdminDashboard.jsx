@@ -1203,7 +1203,7 @@ export default function AdminDashboard({
               {
                 id: "marketing",
                 route: "/admin/marketing",
-                label: "Promo Coupons",
+                label: "Marketing Hub",
                 icon: Ticket,
               },
               {

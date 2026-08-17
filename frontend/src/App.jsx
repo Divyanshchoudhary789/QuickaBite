@@ -849,7 +849,7 @@ function AppContent() {
         />
 
         {/* GPS Permission Warning / Location Banner */}
-        {isGpsDenied && activeTab === "home" && (
+        {isGpsDenied && activeTab === "home" && userRole !== "admin" && userRole !== "manager" && (
           <div className="bg-neutral-900 text-neutral-300 text-xs px-4 py-2.5 text-center font-medium border-b border-neutral-800 flex items-center justify-center gap-2">
             <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
             <span>Showing all restaurants. Enable location permission to see outlets that deliver to you.</span>

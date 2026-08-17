@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { ChefHat, Sparkles, HelpCircle, Ticket } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import KitchenOperationsBoard from "./KitchenOperationsBoard";
 import ManagerReportingDashboard from "./ManagerReportingDashboard";
@@ -13,10 +13,24 @@ export default function ManagerDashboard({
   triggerToast,
   setHideBottomNavbar,
 }) {
-  const [managerSubTab, setManagerSubTab] = useState("kitchen");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { logout, profile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Extract manager sub-route from URL (e.g. /manager/kitchen, /manager/tickets, /manager/reports)
+  const rawPath = location.pathname.substring(1);
+  const parts = rawPath.split("/");
+  const subRoute = (parts[0] === "manager" && parts[1]) ? parts[1].toLowerCase() : "kitchen";
+
+  let managerSubTab = "kitchen";
+  if (subRoute === "tickets" || subRoute === "issues" || subRoute === "support") {
+    managerSubTab = "issues";
+  } else if (subRoute === "reports" || subRoute === "reporting" || subRoute === "analytics") {
+    managerSubTab = "reports";
+  } else {
+    managerSubTab = "kitchen";
+  }
 
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
@@ -53,7 +67,7 @@ export default function ManagerDashboard({
           {/* Sub Navigation for Manager */}
           <div className="bg-white p-1.5 rounded-2xl shadow-xs border border-neutral-150 flex gap-1 items-center overflow-x-auto">
             <button
-              onClick={() => setManagerSubTab("kitchen")}
+              onClick={() => navigate("/manager/kitchen")}
               className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shrink-0 ${managerSubTab === "kitchen" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
             >
               <ChefHat className="h-4 w-4" />
@@ -61,7 +75,7 @@ export default function ManagerDashboard({
             </button>
 
             <button
-              onClick={() => setManagerSubTab("issues")}
+              onClick={() => navigate("/manager/tickets")}
               className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shrink-0 ${managerSubTab === "issues" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
             >
               <Ticket className="h-4 w-4 text-amber-400" />
@@ -69,7 +83,7 @@ export default function ManagerDashboard({
             </button>
 
             <button
-              onClick={() => setManagerSubTab("reports")}
+              onClick={() => navigate("/manager/reports")}
               className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shrink-0 ${managerSubTab === "reports" ? "bg-neutral-950 text-white shadow-xs" : "text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50"}`}
             >
               <Sparkles className="h-4 w-4" />

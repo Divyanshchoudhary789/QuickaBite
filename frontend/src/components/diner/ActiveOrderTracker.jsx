@@ -15,7 +15,8 @@ import {
   XCircle
 } from "lucide-react";
 export default function ActiveOrderTracker({ order, onClose, triggerToast }) {
-  const riderName = order.driverName || "Ahmed Ali";
+  const riderName = order.driverName || order.delivery?.driverName || "Ahmed Ali";
+  const driverPhone = order.driverPhone || order.delivery?.driverPhone || "+91 9876543210";
   const partnerLogo = order.deliveryPartner ? `${order.deliveryPartner}` : "Gold Partner";
   const vehicleInfo = order.vehicleDetails || "Red Honda Activa (DX-09-RT-4412)";
   const remarks = order.deliveryRemarks || "";
@@ -109,13 +110,6 @@ export default function ActiveOrderTracker({ order, onClose, triggerToast }) {
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => setIsChatOpen(true)}
-          className="text-xs font-black text-white bg-gray-800 hover:bg-black px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-        >
-          <MessageSquare className="h-4 w-4" />
-          <span>Chat Rider</span>
-        </button>
         <button
           onClick={onClose}
           className="text-xs font-black text-brand-orange bg-orange-50 hover:bg-orange-100 border border-orange-200 px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -298,6 +292,10 @@ export default function ActiveOrderTracker({ order, onClose, triggerToast }) {
               </div>
               <span className="text-xs text-gray-400 font-semibold">• {partnerLogo} Fleet ({vehicleInfo})</span>
             </div>
+            <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-gray-700 mt-0.5">
+              <Phone className="h-3.5 w-3.5 text-brand-orange shrink-0" />
+              <span>{driverPhone}</span>
+            </div>
             {remarks && <span className="text-[10px] text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-lg mt-1 font-bold">
               ⚠️ Special Instructions: "{remarks}"
             </span>}
@@ -319,19 +317,21 @@ export default function ActiveOrderTracker({ order, onClose, triggerToast }) {
         <div className="flex gap-2">
 
           <a
-            href={`tel:${order.driverPhone || "+919876543210"}`}
+            href={`tel:${driverPhone.replace(/\s+/g, "")}`}
             onClick={(e) => {
-              e.preventDefault();
-              if (triggerToast) {
-                triggerToast(`Calling ${riderName}...`);
-              } else {
-                alert(`Calling ${riderName} (${order.driverPhone || "+91 9876543210"})...`);
+              if (window.innerWidth > 768) {
+                e.preventDefault();
+                if (triggerToast) {
+                  triggerToast(`Calling ${riderName} at ${driverPhone}...`);
+                } else {
+                  alert(`Calling ${riderName} (${driverPhone})...`);
+                }
               }
             }}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-brand-orange hover:bg-orange-700 font-display font-black text-xs text-white px-6 py-3.5 rounded-2xl transition shadow-md shadow-orange-600/10"
           >
             <Phone className="h-4 w-4" />
-            <span>Call Rider</span>
+            <span>Call Driver ({driverPhone})</span>
           </a>
         </div>
       </div>
