@@ -30,6 +30,7 @@ export default function Navbar({
   onCartToggle,
   currentLocation,
   setCurrentLocation,
+  onSelectLocation,
   onRequestGpsAgain,
   notifications = [],
   onMarkAllAsRead,
@@ -171,7 +172,17 @@ export default function Navbar({
                             <button
                               key={addr.id || addr._id || addr.detail}
                               onClick={() => {
-                                setCurrentLocation(formattedText);
+                                const addrLat = addr.lat ?? addr.location?.coordinates?.[1];
+                                const addrLng = addr.lng ?? addr.location?.coordinates?.[0];
+                                if (typeof onSelectLocation === "function") {
+                                  onSelectLocation({
+                                    lat: addrLat,
+                                    lng: addrLng,
+                                    displayText: formattedText,
+                                  });
+                                } else {
+                                  setCurrentLocation(formattedText);
+                                }
                                 setShowLocationMenu(false);
                               }}
                               className={`w-full text-left px-4 py-3 text-sm hover:bg-orange-50 transition flex items-start gap-2.5 ${isSelected ? "bg-orange-50/70" : ""

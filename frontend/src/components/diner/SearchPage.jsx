@@ -314,40 +314,55 @@ export default function SearchPage({
   });
 
   if (!restaurants || restaurants.length === 0) {
+    if (isLoading) {
+      return (
+        <div
+          className="space-y-6 max-w-4xl mx-auto py-6 animate-pulse"
+          id="search-viewport-loading"
+        >
+          {/* Header Title Loading */}
+          <div className="text-center max-w-md mx-auto space-y-3">
+            <div className="h-12 w-12 bg-neutral-200 rounded-full mx-auto" />
+            <div className="h-6 bg-neutral-200 rounded-full w-3/4 mx-auto" />
+            <div className="h-3 bg-neutral-200 rounded-full w-1/2 mx-auto" />
+          </div>
+          {/* Search Bar Skeleton */}
+          <div className="bg-neutral-100/50 border border-neutral-200 rounded-2xl p-4 h-16" />
+          {/* Popular Cuisines Skeleton */}
+          <div className="space-y-3">
+            <div className="h-4 bg-neutral-200 rounded-full w-32" />
+            <div className="flex gap-3 overflow-hidden">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="h-20 w-20 bg-neutral-200 rounded-2xl shrink-0"
+                />
+              ))}
+            </div>
+          </div>
+          {/* Recent Searches Skeleton */}
+          <div className="space-y-3 bg-white border border-neutral-150 rounded-3xl p-5">
+            <div className="h-4 bg-neutral-200 rounded-full w-40" />
+            <div className="flex gap-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-8 w-24 bg-neutral-200 rounded-full" />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
-      <div
-        className="space-y-6 max-w-4xl mx-auto py-6 animate-pulse"
-        id="search-viewport-loading"
-      >
-        {/* Header Title Loading */}
-        <div className="text-center max-w-md mx-auto space-y-3">
-          <div className="h-12 w-12 bg-neutral-200 rounded-full mx-auto" />
-          <div className="h-6 bg-neutral-200 rounded-full w-3/4 mx-auto" />
-          <div className="h-3 bg-neutral-200 rounded-full w-1/2 mx-auto" />
+      <div className="bg-white p-10 rounded-3xl border border-neutral-100 text-center space-y-3 my-6 shadow-sm max-w-4xl mx-auto">
+        <div className="h-16 w-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto text-brand-orange">
+          <Search className="h-8 w-8 animate-bounce" />
         </div>
-        {/* Search Bar Skeleton */}
-        <div className="bg-neutral-100/50 border border-neutral-200 rounded-2xl p-4 h-16" />
-        {/* Popular Cuisines Skeleton */}
-        <div className="space-y-3">
-          <div className="h-4 bg-neutral-200 rounded-full w-32" />
-          <div className="flex gap-3 overflow-hidden">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="h-20 w-20 bg-neutral-200 rounded-2xl shrink-0"
-              />
-            ))}
-          </div>
-        </div>
-        {/* Recent Searches Skeleton */}
-        <div className="space-y-3 bg-white border border-neutral-150 rounded-3xl p-5">
-          <div className="h-4 bg-neutral-200 rounded-full w-40" />
-          <div className="flex gap-2">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-8 w-24 bg-neutral-200 rounded-full" />
-            ))}
-          </div>
-        </div>
+        <h4 className="font-display font-black text-lg text-gray-900">
+          No Outlets Available at Your Location
+        </h4>
+        <p className="text-xs text-gray-500 max-w-md mx-auto leading-relaxed">
+          No restaurants deliver to your location right now. Try changing your delivery address or location.
+        </p>
       </div>
     );
   }

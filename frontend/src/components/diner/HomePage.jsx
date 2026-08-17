@@ -205,7 +205,7 @@ export default function HomePage({
       ? filteredRestaurants
       : (restaurants && restaurants.length > 0)
         ? restaurants
-        : INITIAL_RESTAURANTS;
+        : [];
 
   useEffect(() => {
     let isMounted = true;
@@ -615,6 +615,7 @@ export default function HomePage({
       </div>
 
       {/* Top restaurant chains in your area — Swiggy horizontal carousel */}
+      {activeRestaurantsList.length > 0 && (
       <div className="space-y-4 pt-4 border-t border-gray-100" id="top-chains-carousel-section">
         <div className="flex items-center justify-between">
           <h3 className="font-display font-black text-xl sm:text-2xl md:text-3xl text-gray-900 tracking-tight flex items-center gap-2">
@@ -645,10 +646,15 @@ export default function HomePage({
           className="flex gap-5 overflow-x-auto no-scrollbar pb-3 scroll-smooth snap-x snap-mandatory"
         >
           {activeRestaurantsList.map((res) => {
-            const distanceStr = `${(res.coordinates?.x * 0.05 + res.coordinates?.y * 0.03 + 0.8).toFixed(1)} km`;
+            const distanceNum = res.distance !== null && res.distance !== undefined
+              ? Number(res.distance)
+              : (res.coordinates?.x ? (res.coordinates.x * 0.05 + res.coordinates.y * 0.03 + 0.8) : null);
+            const distanceStr = distanceNum !== null ? `${distanceNum.toFixed(1)} km` : "1.5 km";
+            const ratingDisplay = res.rating && res.rating > 0 ? (res.rating % 1 === 0 ? res.rating : res.rating.toFixed(1)) : (res.totalReviews > 0 ? res.rating : "NEW");
+
             return (
               <div
-                key={`chain-${res.id}`}
+                key={`chain-${res.id || res._id}`}
                 onClick={() => setSelectedRestaurant(res)}
                 className="shrink-0 snap-start w-[240px] sm:w-[270px] bg-white rounded-2xl overflow-hidden cursor-pointer group shadow-xs hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] border border-gray-100"
               >
@@ -664,7 +670,7 @@ export default function HomePage({
                   {/* Swiggy Discount Ribbon */}
                   <div className="absolute bottom-2.5 left-3 text-white font-black text-xs uppercase tracking-wider drop-shadow-md flex items-center gap-1">
                     <span>🏷️</span>
-                    <span>{res.discount || (res.isPromoBadge ? "FLAT 30% OFF" : "ITEMS AT ₹99")}</span>
+                    <span>{res.discount || (res.isPromoBadge ? "FLAT 30% OFF" : (res.isFreeDelivery ? "FREE DELIVERY" : `₹${res.deliveryFee} DEL`))}</span>
                   </div>
 
                   {/* Favorite Button */}
@@ -689,7 +695,7 @@ export default function HomePage({
                   </h4>
                   <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
                     <span className="flex items-center gap-0.5 bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px] font-black">
-                      ★ {res.rating}
+                      ★ {ratingDisplay}
                     </span>
                     <span>•</span>
                     <span>{res.deliveryTime}</span>
@@ -698,7 +704,7 @@ export default function HomePage({
                     {(res.cuisines || []).join(", ")}
                   </p>
                   <p className="text-[11px] text-gray-400 font-semibold truncate">
-                    {res.address || "Downtown, " + distanceStr}
+                    {res.address ? `${res.address} • ${distanceStr}` : distanceStr}
                   </p>
                 </div>
               </div>
@@ -706,6 +712,7 @@ export default function HomePage({
           })}
         </div>
       </div>
+      )}
       <div className="space-y-4" id="reels-highlights-section">
         {/* Section header */}
         <div className="flex items-center justify-between">
@@ -917,7 +924,7 @@ export default function HomePage({
             { id: "d-20", name: "Authentic Mango Lassi", price: 99, restaurantName: "Bombay Darling", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&q=80&w=400", rating: 4.7, isVeg: true, isBestseller: true, category: "Desserts" },
           ];
 
-          const poolDishes = allDishes.length >= 8 ? allDishes : MOCK_20_DISHES;
+          const poolDishes = allDishes;
           const initialLimit = 8;
           const displayDishes = isDishesExpanded ? poolDishes.slice(0, 20) : poolDishes.slice(0, initialLimit);
 

@@ -97,28 +97,60 @@ export default function DeliveryLocationPicker({
     }
   }, [initialLat, initialLng]);
 
-  // Reverse Geocoding using OpenStreetMap Nominatim
+  // Reverse Geocoding using OpenStreetMap Nominatim + Photon Komoot API fallback
   const reverseGeocodeOsm = useCallback(
     async (latitude, longitude) => {
       setIsGeocoding(true);
       try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-          {
-            headers: {
-              "Accept-Language": "en",
-            },
+        let addrStr = "";
+
+        // Provider 1: Photon reverse geocoding API
+        try {
+          const photonRes = await fetch(
+            `https://photon.komoot.io/reverse?lat=${latitude}&lon=${longitude}`
+          );
+          if (photonRes.ok) {
+            const data = await photonRes.json();
+            if (data && Array.isArray(data.features) && data.features.length > 0) {
+              const props = data.features[0].properties || {};
+              const name = props.name || props.street || props.district || props.city || "";
+              const city = props.city || props.county || props.state || "";
+              const country = props.country || "";
+              addrStr = [name, props.street, props.district, city, props.state, country]
+                .filter(Boolean)
+                .filter((v, i, a) => a.indexOf(v) === i)
+                .join(", ");
+            }
           }
-        );
-        if (!response.ok) throw new Error("Failed to fetch address");
-        const data = await response.json();
-        if (data && data.display_name) {
-          setFormattedAddress(data.display_name);
+        } catch (e) {
+          console.warn("Photon reverse geocode error:", e);
+        }
+
+        // Provider 2: Nominatim fallback if Photon didn't return an address
+        if (!addrStr) {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            {
+              headers: {
+                "Accept-Language": "en",
+              },
+            }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.display_name) {
+              addrStr = data.display_name;
+            }
+          }
+        }
+
+        if (addrStr) {
+          setFormattedAddress(addrStr);
           if (onLocationSelect) {
             onLocationSelect({
               lat: latitude,
               lng: longitude,
-              address: data.display_name,
+              address: addrStr,
             });
           }
         }
@@ -203,41 +235,97 @@ export default function DeliveryLocationPicker({
     );
   };
 
-  // Handle Nominatim location search for fallback mode
+  // Multi-provider Geocoding Location Search Function (Photon API + Nominatim fallback)
+  const fetchLocationSearchResults = async (query) => {
+    if (!query || !query.trim()) return [];
+    setIsSearching(true);
+    let results = [];
+
+    // Provider 1: Photon by Komoot (CORS-enabled open-source OSM geocoding API)
+    try {
+      const response = await fetch(
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query.trim())}&limit=5`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data && Array.isArray(data.features) && data.features.length > 0) {
+          results = data.features.map((feat) => {
+            const props = feat.properties || {};
+            const coords = feat.geometry?.coordinates || [0, 0];
+            const name = props.name || props.street || props.district || props.city || "";
+            const city = props.city || props.county || props.state || "";
+            const country = props.country || "";
+            const fullLabel = [name, props.street, props.district, city, props.state, country]
+              .filter(Boolean)
+              .filter((v, i, a) => a.indexOf(v) === i)
+              .join(", ");
+
+            return {
+              lat: parseFloat(coords[1]),
+              lon: parseFloat(coords[0]),
+              display_name: fullLabel || query,
+            };
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Photon Search API failed, switching to Nominatim fallback...", err);
+    }
+
+    // Provider 2: Nominatim OpenStreetMap Search Fallback
+    if (results.length === 0) {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            query.trim()
+          )}&limit=5&addressdetails=1`,
+          {
+            headers: {
+              "Accept-Language": "en",
+            },
+          }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            results = data.map((item) => ({
+              lat: parseFloat(item.lat),
+              lon: parseFloat(item.lon),
+              display_name: item.display_name,
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn("OSM Nominatim Search Error:", err);
+      }
+    }
+
+    setSearchResults(results);
+    setIsSearching(false);
+    return results;
+  };
+
+  // Live debounced search effect as user types in input bar
+  useEffect(() => {
+    if (!searchQuery || !searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetchLocationSearchResults(searchQuery);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Handle Nominatim/Photon location search submission
   const handleOsmSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    setIsSearching(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          searchQuery
-        )}&limit=5`
-      );
-      const data = await response.json();
-      setSearchResults(data || []);
-      if (data && data.length > 0) {
-        const first = data[0];
-        const newLat = parseFloat(first.lat);
-        const newLng = parseFloat(first.lon);
-        setLat(newLat);
-        setLng(newLng);
-        setFormattedAddress(first.display_name);
-        if (onLocationSelect) {
-          onLocationSelect({
-            lat: newLat,
-            lng: newLng,
-            address: first.display_name,
-          });
-        }
-        if (triggerToast) triggerToast("Location found and pinned!");
-      } else {
-        if (triggerToast) triggerToast("No locations found for your query.");
-      }
-    } catch (err) {
-      console.error("OSM Search Error:", err);
-    } finally {
-      setIsSearching(false);
+    const results = await fetchLocationSearchResults(searchQuery);
+    if (results && results.length > 0) {
+      handleSelectSearchResult(results[0]);
+    } else if (triggerToast) {
+      triggerToast("No location matches found. Try clicking directly on the map.");
     }
   };
 
@@ -256,7 +344,10 @@ export default function DeliveryLocationPicker({
         address: result.display_name,
       });
     }
-    if (triggerToast) triggerToast("Location selected!");
+    if (triggerToast) {
+      const shortName = result.display_name.split(",")[0];
+      triggerToast(`Location pinned: ${shortName}`);
+    }
   };
 
   return (
@@ -361,44 +452,46 @@ export default function DeliveryLocationPicker({
         /* OpenStreetMap Interactive Fallback View */
         <div className="space-y-2">
           {/* Search box for OSM Mode */}
-          <form onSubmit={handleOsmSearch} className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search area, landmark or street..."
-              className="w-full text-xs p-3.5 pl-10 pr-20 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-brand-orange shadow-xs"
-            />
-            <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
-            <button
-              type="submit"
-              disabled={isSearching}
-              className="absolute right-2 top-2 bottom-2 px-3 bg-brand-orange hover:bg-orange-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition"
-            >
-              {isSearching ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                "Search"
-              )}
-            </button>
-          </form>
+          <div className="relative z-30">
+            <form onSubmit={handleOsmSearch} className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search city, area, landmark or street (e.g. Vaishali Nagar, Jaipur)..."
+                className="w-full text-xs p-3.5 pl-10 pr-24 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange shadow-xs transition"
+              />
+              <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="absolute right-1.5 top-1.5 bottom-1.5 px-3.5 bg-brand-orange hover:bg-orange-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-xs cursor-pointer"
+              >
+                {isSearching ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  "Search"
+                )}
+              </button>
+            </form>
 
-          {/* Search dropdown results */}
-          {searchResults.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto divide-y divide-gray-100 z-20 relative">
-              {searchResults.map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleSelectSearchResult(item)}
-                  className="w-full text-left p-2.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-brand-orange flex items-center gap-2 transition"
-                >
-                  <MapPin className="h-3.5 w-3.5 shrink-0 text-brand-orange" />
-                  <span className="truncate">{item.display_name}</span>
-                </button>
-              ))}
-            </div>
-          )}
+            {/* Search dropdown results */}
+            {searchResults.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-56 overflow-y-auto divide-y divide-gray-100 z-50 animate-fade-in">
+                {searchResults.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectSearchResult(item)}
+                    className="w-full text-left p-3 text-xs text-gray-700 hover:bg-orange-50 hover:text-brand-orange flex items-center gap-2.5 transition cursor-pointer"
+                  >
+                    <MapPin className="h-4 w-4 shrink-0 text-brand-orange" />
+                    <span className="truncate font-medium">{item.display_name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Real OpenStreetMap Live Tile Map Container */}
           <div className="relative rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-md flex flex-col justify-between" style={{ height: "320px" }}>

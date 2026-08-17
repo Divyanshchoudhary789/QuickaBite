@@ -32,8 +32,7 @@ export default function FavoritesPage({
 
   const [activeSubTab, setActiveSubTab] = useState("restaurants");
 
-  // Combine dynamic restaurants and static RESTAURANTS fallback
-  const sourceRestaurants = propsRestaurants && propsRestaurants.length > 0 ? propsRestaurants : RESTAURANTS;
+  const sourceRestaurants = propsRestaurants || [];
   
   const isRestaurantFav = (r) => {
     if (!r || !favorites) return false;
@@ -97,7 +96,7 @@ export default function FavoritesPage({
     onAddToCart(dish.restaurantId, dish.restaurantName, menuItem);
   };
   const handleViewRestaurant = (resId) => {
-    const res = RESTAURANTS.find((r) => r.id === resId);
+    const res = (sourceRestaurants || []).find((r) => String(r.id || r._id) === String(resId));
     if (res) {
       setSelectedRestaurant(res);
       triggerToast(`Opened ${res.name} detailed gourmet menu!`);

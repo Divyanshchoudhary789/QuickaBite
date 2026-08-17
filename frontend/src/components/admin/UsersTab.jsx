@@ -573,7 +573,6 @@ export default function UsersTab({ onUsersChange, triggerToast }) {
                         >
                           <option value="customer">Diner</option>
                           <option value="manager">Manager</option>
-                          <option value="admin">Admin</option>
                         </select>
 
                         {/* BlockUser & UnblockUser API Trigger */}

@@ -236,7 +236,7 @@ function AppContent() {
     }
   }, [location.pathname, navigate, activeTab, isLoggedIn, userRole]);
 
-  const [restaurants, setRestaurants] = useState(RESTAURANTS);
+  const [restaurants, setRestaurants] = useState([]);
   const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false);
   const [filterFastDelivery, setFilterFastDelivery] = useState(false);
   const [filterTopRated, setFilterTopRated] = useState(false);
@@ -295,6 +295,7 @@ function AppContent() {
     triggerToast("Requesting device location permission...");
     try {
       const res = await requestExactHighAccuracyGps();
+      lastFetchedCoordsRef.current = null;
       setUserLocationCoords(res);
       setIsGpsDenied(false);
       setShowGpsHelpModal(false);
@@ -320,6 +321,23 @@ function AppContent() {
       setCurrentLocation("");
       setShowGpsHelpModal(true);
       triggerToast(err.message || "Please enable Location permission in your browser settings.");
+    }
+  };
+
+  const handleSelectLocation = ({ lat, lng, displayText }) => {
+    if (displayText) {
+      setCurrentLocation(displayText);
+    }
+    if (lat !== undefined && lat !== null && lng !== undefined && lng !== null) {
+      const newCoords = {
+        lat: Number(lat),
+        lng: Number(lng),
+        source: "user_selected",
+      };
+      lastFetchedCoordsRef.current = null; // Reset cached coordinate key to force immediate re-fetch
+      setUserLocationCoords(newCoords);
+      setIsGpsDenied(false);
+      triggerToast(`Location updated! Fetching deliverable outlets for ${displayText ? displayText.split(":")[0] : "selected address"}...`);
     }
   };
 
@@ -807,6 +825,7 @@ function AppContent() {
           onCartToggle={() => navigateWithAuth("cart")}
           currentLocation={currentLocation}
           setCurrentLocation={setCurrentLocation}
+          onSelectLocation={handleSelectLocation}
           onRequestGpsAgain={handleRequestGpsAgain}
           notifications={notifications}
           onMarkAllAsRead={handleMarkAllNotificationsAsRead}

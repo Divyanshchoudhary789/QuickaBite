@@ -5,6 +5,20 @@ import { notificationService } from "./notificationService";
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 
+function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export const dinerService = {
   // Fetch deliverable restaurant catalog (GET /api/v1/restaurants?lat=...&lng=...&page=...&limit=...)
   async getRestaurants(locationCoords = null, options = {}) {
@@ -27,6 +41,28 @@ export const dinerService = {
     if (USE_MOCK) {
       await new Promise((resolve) => setTimeout(resolve, 200));
       let list = RESTAURANTS.map(normalizeRestaurant);
+
+      if (params.lat && params.lng) {
+        const uLat = Number(params.lat);
+        const uLng = Number(params.lng);
+        list = list.map((res) => {
+          let dist = null;
+          if (res.location?.coordinates && Array.isArray(res.location.coordinates) && res.location.coordinates.length >= 2) {
+            dist = calculateHaversineDistance(uLat, uLng, res.location.coordinates[1], res.location.coordinates[0]);
+          } else if (res.coordinates?.x !== undefined && res.coordinates?.y !== undefined) {
+            const rLat = 25.1972 + (res.coordinates.y - 45) * 0.005;
+            const rLng = 55.2744 + (res.coordinates.x - 35) * 0.005;
+            dist = calculateHaversineDistance(uLat, uLng, rLat, rLng);
+          }
+          return {
+            ...res,
+            distance: dist !== null && !isNaN(dist) ? Number(dist.toFixed(1)) : res.distance,
+          };
+        }).filter((res) => {
+          const radius = res.deliveryRadiusKm || 15;
+          return res.distance === null || res.distance <= radius;
+        });
+      }
       const page = Number(params.page);
       const limit = Number(params.limit);
 
@@ -99,7 +135,10 @@ export const dinerService = {
     if (USE_MOCK) {
       await new Promise((resolve) => setTimeout(resolve, 200));
       let list = [];
-      RESTAURANTS.forEach((r) => {
+      const deliverableRestros = locationCoords?.lat && locationCoords?.lng
+        ? await this.getRestaurants(locationCoords)
+        : RESTAURANTS.map(normalizeRestaurant);
+      deliverableRestros.forEach((r) => {
         if (Array.isArray(r.menu)) {
           r.menu.forEach((m) => {
             list.push({ ...m, restaurant: r });
@@ -1540,13 +1579,13 @@ export const normalizeOrder = (raw) => {
 export const normalizeRestaurant = (res) => {
   if (!res) return null;
 
-  const cuisinesList = Array.isArray(res.cuisines)
+  const cuisinesList = Array.isArray(res.cuisines) && res.cuisines.length > 0
     ? res.cuisines.map(cleanCategoryName).filter(Boolean)
-    : typeof res.cuisines === "string"
+    : typeof res.cuisines === "string" && res.cuisines.trim()
       ? res.cuisines.split(",").map(cleanCategoryName).filter(Boolean)
-      : Array.isArray(res.tags)
+      : Array.isArray(res.tags) && res.tags.length > 0
         ? res.tags.map(cleanCategoryName).filter(Boolean)
-        : typeof res.tags === "string"
+        : typeof res.tags === "string" && res.tags.trim()
           ? res.tags.split(",").map(cleanCategoryName).filter(Boolean)
           : [];
 
@@ -1560,38 +1599,47 @@ export const normalizeRestaurant = (res) => {
       res.coverImage ||
       "https://images.unsplash.com/photo-1526779259212-939e64788e3c?fm=jpg&q=60&w=3000&auto=format&fit=crop";
 
+  const fullAddr = typeof res.address === "object" ? res.address?.fullAddress || "" : res.address || "";
+  const landmarkStr = typeof res.address === "object" ? res.address?.landmark || "" : res.landmark || "";
+  const cityStr = res.city || (typeof res.address === "object" ? res.address?.city || "" : "") || "";
+
+  const numRating = res.averageRating !== undefined && res.averageRating !== null
+    ? Number(res.averageRating)
+    : (res.rating !== undefined && res.rating !== null ? Number(res.rating) : 0);
+
+  const reviewsNum = res.totalReviews !== undefined && res.totalReviews !== null
+    ? Number(res.totalReviews)
+    : (res.reviewsCount !== undefined && res.reviewsCount !== null
+      ? Number(res.reviewsCount)
+      : (res.numReviews !== undefined && res.numReviews !== null
+        ? Number(res.numReviews)
+        : 0));
+
   return {
-    id: res.id || res._id || res.slug,
-    _id: res._id || res.id,
+    id: String(res.id || res._id || res.slug || ""),
+    _id: String(res._id || res.id || ""),
+    slug: res.slug || "",
     name: res.name || "",
     image: imageUrl,
-    address: typeof res.address === "object" ? res.address?.fullAddress || "" : res.address || "",
-    addressObj: res.addressObj || {
-      landmark: typeof res.address === "object" ? res.address?.landmark || "" : res.landmark || "",
-      city: res.city || "",
-      fullAddress: typeof res.address === "object" ? res.address?.fullAddress || "" : res.address || ""
+    rawImageObj: typeof res.image === "object" ? res.image : null,
+    address: fullAddr,
+    addressObj: {
+      landmark: landmarkStr,
+      city: cityStr,
+      fullAddress: fullAddr,
     },
-    landmark: res.landmark || (typeof res.address === "object" ? res.address?.landmark || "" : "") || res.addressObj?.landmark || "",
-    city: res.city || res.addressObj?.city || "",
+    landmark: landmarkStr,
+    city: cityStr,
     cuisines: cuisinesList,
     tags: cuisinesList,
     deliveryTime: res.deliveryTime || res.cookingLeadTime || "20-25 mins",
     cookingLeadTime: res.cookingLeadTime || res.deliveryTime || "20-25 mins",
     deliveryFee: res.deliveryFee !== undefined && res.deliveryFee !== null ? Number(res.deliveryFee) : (res.deliveryCharge !== undefined && res.deliveryCharge !== null ? Number(res.deliveryCharge) : 0),
-    isFreeDelivery: res.isFreeDelivery !== undefined ? res.isFreeDelivery : (Number(res.deliveryFee ?? res.deliveryCharge ?? 0) === 0),
-    rating: res.rating !== undefined ? Number(res.rating) : (res.averageRating !== undefined ? Number(res.averageRating) : 4.5),
-    reviewsCount: res.reviewsCount !== undefined && res.reviewsCount !== null
-      ? Number(res.reviewsCount)
-      : (res.totalReviews !== undefined && res.totalReviews !== null
-        ? Number(res.totalReviews)
-        : (res.numReviews !== undefined && res.numReviews !== null
-          ? Number(res.numReviews)
-          : 0)),
-    totalReviews: res.totalReviews !== undefined && res.totalReviews !== null
-      ? Number(res.totalReviews)
-      : (res.reviewsCount !== undefined && res.reviewsCount !== null
-        ? Number(res.reviewsCount)
-        : 0),
+    isFreeDelivery: res.isFreeDelivery !== undefined ? Boolean(res.isFreeDelivery) : (Number(res.deliveryFee ?? res.deliveryCharge ?? 0) === 0),
+    rating: numRating,
+    averageRating: numRating,
+    reviewsCount: reviewsNum,
+    totalReviews: reviewsNum,
     menu: Array.isArray(res.menu)
       ? res.menu.map((item) => normalizeMenuItem(item))
       : [],
@@ -1604,7 +1652,10 @@ export const normalizeRestaurant = (res) => {
     operatingHours: Array.isArray(res.operatingHours) ? res.operatingHours : [],
     coordinates: res.coordinates || (res.location?.coordinates
       ? { x: res.location.coordinates[0], y: res.location.coordinates[1] }
-      : { x: 0, y: 0 })
+      : { x: 0, y: 0 }),
+    createdBy: res.createdBy || "",
+    createdAt: res.createdAt || "",
+    updatedAt: res.updatedAt || "",
   };
 };
 
