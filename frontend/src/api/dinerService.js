@@ -12,9 +12,9 @@ function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -24,7 +24,7 @@ export const dinerService = {
   async getRestaurants(locationCoords = null, options = {}) {
     let params = {};
     let queryOpts = typeof options === "object" && options !== null ? options : {};
-    
+
     // Support passing pagination options as first argument if locationCoords is an object without lat/lng
     if (locationCoords && typeof locationCoords === "object" && !locationCoords.lat && !locationCoords.lng) {
       if (locationCoords.page || locationCoords.limit || locationCoords.returnPagination) {

@@ -130,29 +130,39 @@ export default function ReportIssueModal({ isOpen, onClose, order, onSuccess }) 
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in font-sans">
-      <div className="bg-white border border-neutral-200 rounded-3xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl my-auto animate-scale-in">
-        {/* Modal Header */}
-        <div className="p-6 border-b border-neutral-150 flex items-center justify-between bg-neutral-950 text-white">
-          <div>
-            <h2 className="text-xl font-display font-black text-white flex items-center gap-2">
-              <HelpCircle className="w-6 h-6 text-brand-orange" />
-              Report Issue for Order #{order?.orderNumber || "QB-0000"}
-            </h2>
-            <p className="text-xs text-neutral-300 mt-1 font-medium">
-              Select problem category, view guidance, and submit proof to the manager.
-            </p>
+    <div className="fixed inset-0 z-[99999] bg-slate-50 flex flex-col animate-fade-in font-sans overflow-hidden">
+      <div className="w-full h-full flex flex-col bg-gradient-to-br from-orange-50 via-slate-50 to-amber-50/50 overflow-hidden">
+        {/* Refined Light Full-Screen Header */}
+        <div className="px-6 py-4.5 border-b border-orange-100/80 flex items-center justify-between bg-white/95 backdrop-blur-md shrink-0 shadow-soft">
+          <div className="max-w-5xl mx-auto w-full flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-orange-100 text-brand-orange rounded-2xl flex items-center justify-center font-black shadow-xs">
+                <HelpCircle className="w-5 h-5 text-brand-orange" />
+              </div>
+              <div>
+                <h2 className="text-xl md:text-2xl font-display font-black text-neutral-900 flex items-center gap-2">
+                  <span>Report Issue for Order</span>
+                  <span className="text-brand-orange font-mono text-lg">#{order?.orderNumber || "QB-0000"}</span>
+                </h2>
+                <p className="text-xs text-neutral-500 font-medium">
+                  Select problem category, view guidance, and submit proof directly to the manager.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-orange-50 text-brand-orange hover:bg-brand-orange hover:text-white rounded-2xl transition-all cursor-pointer flex items-center gap-2 text-xs font-black uppercase tracking-wider border border-orange-200/80 shadow-2xs"
+            >
+              <span>Close</span>
+              <X className="w-4.5 h-4.5" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white rounded-xl hover:bg-neutral-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-neutral-900 bg-white">
+        {/* Refined Light Body Container */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-6 md:p-10 my-auto min-h-full flex flex-col justify-center">
+            <div className="bg-white p-6 md:p-9 rounded-3xl border border-neutral-200/80 shadow-xl space-y-7">
           {submittedTicket ? (
             <div className="py-8 text-center space-y-4">
               <div className="w-16 h-16 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full flex items-center justify-center mx-auto shadow-xs">
@@ -196,13 +206,13 @@ export default function ReportIssueModal({ isOpen, onClose, order, onSuccess }) 
                         key={cat.id}
                         type="button"
                         onClick={() => handleCategoryChange(cat)}
-                        className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                        className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-orange-50/90 border-brand-orange text-brand-orange shadow-xs font-black"
-                            : "bg-neutral-50/70 border-neutral-200 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                            ? "bg-brand-orange text-white border-brand-orange shadow-md font-black shadow-orange-500/20"
+                            : "bg-neutral-50/80 border-neutral-200 text-neutral-700 hover:bg-orange-50/60 hover:border-orange-200"
                         }`}
                       >
-                        <span className="text-xs font-bold">{cat.title}</span>
+                        <span className="text-xs font-extrabold">{cat.title}</span>
                       </button>
                     );
                   })}
@@ -225,12 +235,12 @@ export default function ReportIssueModal({ isOpen, onClose, order, onSuccess }) 
                           onClick={() => setSelectedQuestion(q)}
                           className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-start justify-between cursor-pointer ${
                             isSelected
-                              ? "bg-neutral-900 border-neutral-900 text-white font-bold shadow-xs"
-                              : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                              ? "bg-orange-500 border-orange-500 text-white font-bold shadow-md shadow-orange-500/20"
+                              : "bg-neutral-50/60 border-neutral-200 text-neutral-800 hover:bg-neutral-100/80"
                           }`}
                         >
                           <span className="text-xs font-semibold">{q.question}</span>
-                          {isSelected && <CheckCircle2 className="w-4 h-4 text-brand-orange shrink-0 ml-2 mt-0.5" />}
+                          {isSelected && <CheckCircle2 className="w-4.5 h-4.5 text-white shrink-0 ml-2 mt-0.5" />}
                         </button>
                       );
                     })}
@@ -323,6 +333,8 @@ export default function ReportIssueModal({ isOpen, onClose, order, onSuccess }) 
               </div>
             </form>
           )}
+            </div>
+          </div>
         </div>
       </div>
     </div>,

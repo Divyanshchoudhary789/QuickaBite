@@ -578,7 +578,7 @@ export default function HomePage({
                     key={item.id}
                     type="button"
                     onClick={() => {
-                      const found = restaurants.find(r => 
+                      const found = restaurants.find(r =>
                         (r.cuisines || []).some(c => c.toLowerCase().includes(item.id.toLowerCase())) ||
                         r.name.toLowerCase().includes(item.id.toLowerCase())
                       );
@@ -595,11 +595,10 @@ export default function HomePage({
                   >
                     {/* HD Circular Avatar Container */}
                     <div
-                      className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-full p-1 transition-all duration-300 transform group-hover:scale-105 shadow-md ${
-                        isSelected
+                      className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-full p-1 transition-all duration-300 transform group-hover:scale-105 shadow-md ${isSelected
                           ? "ring-4 ring-brand-orange ring-offset-2 scale-105 shadow-xl bg-orange-500"
                           : "bg-gradient-to-br from-orange-100 to-amber-100 border border-orange-200/60 hover:shadow-lg"
-                      }`}
+                        }`}
                     >
                       <img
                         src={item.image}
@@ -620,9 +619,8 @@ export default function HomePage({
 
                     {/* Label */}
                     <span
-                      className={`text-xs sm:text-sm font-extrabold tracking-tight transition-colors ${
-                        isSelected ? "text-brand-orange" : "text-gray-700 group-hover:text-gray-900"
-                      }`}
+                      className={`text-xs sm:text-sm font-extrabold tracking-tight transition-colors ${isSelected ? "text-brand-orange" : "text-gray-700 group-hover:text-gray-900"
+                        }`}
                     >
                       {item.label}
                     </span>
@@ -636,102 +634,101 @@ export default function HomePage({
 
       {/* Top restaurant chains in your area — Swiggy horizontal carousel */}
       {activeRestaurantsList.length > 0 && (
-      <div className="space-y-4 pt-4 border-t border-gray-100" id="top-chains-carousel-section">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display font-black text-xl sm:text-2xl md:text-3xl text-gray-900 tracking-tight flex items-center gap-2">
-            <span>Top restaurant chains in your area</span>
-          </h3>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => scrollTopChains("left")}
-              className="h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 flex items-center justify-center transition cursor-pointer active:scale-95 shadow-xs"
-              aria-label="Scroll Left"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollTopChains("right")}
-              className="h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 flex items-center justify-center transition cursor-pointer active:scale-95 shadow-xs"
-              aria-label="Scroll Right"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+        <div className="space-y-4 pt-4 border-t border-gray-100" id="top-chains-carousel-section">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display font-black text-xl sm:text-2xl md:text-3xl text-gray-900 tracking-tight flex items-center gap-2">
+              <span>Top restaurant chains in your area</span>
+            </h3>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => scrollTopChains("left")}
+                className="h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 flex items-center justify-center transition cursor-pointer active:scale-95 shadow-xs"
+                aria-label="Scroll Left"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollTopChains("right")}
+                className="h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 flex items-center justify-center transition cursor-pointer active:scale-95 shadow-xs"
+                aria-label="Scroll Right"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref={topChainsScrollRef}
+            className="flex gap-5 overflow-x-auto no-scrollbar pb-3 scroll-smooth snap-x snap-mandatory"
+          >
+            {activeRestaurantsList.map((res) => {
+              const distanceNum = res.distance !== null && res.distance !== undefined
+                ? Number(res.distance)
+                : (res.coordinates?.x ? (res.coordinates.x * 0.05 + res.coordinates.y * 0.03 + 0.8) : null);
+              const distanceStr = distanceNum !== null ? `${distanceNum.toFixed(1)} km` : "1.5 km";
+              const ratingDisplay = res.rating && res.rating > 0 ? (res.rating % 1 === 0 ? res.rating : res.rating.toFixed(1)) : (res.totalReviews > 0 ? res.rating : "NEW");
+
+              return (
+                <div
+                  key={`chain-${res.id || res._id}`}
+                  onClick={() => setSelectedRestaurant(res)}
+                  className="shrink-0 snap-start w-[240px] sm:w-[270px] bg-white rounded-2xl overflow-hidden cursor-pointer group shadow-xs hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] border border-gray-100"
+                >
+                  {/* Image + Swiggy Badge */}
+                  <div className="relative h-40 bg-gray-100 overflow-hidden">
+                    <img
+                      src={res.image}
+                      alt={res.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                    {/* Swiggy Discount Ribbon */}
+                    <div className="absolute bottom-2.5 left-3 text-white font-black text-xs uppercase tracking-wider drop-shadow-md flex items-center gap-1">
+                      <span>🏷️</span>
+                      <span>{res.discount || (res.isPromoBadge ? "FLAT 30% OFF" : (res.isFreeDelivery ? "FREE DELIVERY" : `₹${res.deliveryFee} DEL`))}</span>
+                    </div>
+
+                    {/* Favorite Button */}
+                    <button
+                      onClick={(e) => handleToggleFavorite(res.id || res._id, e, res.name)}
+                      className="absolute top-2.5 right-2.5 h-7 w-7 bg-white/80 hover:bg-white text-gray-700 rounded-full flex items-center justify-center backdrop-blur-sm transition shadow-xs z-10 cursor-pointer"
+                    >
+                      <Heart
+                        className={`h-4 w-4 ${(favorites || []).some(f => String(f) === String(res.id) || String(f?.id) === String(res.id))
+                            ? "text-red-500 fill-red-500"
+                            : "text-gray-500"
+                          }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Details */}
+                  <div className="p-3.5 space-y-1">
+                    <h4 className="font-display font-extrabold text-base text-gray-900 truncate group-hover:text-brand-orange transition">
+                      {res.name}
+                    </h4>
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                      <span className="flex items-center gap-0.5 bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px] font-black">
+                        ★ {ratingDisplay}
+                      </span>
+                      <span>•</span>
+                      <span>{res.deliveryTime}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 font-medium truncate">
+                      {(res.cuisines || []).join(", ")}
+                    </p>
+                    <p className="text-[11px] text-gray-400 font-semibold truncate">
+                      {res.address ? `${res.address} • ${distanceStr}` : distanceStr}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-
-        <div
-          ref={topChainsScrollRef}
-          className="flex gap-5 overflow-x-auto no-scrollbar pb-3 scroll-smooth snap-x snap-mandatory"
-        >
-          {activeRestaurantsList.map((res) => {
-            const distanceNum = res.distance !== null && res.distance !== undefined
-              ? Number(res.distance)
-              : (res.coordinates?.x ? (res.coordinates.x * 0.05 + res.coordinates.y * 0.03 + 0.8) : null);
-            const distanceStr = distanceNum !== null ? `${distanceNum.toFixed(1)} km` : "1.5 km";
-            const ratingDisplay = res.rating && res.rating > 0 ? (res.rating % 1 === 0 ? res.rating : res.rating.toFixed(1)) : (res.totalReviews > 0 ? res.rating : "NEW");
-
-            return (
-              <div
-                key={`chain-${res.id || res._id}`}
-                onClick={() => setSelectedRestaurant(res)}
-                className="shrink-0 snap-start w-[240px] sm:w-[270px] bg-white rounded-2xl overflow-hidden cursor-pointer group shadow-xs hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] border border-gray-100"
-              >
-                {/* Image + Swiggy Badge */}
-                <div className="relative h-40 bg-gray-100 overflow-hidden">
-                  <img
-                    src={res.image}
-                    alt={res.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                  {/* Swiggy Discount Ribbon */}
-                  <div className="absolute bottom-2.5 left-3 text-white font-black text-xs uppercase tracking-wider drop-shadow-md flex items-center gap-1">
-                    <span>🏷️</span>
-                    <span>{res.discount || (res.isPromoBadge ? "FLAT 30% OFF" : (res.isFreeDelivery ? "FREE DELIVERY" : `₹${res.deliveryFee} DEL`))}</span>
-                  </div>
-
-                  {/* Favorite Button */}
-                  <button
-                    onClick={(e) => handleToggleFavorite(res.id || res._id, e, res.name)}
-                    className="absolute top-2.5 right-2.5 h-7 w-7 bg-white/80 hover:bg-white text-gray-700 rounded-full flex items-center justify-center backdrop-blur-sm transition shadow-xs z-10 cursor-pointer"
-                  >
-                    <Heart
-                      className={`h-4 w-4 ${
-                        (favorites || []).some(f => String(f) === String(res.id) || String(f?.id) === String(res.id))
-                          ? "text-red-500 fill-red-500"
-                          : "text-gray-500"
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Details */}
-                <div className="p-3.5 space-y-1">
-                  <h4 className="font-display font-extrabold text-base text-gray-900 truncate group-hover:text-brand-orange transition">
-                    {res.name}
-                  </h4>
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
-                    <span className="flex items-center gap-0.5 bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px] font-black">
-                      ★ {ratingDisplay}
-                    </span>
-                    <span>•</span>
-                    <span>{res.deliveryTime}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 font-medium truncate">
-                    {(res.cuisines || []).join(", ")}
-                  </p>
-                  <p className="text-[11px] text-gray-400 font-semibold truncate">
-                    {res.address ? `${res.address} • ${distanceStr}` : distanceStr}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
       )}
       <div className="space-y-4" id="reels-highlights-section">
         {/* Section header */}
@@ -761,103 +758,103 @@ export default function HomePage({
           id="reels-scroller"
         >
           {displayReels.map((reel, idx) => {
-              /* Cycle through vibrant gradient overlays */
-              const OVERLAYS = [
-                "from-orange-900/90 via-orange-700/40 to-transparent",
-                "from-pink-900/90 via-pink-700/40 to-transparent",
-                "from-teal-900/90 via-teal-700/40 to-transparent",
-                "from-red-900/90 via-red-700/40 to-transparent",
-                "from-yellow-900/90 via-yellow-700/40 to-transparent",
-                "from-purple-900/90 via-purple-700/40 to-transparent",
-                "from-amber-900/90 via-amber-700/40 to-transparent",
-                "from-sky-900/90 via-sky-700/40 to-transparent",
-              ];
-              const overlay = OVERLAYS[idx % OVERLAYS.length];
+            /* Cycle through vibrant gradient overlays */
+            const OVERLAYS = [
+              "from-orange-900/90 via-orange-700/40 to-transparent",
+              "from-pink-900/90 via-pink-700/40 to-transparent",
+              "from-teal-900/90 via-teal-700/40 to-transparent",
+              "from-red-900/90 via-red-700/40 to-transparent",
+              "from-yellow-900/90 via-yellow-700/40 to-transparent",
+              "from-purple-900/90 via-purple-700/40 to-transparent",
+              "from-amber-900/90 via-amber-700/40 to-transparent",
+              "from-sky-900/90 via-sky-700/40 to-transparent",
+            ];
+            const overlay = OVERLAYS[idx % OVERLAYS.length];
 
-              return (
-                <div
-                  key={reel.id || reel._id}
-                  onClick={() => setActiveReelId(reel.id || reel._id)}
-                  className="relative shrink-0 snap-start w-[160px] sm:w-[180px] h-[280px] sm:h-[310px] rounded-2xl overflow-hidden cursor-pointer group shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
-                  id={`reel-card-${reel.id || reel._id}`}
-                >
-                  {/* Food image */}
-                  <img
-                    src={reel.bgImage || reel.image}
-                    alt={reel.title}
-                    referrerPolicy="no-referrer"
-                    className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
-                  />
+            return (
+              <div
+                key={reel.id || reel._id}
+                onClick={() => setActiveReelId(reel.id || reel._id)}
+                className="relative shrink-0 snap-start w-[160px] sm:w-[180px] h-[280px] sm:h-[310px] rounded-2xl overflow-hidden cursor-pointer group shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+                id={`reel-card-${reel.id || reel._id}`}
+              >
+                {/* Food image */}
+                <img
+                  src={reel.bgImage || reel.image}
+                  alt={reel.title}
+                  referrerPolicy="no-referrer"
+                  className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+                />
 
-                  {/* Gradient overlay — bottom-heavy like Reels */}
-                  <div className={`absolute inset-0 bg-gradient-to-t ${overlay}`} />
+                {/* Gradient overlay — bottom-heavy like Reels */}
+                <div className={`absolute inset-0 bg-gradient-to-t ${overlay}`} />
 
-                  {/* Top row: tag badge + play button */}
-                  <div className="absolute top-3 left-3 right-3 flex items-start justify-between z-10">
-                    {reel.tag && (
-                      <span className={`${reel.tagColor || "bg-red-500"} text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide shadow-md`}>
-                        {reel.tag}
-                      </span>
-                    )}
-                    {/* Animated play icon */}
-                    <div className="relative h-8 w-8 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-md group-hover:bg-white/35 transition ml-auto shrink-0">
-                      <span className="text-white text-xs ml-0.5">▶</span>
-                      <span className="absolute inset-0 rounded-full border-2 border-white/50 animate-ping opacity-40" />
-                    </div>
-                  </div>
-
-                  {/* Bottom content */}
-                  <div className="absolute bottom-0 left-0 right-0 p-3 z-10 space-y-2">
-                    {/* Restaurant logo + name */}
-                    <div className="flex items-center gap-2">
-                      <div className={`h-7 w-7 rounded-full bg-gradient-to-br ${reel.logoColor || "from-orange-500 to-red-500"} flex items-center justify-center text-white text-[9px] font-black shadow-md border-2 border-white/30 shrink-0`}>
-                        {reel.logo}
-                      </div>
-                      <span className="text-white/90 text-[10px] font-bold truncate leading-tight">
-                        {reel.restaurantName}
-                      </span>
-                    </div>
-
-                    {/* Dish title */}
-                    <h4 className="font-display font-extrabold text-sm text-white leading-tight line-clamp-2 drop-shadow-md">
-                      {reel.title}
-                    </h4>
-
-                    {/* Rating + delivery time */}
-                    <div className="flex items-center gap-2">
-                      {reel.rating && (
-                        <span className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
-                          ⭐ {reel.rating}
-                      </span>
-                      )}
-                      {reel.deliveryTime && (
-                        <span className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
-                          🕐 {reel.deliveryTime}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Offer badge */}
-                    {reel.offer && (
-                      <span className={`${reel.offerColor || "bg-orange-500"} text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide inline-block shadow-sm`}>
-                        🏷 {reel.offer}
-                      </span>
-                    )}
-
-                    {/* Order Now CTA */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveReelId(reel.id || reel._id);
-                      }}
-                      className="w-full bg-white text-gray-900 font-extrabold text-[10px] py-2 rounded-xl shadow-md hover:bg-orange-500 hover:text-white active:scale-95 transition-all duration-200 cursor-pointer text-center block mt-1"
-                    >
-                      Order Now →
-                    </button>
+                {/* Top row: tag badge + play button */}
+                <div className="absolute top-3 left-3 right-3 flex items-start justify-between z-10">
+                  {reel.tag && (
+                    <span className={`${reel.tagColor || "bg-red-500"} text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide shadow-md`}>
+                      {reel.tag}
+                    </span>
+                  )}
+                  {/* Animated play icon */}
+                  <div className="relative h-8 w-8 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-md group-hover:bg-white/35 transition ml-auto shrink-0">
+                    <span className="text-white text-xs ml-0.5">▶</span>
+                    <span className="absolute inset-0 rounded-full border-2 border-white/50 animate-ping opacity-40" />
                   </div>
                 </div>
-              );
-            })}
+
+                {/* Bottom content */}
+                <div className="absolute bottom-0 left-0 right-0 p-3 z-10 space-y-2">
+                  {/* Restaurant logo + name */}
+                  <div className="flex items-center gap-2">
+                    <div className={`h-7 w-7 rounded-full bg-gradient-to-br ${reel.logoColor || "from-orange-500 to-red-500"} flex items-center justify-center text-white text-[9px] font-black shadow-md border-2 border-white/30 shrink-0`}>
+                      {reel.logo}
+                    </div>
+                    <span className="text-white/90 text-[10px] font-bold truncate leading-tight">
+                      {reel.restaurantName}
+                    </span>
+                  </div>
+
+                  {/* Dish title */}
+                  <h4 className="font-display font-extrabold text-sm text-white leading-tight line-clamp-2 drop-shadow-md">
+                    {reel.title}
+                  </h4>
+
+                  {/* Rating + delivery time */}
+                  <div className="flex items-center gap-2">
+                    {reel.rating && (
+                      <span className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                        ⭐ {reel.rating}
+                      </span>
+                    )}
+                    {reel.deliveryTime && (
+                      <span className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                        🕐 {reel.deliveryTime}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Offer badge */}
+                  {reel.offer && (
+                    <span className={`${reel.offerColor || "bg-orange-500"} text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide inline-block shadow-sm`}>
+                      🏷 {reel.offer}
+                    </span>
+                  )}
+
+                  {/* Order Now CTA */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveReelId(reel.id || reel._id);
+                    }}
+                    className="w-full bg-white text-gray-900 font-extrabold text-[10px] py-2 rounded-xl shadow-md hover:bg-orange-500 hover:text-white active:scale-95 transition-all duration-200 cursor-pointer text-center block mt-1"
+                  >
+                    Order Now →
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -973,116 +970,114 @@ export default function HomePage({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                {displayDishes.map((dish, i) => {
-                  const isDishFav = (favoriteDishes || []).some(
-                    (fId) => String(fId) === String(dish.id) || String(fId) === String(dish._id)
-                  );
+                  {displayDishes.map((dish, i) => {
+                    const isDishFav = (favoriteDishes || []).some(
+                      (fId) => String(fId) === String(dish.id) || String(fId) === String(dish._id)
+                    );
 
-                  return (
-                    <div
-                      key={dish.id || dish._id || i}
-                      onClick={() => {
-                        if (dish.restaurantObj) {
-                          setSelectedRestaurant(dish.restaurantObj);
-                        } else {
-                          const foundRes = restaurants.find(
-                            (r) => r.name.toLowerCase() === (dish.restaurantName || "").toLowerCase()
-                          ) || activeRestaurantsList[0];
-                          if (foundRes) setSelectedRestaurant(foundRes);
-                        }
-                      }}
-                      className="bg-white rounded-2xl border border-gray-100 overflow-hidden cursor-pointer group shadow-xs hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between"
-                    >
-                      <div>
-                        {/* Image + Veg badge + Favorite */}
-                        <div className="relative h-44 bg-gray-100 overflow-hidden">
-                          <img
-                            src={dish.image}
-                            alt={dish.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-                          {/* Diet Indicator */}
-                          <div className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-md flex items-center gap-1 shadow-xs">
-                            <span
-                              className={`h-2 w-2 rounded-full ${
-                                dish.isVeg ? "bg-emerald-500" : "bg-red-500"
-                              }`}
+                    return (
+                      <div
+                        key={dish.id || dish._id || i}
+                        onClick={() => {
+                          if (dish.restaurantObj) {
+                            setSelectedRestaurant(dish.restaurantObj);
+                          } else {
+                            const foundRes = restaurants.find(
+                              (r) => r.name.toLowerCase() === (dish.restaurantName || "").toLowerCase()
+                            ) || activeRestaurantsList[0];
+                            if (foundRes) setSelectedRestaurant(foundRes);
+                          }
+                        }}
+                        className="bg-white rounded-2xl border border-gray-100 overflow-hidden cursor-pointer group shadow-xs hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between"
+                      >
+                        <div>
+                          {/* Image + Veg badge + Favorite */}
+                          <div className="relative h-44 bg-gray-100 overflow-hidden">
+                            <img
+                              src={dish.image}
+                              alt={dish.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             />
-                            <span className="text-[9px] font-black uppercase text-gray-700">
-                              {dish.isVeg ? "VEG" : "NON-VEG"}
-                            </span>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+                            {/* Diet Indicator */}
+                            <div className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-md flex items-center gap-1 shadow-xs">
+                              <span
+                                className={`h-2 w-2 rounded-full ${dish.isVeg ? "bg-emerald-500" : "bg-red-500"
+                                  }`}
+                              />
+                              <span className="text-[9px] font-black uppercase text-gray-700">
+                                {dish.isVeg ? "VEG" : "NON-VEG"}
+                              </span>
+                            </div>
+
+                            {/* Bestseller ribbon */}
+                            {dish.isBestseller && (
+                              <span className="absolute bottom-2.5 left-2.5 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase shadow-xs">
+                                ⭐ BESTSELLER
+                              </span>
+                            )}
+
+                            {/* Favorite Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (toggleFavoriteDish) {
+                                  toggleFavoriteDish(dish.id || dish._id, triggerToast);
+                                } else if (handleToggleFavoriteDish) {
+                                  handleToggleFavoriteDish(dish.id || dish._id);
+                                } else {
+                                  triggerToast(`Added ${dish.name} to favorites!`);
+                                }
+                              }}
+                              className="absolute top-2.5 right-2.5 h-8 w-8 bg-white/80 hover:bg-white text-gray-700 rounded-full flex items-center justify-center backdrop-blur-xs transition shadow-xs z-10 cursor-pointer"
+                            >
+                              <Heart
+                                className={`h-4.5 w-4.5 ${isDishFav ? "text-red-500 fill-red-500" : "text-gray-500"
+                                  }`}
+                              />
+                            </button>
                           </div>
 
-                          {/* Bestseller ribbon */}
-                          {dish.isBestseller && (
-                            <span className="absolute bottom-2.5 left-2.5 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase shadow-xs">
-                              ⭐ BESTSELLER
-                            </span>
-                          )}
+                          {/* Content details */}
+                          <div className="p-3.5 space-y-1">
+                            <h4 className="font-display font-black text-sm sm:text-base text-gray-900 line-clamp-1 group-hover:text-brand-orange transition">
+                              {dish.name}
+                            </h4>
+                            <p className="text-xs text-gray-400 font-semibold truncate">
+                              {dish.restaurantName || "QuickaBite Partner"}
+                            </p>
+                          </div>
+                        </div>
 
-                          {/* Favorite Button */}
+                        {/* Footer: Price + Add Button */}
+                        <div className="px-3.5 pb-3.5 pt-1 flex items-center justify-between border-t border-gray-50">
+                          <span className="font-black text-base text-gray-900">
+                            ₹{dish.price}
+                          </span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (toggleFavoriteDish) {
-                                toggleFavoriteDish(dish.id || dish._id, triggerToast);
-                              } else if (handleToggleFavoriteDish) {
-                                handleToggleFavoriteDish(dish.id || dish._id);
-                              } else {
-                                triggerToast(`Added ${dish.name} to favorites!`);
+                              if (handleAddToCart) {
+                                const foundRes = dish.restaurantObj || activeRestaurantsList.find(
+                                  (r) => (r.name || "").toLowerCase() === (dish.restaurantName || "").toLowerCase()
+                                ) || activeRestaurantsList[0] || { id: "res-default", name: dish.restaurantName || "QuickaBite Partner" };
+
+                                const resId = foundRes.id || foundRes._id || "res-default";
+                                const resName = foundRes.name || dish.restaurantName || "QuickaBite Partner";
+
+                                handleAddToCart(resId, resName, dish, triggerToast);
                               }
                             }}
-                            className="absolute top-2.5 right-2.5 h-8 w-8 bg-white/80 hover:bg-white text-gray-700 rounded-full flex items-center justify-center backdrop-blur-xs transition shadow-xs z-10 cursor-pointer"
+                            className="bg-orange-50 text-brand-orange hover:bg-brand-orange hover:text-white border border-orange-200 text-xs font-black uppercase px-3.5 py-1.5 rounded-xl transition cursor-pointer active:scale-95 shadow-2xs"
                           >
-                            <Heart
-                              className={`h-4.5 w-4.5 ${
-                                isDishFav ? "text-red-500 fill-red-500" : "text-gray-500"
-                              }`}
-                            />
+                            ADD +
                           </button>
                         </div>
-
-                        {/* Content details */}
-                        <div className="p-3.5 space-y-1">
-                          <h4 className="font-display font-black text-sm sm:text-base text-gray-900 line-clamp-1 group-hover:text-brand-orange transition">
-                            {dish.name}
-                          </h4>
-                          <p className="text-xs text-gray-400 font-semibold truncate">
-                            {dish.restaurantName || "QuickaBite Partner"}
-                          </p>
-                        </div>
                       </div>
-
-                      {/* Footer: Price + Add Button */}
-                      <div className="px-3.5 pb-3.5 pt-1 flex items-center justify-between border-t border-gray-50">
-                        <span className="font-black text-base text-gray-900">
-                          ₹{dish.price}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (handleAddToCart) {
-                              const foundRes = dish.restaurantObj || activeRestaurantsList.find(
-                                (r) => (r.name || "").toLowerCase() === (dish.restaurantName || "").toLowerCase()
-                              ) || activeRestaurantsList[0] || { id: "res-default", name: dish.restaurantName || "QuickaBite Partner" };
-                              
-                              const resId = foundRes.id || foundRes._id || "res-default";
-                              const resName = foundRes.name || dish.restaurantName || "QuickaBite Partner";
-                              
-                              handleAddToCart(resId, resName, dish, triggerToast);
-                            }
-                          }}
-                          className="bg-orange-50 text-brand-orange hover:bg-brand-orange hover:text-white border border-orange-200 text-xs font-black uppercase px-3.5 py-1.5 rounded-xl transition cursor-pointer active:scale-95 shadow-2xs"
-                        >
-                          ADD +
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
               )}
 
               {/* Explore More Dishes Button */}
