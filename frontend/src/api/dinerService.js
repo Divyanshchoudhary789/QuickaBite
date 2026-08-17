@@ -45,7 +45,7 @@ export const dinerService = {
       if (params.lat && params.lng) {
         const uLat = Number(params.lat);
         const uLng = Number(params.lng);
-        list = list.map((res) => {
+        const mapped = list.map((res) => {
           let dist = null;
           if (res.location?.coordinates && Array.isArray(res.location.coordinates) && res.location.coordinates.length >= 2) {
             dist = calculateHaversineDistance(uLat, uLng, res.location.coordinates[1], res.location.coordinates[0]);
@@ -58,10 +58,12 @@ export const dinerService = {
             ...res,
             distance: dist !== null && !isNaN(dist) ? Number(dist.toFixed(1)) : res.distance,
           };
-        }).filter((res) => {
+        });
+        const nearby = mapped.filter((res) => {
           const radius = res.deliveryRadiusKm || 15;
           return res.distance === null || res.distance <= radius;
         });
+        list = nearby.length > 0 ? nearby : mapped;
       }
       const page = Number(params.page);
       const limit = Number(params.limit);
@@ -1403,9 +1405,14 @@ export const normalizeMenuItem = (item) => {
     return true;
   };
 
+  const resObj = typeof item.restaurant === "object" ? item.restaurant : null;
+  const resId = resObj?._id || resObj?.id || (typeof item.restaurant === "string" ? item.restaurant : "") || item.restaurantId || "";
+  const resName = resObj?.name || item.restaurantName || "";
+
   return {
-    id: item._id || item.id,
-    _id: item._id || item.id,
+    ...item,
+    id: String(item._id || item.id || ""),
+    _id: String(item._id || item.id || ""),
     name: item.name || "",
     price: Number(item.price) || 0,
     category: cat,
@@ -1415,6 +1422,9 @@ export const normalizeMenuItem = (item) => {
     isBestseller: item.isBestSeller !== undefined ? item.isBestSeller : (item.isBestseller !== undefined ? item.isBestseller : false),
     isAvailable: parseIsAvailable(item.isAvailable, item.isActive),
     brand: item.brand || item.brandId || null,
+    restaurant: item.restaurant || null,
+    restaurantId: String(resId),
+    restaurantName: String(resName),
   };
 };
 

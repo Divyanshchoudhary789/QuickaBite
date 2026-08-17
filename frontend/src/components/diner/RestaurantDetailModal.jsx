@@ -656,22 +656,54 @@ export default function RestaurantDetailModal({
     return set;
   }, [favoriteDishes]);
 
+  const [fetchedMenu, setFetchedMenu] = useState([]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const loadMenu = async () => {
+      if (!resId) return;
+      if (restaurant?.menu && Array.isArray(restaurant.menu) && restaurant.menu.length > 0) {
+        setFetchedMenu(restaurant.menu);
+        return;
+      }
+      try {
+        const full = await dinerService.getRestaurantById(resId);
+        if (isMounted && full?.menu && Array.isArray(full.menu) && full.menu.length > 0) {
+          setFetchedMenu(full.menu);
+          return;
+        }
+        const items = await dinerService.getMenuItems(null, { restaurant: resId });
+        if (isMounted && Array.isArray(items) && items.length > 0) {
+          setFetchedMenu(items);
+        }
+      } catch (err) {
+        console.error("Failed to load restaurant menu:", err);
+      }
+    };
+    loadMenu();
+    return () => { isMounted = false; };
+  }, [resId, restaurant?.menu]);
+
+  const activeMenu = (restaurant?.menu && Array.isArray(restaurant.menu) && restaurant.menu.length > 0)
+    ? restaurant.menu
+    : fetchedMenu;
+
   const menuCategories = React.useMemo(() => {
-    if (!restaurant?.menu) return ["all"];
+    if (!activeMenu || !activeMenu.length) return ["all"];
     return [
       "all",
-      ...Array.from(new Set(restaurant.menu.map((item) => item.category))),
+      ...Array.from(new Set(activeMenu.map((item) => item.category).filter(Boolean))),
     ];
-  }, [restaurant?.menu]);
+  }, [activeMenu]);
 
   const filteredMenu = React.useMemo(() => {
-    if (!restaurant?.menu) return [];
+    if (!activeMenu || !activeMenu.length) return [];
     const search = debouncedSearchTerm.toLowerCase();
-    return restaurant.menu.filter((item) => {
+    return activeMenu.filter((item) => {
       const matchesSearch =
         !search ||
         item.name.toLowerCase().includes(search) ||
-        item.description.toLowerCase().includes(search);
+        (item.description && item.description.toLowerCase().includes(search));
       const matchesVeg = vegOnly ? item.isVeg : true;
       const matchesBestseller = bestsellersOnly ? item.isBestseller : true;
       const matchesCategory =
@@ -681,7 +713,7 @@ export default function RestaurantDetailModal({
       return matchesSearch && matchesVeg && matchesBestseller && matchesCategory;
     });
   }, [
-    restaurant?.menu,
+    activeMenu,
     debouncedSearchTerm,
     vegOnly,
     bestsellersOnly,

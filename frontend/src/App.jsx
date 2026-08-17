@@ -415,16 +415,27 @@ function AppContent() {
             const allMenus = await dinerService.getMenuItems(userLocationCoords);
 
             const updatedList = list.map((res) => {
+              const resIdStr = String(res._id || res.id || "");
+              const resSlugStr = String(res.slug || "");
+              const resNameStr = String(res.name || "").toLowerCase().trim();
+
               const restaurantMenus = (allMenus || [])
                 .filter((item) => {
-                  const itemResId =
-                    item.restaurant?._id ||
-                    item.restaurant?.id ||
-                    item.restaurant;
+                  const itemResObj = typeof item.restaurant === "object" ? item.restaurant : null;
+                  const itemResId = String(
+                    itemResObj?._id ||
+                    itemResObj?.id ||
+                    item.restaurantId ||
+                    (typeof item.restaurant === "string" ? item.restaurant : "")
+                  );
+                  const itemResName = String(
+                    itemResObj?.name || item.restaurantName || ""
+                  ).toLowerCase().trim();
+
                   return (
-                    String(itemResId) === String(res._id) ||
-                    String(itemResId) === String(res.id) ||
-                    (res.slug && String(itemResId) === String(res.slug))
+                    (itemResId && resIdStr && itemResId === resIdStr) ||
+                    (itemResId && resSlugStr && itemResId === resSlugStr) ||
+                    (itemResName && resNameStr && itemResName === resNameStr)
                   );
                 });
               return {
@@ -863,6 +874,7 @@ function AppContent() {
               userRole !== "manager" && (
                 <HomePage
                   restaurants={restaurants}
+                  userLocationCoords={userLocationCoords}
                   currentLocation={currentLocation}
                   onRequestGpsAgain={handleRequestGpsAgain}
                   selectedCategory={selectedCategory}

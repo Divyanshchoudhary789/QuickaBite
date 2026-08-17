@@ -49,6 +49,7 @@ import { PiFilmReelFill, PiBowlFoodFill } from "react-icons/pi";
 
 export default function HomePage({
   restaurants,
+  userLocationCoords,
   currentLocation,
   onRequestGpsAgain,
   selectedCategory,
@@ -207,6 +208,24 @@ export default function HomePage({
         ? restaurants
         : [];
 
+  const [directMenuItems, setDirectMenuItems] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDirectMenuItems = async () => {
+      try {
+        const items = await dinerService.getMenuItems(userLocationCoords);
+        if (isMounted && Array.isArray(items) && items.length > 0) {
+          setDirectMenuItems(items);
+        }
+      } catch (err) {
+        console.error("Error fetching direct menu items for HomePage:", err);
+      }
+    };
+    fetchDirectMenuItems();
+    return () => { isMounted = false; };
+  }, [userLocationCoords?.lat, userLocationCoords?.lng]);
+
   useEffect(() => {
     let isMounted = true;
     const fetchReels = async () => {
@@ -220,6 +239,7 @@ export default function HomePage({
       }
     };
     fetchReels();
+    return () => { isMounted = false; };
   }, []);
 
 
@@ -890,15 +910,32 @@ export default function HomePage({
           activeRestaurantsList.forEach((r) => {
             if (r.menu && Array.isArray(r.menu)) {
               r.menu.forEach((item) => {
+                const resObj = typeof item.restaurant === "object" ? item.restaurant : r;
                 allDishes.push({
                   ...item,
-                  restaurantName: r.name,
-                  restaurantObj: r,
-                  rating: r.rating,
+                  restaurantName: item.restaurantName || resObj?.name || r.name,
+                  restaurantObj: r || resObj,
+                  rating: r.rating || 4.5,
                 });
               });
             }
           });
+
+          if (allDishes.length === 0 && directMenuItems.length > 0) {
+            directMenuItems.forEach((item) => {
+              const resObj = typeof item.restaurant === "object" ? item.restaurant : null;
+              const resId = resObj?._id || resObj?.id || item.restaurantId || item.restaurant;
+              const matchedRestro = activeRestaurantsList.find(
+                (r) => String(r._id || r.id) === String(resId)
+              );
+              allDishes.push({
+                ...item,
+                restaurantName: item.restaurantName || resObj?.name || matchedRestro?.name || "QuickaBite Partner",
+                restaurantObj: matchedRestro || resObj || { _id: resId, name: item.restaurantName || resObj?.name || "QuickaBite Partner" },
+                rating: matchedRestro?.rating || 4.5,
+              });
+            });
+          }
 
           // 20 Mock/Fallback Dishes for rich variety
           const MOCK_20_DISHES = [
@@ -930,8 +967,12 @@ export default function HomePage({
 
           return (
             <div className="space-y-6">
-              {/* Vertical Responsive Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+              {displayDishes.length === 0 ? (
+                <div className="bg-white p-8 rounded-2xl border border-gray-100 text-center text-xs text-gray-500 font-semibold">
+                  No dishes currently available for the selected category. Try selecting "All Cuisines" or clearing active filters.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                 {displayDishes.map((dish, i) => {
                   const isDishFav = (favoriteDishes || []).some(
                     (fId) => String(fId) === String(dish.id) || String(fId) === String(dish._id)
@@ -1042,6 +1083,7 @@ export default function HomePage({
                   );
                 })}
               </div>
+              )}
 
               {/* Explore More Dishes Button */}
               {poolDishes.length > initialLimit && (

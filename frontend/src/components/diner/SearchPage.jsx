@@ -399,7 +399,7 @@ export default function SearchPage({
               placeholder="Search dishes, cuisines, or restaurants..."
               value={searchQuery}
               onChange={(e) => {
-                handleSelectSearchQuery(e.target.value, false);
+                handleSelectSearchQuery(e.target.value, true);
                 setShowSuggestions(true);
               }}
               onFocus={() => {

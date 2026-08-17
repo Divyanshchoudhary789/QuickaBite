@@ -41,6 +41,7 @@ export default function AppRoutes({
 
   currentLocation,
   setCurrentLocation,
+  userLocationCoords,
 
   searchQuery,
   setSearchQuery,
@@ -114,6 +115,7 @@ export default function AppRoutes({
           element={
             <HomePage
               currentLocation={currentLocation}
+              userLocationCoords={userLocationCoords}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               isCuisineExpanded={isCuisineExpanded}
