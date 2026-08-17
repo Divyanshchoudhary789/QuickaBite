@@ -85,7 +85,6 @@ export default function MenuManagementTab({
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeCategory, setActiveCategory] = useState("all");
-  const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [editingItem, setEditingItem] = useState(null);
   const [targetRestaurantId, setTargetRestaurantId] = useState("");
   const [itemName, setItemName] = useState("");
@@ -98,12 +97,6 @@ export default function MenuManagementTab({
   const [itemIsVeg, setItemIsVeg] = useState(true);
   const [itemIsBestseller, setItemIsBestseller] = useState(false);
   const [itemIsAvailable, setItemIsAvailable] = useState(true);
-  const [bulkAction, setBulkAction] = useState("none");
-  const [bulkPriceType, setBulkPriceType] = useState("percent");
-  const [bulkPriceChange, setBulkPriceChange] = useState("");
-  const [bulkPriceDirection, setBulkPriceDirection] = useState("increase");
-  const [bulkTargetCategory, setBulkTargetCategory] = useState("");
-  const [bulkAvailabilityVal, setBulkAvailabilityVal] = useState("active");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadedMenus, setLoadedMenus] = useState(false);
   const [isLoadingMenus, setIsLoadingMenus] = useState(false);
@@ -350,25 +343,6 @@ export default function MenuManagementTab({
     }
     return null;
   };
-  const toggleRowSelection = (id) => {
-    setSelectedItemIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
-  };
-  const toggleSelectAll = () => {
-    const visibleIds = filteredItems.map((f) => f.item.id);
-    const allSelected = visibleIds.every((id) => selectedItemIds.includes(id));
-    if (allSelected) {
-      setSelectedItemIds((prev) =>
-        prev.filter((id) => !visibleIds.includes(id)),
-      );
-    } else {
-      setSelectedItemIds((prev) => {
-        const unique = /* @__PURE__ */ new Set([...prev, ...visibleIds]);
-        return Array.from(unique);
-      });
-    }
-  };
   const handleToggleAvailability = async (restaurantId, itemId, currentStatus) => {
     const nextStatus = !currentStatus;
 
@@ -400,6 +374,7 @@ export default function MenuManagementTab({
     setRestaurantsList(updated);
     saveRestaurantsToStorage(updated);
   };
+
   const handleOpenAddMode = () => {
     setEditingItem(null);
     const initialResId = selectedResId !== "all" ? selectedResId : restaurantsList[0]?.id || "";
@@ -418,6 +393,7 @@ export default function MenuManagementTab({
     setItemIsAvailable(true);
     setViewMode("editor");
   };
+
   const handleOpenEditMode = (restaurantId, item) => {
     setEditingItem(item);
     setTargetRestaurantId(restaurantId);
@@ -433,6 +409,7 @@ export default function MenuManagementTab({
     setItemIsAvailable(item.isAvailable !== false);
     setViewMode("editor");
   };
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!itemName || !itemPrice || !targetRestaurantId) {
@@ -632,156 +609,7 @@ export default function MenuManagementTab({
       });
       setRestaurantsList(updated);
       saveRestaurantsToStorage(updated);
-      setSelectedItemIds((prev) => prev.filter((id) => id !== itemId));
       triggerToast(`"${itemName2}" has been deleted from recipe book.`);
-    }
-  };
-  const handleExecuteBulkUpdate = async () => {
-    if (selectedItemIds.length === 0) {
-      triggerToast("No items selected.");
-      return;
-    }
-
-    if (import.meta.env.VITE_USE_MOCK === "false") {
-      try {
-        await Promise.all(selectedItemIds.map(async (id) => {
-          let targetDish = null;
-          for (const r of restaurantsList) {
-            const d = r.menu.find(x => x.id === id || x._id === id);
-            if (d) {
-              targetDish = d;
-              break;
-            }
-          }
-          if (!targetDish) return;
-
-          let updatedFields = {};
-          if (bulkAction === "price") {
-            const amount = Number(bulkPriceChange);
-            if (isNaN(amount) || amount <= 0) return;
-            let finalPrice = targetDish.price;
-            if (bulkPriceType === "percent") {
-              const delta = (targetDish.price * amount) / 100;
-              finalPrice =
-                bulkPriceDirection === "increase"
-                  ? targetDish.price + delta
-                  : Math.max(1, targetDish.price - delta);
-            } else {
-              finalPrice =
-                bulkPriceDirection === "increase"
-                  ? targetDish.price + amount
-                  : Math.max(1, targetDish.price - amount);
-            }
-            updatedFields = {
-              name: targetDish.name,
-              description: targetDish.description || "",
-              image: targetDish.image || "",
-              price: Math.round(finalPrice * 100) / 100,
-              category: targetDish.category,
-              isVegetarian: targetDish.isVeg !== undefined ? targetDish.isVeg : true,
-              isBestSeller: targetDish.isBestseller !== undefined ? targetDish.isBestseller : false,
-              isAvailable: targetDish.isAvailable !== false
-            };
-          } else if (bulkAction === "availability") {
-            const isTargetAvailable = bulkAvailabilityVal === "active";
-            if (targetDish.isAvailable !== isTargetAvailable) {
-              await adminService.toggleAvailability(id);
-              return;
-            }
-          } else if (bulkAction === "category") {
-            if (!bulkTargetCategory) return;
-            updatedFields = {
-              name: targetDish.name,
-              description: targetDish.description || "",
-              image: targetDish.image || "",
-              price: targetDish.price,
-              category: toSentenceCase(bulkTargetCategory),
-              isVegetarian: targetDish.isVeg !== undefined ? targetDish.isVeg : true,
-              isBestSeller: targetDish.isBestseller !== undefined ? targetDish.isBestseller : false,
-              isAvailable: targetDish.isAvailable !== false
-            };
-          }
-
-          if (Object.keys(updatedFields).length > 0) {
-            const dishDbId = targetDish._id || targetDish.id || id;
-            await adminService.updateMenu(dishDbId, updatedFields);
-          }
-        }));
-      } catch (error) {
-        console.error("Failed during bulk update:", error);
-        const errMsg = error.response?.data?.message || error.message || "Unknown error";
-        triggerToast(`Failed to apply bulk updates: ${errMsg}`);
-      }
-    }
-
-    const updated = restaurantsList.map((res) => {
-      const updatedMenu = res.menu.map((dish) => {
-        if (selectedItemIds.includes(dish.id) || selectedItemIds.includes(dish._id)) {
-          if (bulkAction === "price") {
-            const amount = Number(bulkPriceChange);
-            if (isNaN(amount) || amount <= 0) return dish;
-            let finalPrice = dish.price;
-            if (bulkPriceType === "percent") {
-              const delta = (dish.price * amount) / 100;
-              finalPrice =
-                bulkPriceDirection === "increase"
-                  ? dish.price + delta
-                  : Math.max(1, dish.price - delta);
-            } else {
-              finalPrice =
-                bulkPriceDirection === "increase"
-                  ? dish.price + amount
-                  : Math.max(1, dish.price - amount);
-            }
-            return { ...dish, price: Math.round(finalPrice * 100) / 100 };
-          }
-          if (bulkAction === "availability") {
-            return { ...dish, isAvailable: bulkAvailabilityVal === "active" };
-          }
-          if (bulkAction === "category") {
-            if (!bulkTargetCategory) return dish;
-            return { ...dish, category: toSentenceCase(bulkTargetCategory) };
-          }
-        }
-        return dish;
-      });
-      return { ...res, menu: updatedMenu };
-    });
-    setRestaurantsList(updated);
-    saveRestaurantsToStorage(updated);
-    triggerToast(`Bulk update executed on ${selectedItemIds.length} dishes.`);
-    setBulkAction("none");
-    setBulkPriceChange("");
-    setSelectedItemIds([]);
-  };
-  const handleBulkDelete = async () => {
-    if (selectedItemIds.length === 0) return;
-    if (
-      confirm(
-        `Are you sure you want to delete ${selectedItemIds.length} selected dishes?`,
-      )
-    ) {
-      if (import.meta.env.VITE_USE_MOCK === "false") {
-        try {
-          await Promise.all(selectedItemIds.map((id) => adminService.deleteMenu(id)));
-        } catch (error) {
-          console.error("Failed during bulk delete:", error);
-          triggerToast("Some items failed to delete from the server.");
-        }
-      }
-
-      const updated = restaurantsList.map((res) => {
-        return {
-          ...res,
-          menu: res.menu.filter((d) => !selectedItemIds.includes(d.id) && !selectedItemIds.includes(d._id)),
-        };
-      });
-      setRestaurantsList(updated);
-      saveRestaurantsToStorage(updated);
-      triggerToast(
-        `Bulk deleted ${selectedItemIds.length} items from recipes.`,
-      );
-      setSelectedItemIds([]);
     }
   };
   return (
@@ -949,203 +777,6 @@ export default function MenuManagementTab({
                 })}
               </div>
 
-              {/* BULK ACTIONS FLOATING COMPANION BAR */}
-              {selectedItemIds.length > 0 && (
-                <div className="bg-neutral-900 text-white p-4 rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 animate-slide-up border border-neutral-850 shadow-xl">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-5.5 w-5.5 items-center justify-center rounded-full bg-brand-orange text-[10px] font-black text-white">
-                      {selectedItemIds.length}
-                    </span>
-                    <div>
-                      <p className="text-xs font-black">
-                        Dishes Selected for Bulk Update
-                      </p>
-                      <p className="text-[10px] text-neutral-400 font-semibold">
-                        Transform multiple items simultaneously.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                    <div className="flex items-center gap-1.5 bg-neutral-800 p-1 rounded-xl">
-                      <button
-                        onClick={() =>
-                          setBulkAction(
-                            bulkAction === "price" ? "none" : "price",
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${bulkAction === "price" ? "bg-brand-orange text-white" : "text-neutral-300 hover:text-white"}`}
-                      >
-                        Adjust Price
-                      </button>
-                      <button
-                        onClick={() =>
-                          setBulkAction(
-                            bulkAction === "availability"
-                              ? "none"
-                              : "availability",
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${bulkAction === "availability" ? "bg-brand-orange text-white" : "text-neutral-300 hover:text-white"}`}
-                      >
-                        Set Stock
-                      </button>
-                      <button
-                        onClick={() => {
-                          const nextAction = bulkAction === "category" ? "none" : "category";
-                          setBulkAction(nextAction);
-                          if (nextAction === "category") {
-                            const defaultCat = menuCategories[0] || (CATEGORIES[1] ? CATEGORIES[1].name : "Indian");
-                            setBulkTargetCategory(defaultCat);
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${bulkAction === "category" ? "bg-brand-orange text-white" : "text-neutral-300 hover:text-white"}`}
-                      >
-                        Change Category
-                      </button>
-                    </div>
-
-                    {bulkAction === "price" && (
-                      <div className="flex items-center gap-2 bg-neutral-800 px-3 py-1.5 rounded-xl text-xs w-full sm:w-auto">
-                        <select
-                          value={bulkPriceDirection}
-                          onChange={(e) =>
-                            setBulkPriceDirection(e.target.value)
-                          }
-                          className="bg-transparent text-white font-bold outline-none cursor-pointer text-xs"
-                        >
-                          <option
-                            value="increase"
-                            className="bg-neutral-900 text-white"
-                          >
-                            Raise Price (+)
-                          </option>
-                          <option
-                            value="decrease"
-                            className="bg-neutral-900 text-white"
-                          >
-                            Cut Price (-)
-                          </option>
-                        </select>
-                        <input
-                          type="number"
-                          placeholder="Value..."
-                          value={bulkPriceChange}
-                          onChange={(e) => setBulkPriceChange(e.target.value)}
-                          className="bg-neutral-950 text-white rounded px-2 py-1 w-20 text-center font-bold text-xs"
-                        />
-                        <select
-                          value={bulkPriceType}
-                          onChange={(e) => setBulkPriceType(e.target.value)}
-                          className="bg-transparent text-white font-bold outline-none cursor-pointer text-xs"
-                        >
-                          <option
-                            value="percent"
-                            className="bg-neutral-900 text-white"
-                          >
-                            % Percent
-                          </option>
-                          <option
-                            value="flat"
-                            className="bg-neutral-900 text-white"
-                          >
-                            ₹ Cash
-                          </option>
-                        </select>
-                      </div>
-                    )}
-
-                    {bulkAction === "availability" && (
-                      <div className="flex items-center gap-2 bg-neutral-800 px-3 py-1.5 rounded-xl text-xs">
-                        <select
-                          value={bulkAvailabilityVal}
-                          onChange={(e) =>
-                            setBulkAvailabilityVal(e.target.value)
-                          }
-                          className="bg-transparent text-white font-bold outline-none cursor-pointer text-xs"
-                        >
-                          <option
-                            value="active"
-                            className="bg-neutral-900 text-white"
-                          >
-                            Mark Available (In Stock)
-                          </option>
-                          <option
-                            value="inactive"
-                            className="bg-neutral-900 text-white"
-                          >
-                            Mark Unavailable (Out of Stock)
-                          </option>
-                        </select>
-                      </div>
-                    )}
-
-                    {bulkAction === "category" && (
-                      <div className="flex items-center gap-2 bg-neutral-800 px-3 py-1.5 rounded-xl text-xs">
-                        <select
-                          value={bulkTargetCategory}
-                          onChange={(e) =>
-                            setBulkTargetCategory(e.target.value)
-                          }
-                          className="bg-transparent text-white font-bold outline-none cursor-pointer text-xs"
-                        >
-                          <option
-                            value=""
-                            disabled
-                            className="bg-neutral-900 text-white"
-                          >
-                            Select Category...
-                          </option>
-                          {Array.from(new Set([
-                            ...menuCategories,
-                            ...CATEGORIES.filter(c => c.id !== "all" && c.id !== "more").map(c => c.name)
-                          ])).map((c) => (
-                            <option
-                              key={c}
-                              value={c}
-                              className="bg-neutral-900 text-white"
-                            >
-                              {c}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {bulkAction !== "none" && (
-                      <button
-                        onClick={handleExecuteBulkUpdate}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center gap-1"
-                      >
-                        <Check className="h-4 w-4" />
-                        <span>Apply Bulk</span>
-                      </button>
-                    )}
-
-                    <div className="h-5 w-px bg-neutral-850 hidden lg:block" />
-
-                    <button
-                      onClick={handleBulkDelete}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>Bulk Delete</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setSelectedItemIds([]);
-                        setBulkAction("none");
-                      }}
-                      className="p-2 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-xl transition cursor-pointer"
-                      title="Clear Selection"
-                    >
-                      <X className="h-4.5 w-4.5" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* CATALOG TABLE */}
               <div
                 className="overflow-auto max-h-[480px] rounded-2xl border border-neutral-150 relative scrollbar-thin scrollbar-thumb-neutral-200 scrollbar-track-transparent"
@@ -1154,21 +785,6 @@ export default function MenuManagementTab({
                 <table className="min-w-full divide-y divide-neutral-150 text-left border-collapse">
                   <thead className="bg-neutral-50 text-[10px] font-black uppercase tracking-wider text-neutral-400 sticky top-0 z-10 shadow-[0_1px_0_0_rgba(229,229,229,1)]">
                     <tr>
-                      <th scope="col" className="w-12 px-6 py-4">
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={
-                              filteredItems.length > 0 &&
-                              filteredItems.every((f) =>
-                                selectedItemIds.includes(f.item.id),
-                              )
-                            }
-                            onChange={toggleSelectAll}
-                            className="h-4 w-4 rounded border-neutral-300 text-brand-orange focus:ring-brand-orange/20 cursor-pointer"
-                          />
-                        </div>
-                      </th>
                       <th scope="col" className="px-6 py-4">
                         Recipe / Dish Information
                       </th>
@@ -1197,9 +813,6 @@ export default function MenuManagementTab({
                     {showDishesSkeleton ? (
                       Array.from({ length: 5 }).map((_, idx) => (
                         <tr key={idx} className="animate-pulse">
-                          <td className="px-6 py-4 w-12">
-                            <div className="h-4 w-4 bg-neutral-200 rounded" />
-                          </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="h-12 w-12 bg-neutral-200 rounded-xl" />
@@ -1238,7 +851,7 @@ export default function MenuManagementTab({
                     ) : filteredItems.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={8}
+                          colSpan={7}
                           className="px-6 py-16 text-center text-neutral-400"
                         >
                           <div className="max-w-xs mx-auto space-y-2">
@@ -1256,24 +869,12 @@ export default function MenuManagementTab({
                     ) : (
                       filteredItems.map((entry) => {
                         const dish = entry.item;
-                        const isSelected = selectedItemIds.includes(dish.id);
                         const isAvailable = dish.isAvailable !== false;
                         return (
                           <tr
                             key={dish.id}
-                            className={`transition ${isSelected ? "bg-orange-50/15" : "hover:bg-neutral-50/50"}`}
+                            className="transition hover:bg-neutral-50/50"
                           >
-                            <td className="px-6 py-4">
-                              <div className="flex items-center">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => toggleRowSelection(dish.id)}
-                                  className="h-4 w-4 rounded border-neutral-300 text-brand-orange focus:ring-brand-orange/20 cursor-pointer"
-                                />
-                              </div>
-                            </td>
-
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <img
