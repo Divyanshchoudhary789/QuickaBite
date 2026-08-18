@@ -1129,16 +1129,21 @@ export default function AdminDashboard({
         id="admin-workspace-pane"
       >
         {/* MOBILE BACKDROP OVERLAY */}
-        {isSidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden cursor-pointer"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[90] lg:hidden cursor-pointer"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+          )}
+        </AnimatePresence>
 
         {/* ADMIN SIDEBAR SLIDER DRAWER */}
         <aside
-          className={`fixed lg:relative top-0 bottom-0 left-0 h-full z-30 bg-white text-neutral-900 border-r border-neutral-200/80 flex flex-col transition-all duration-300 ease-in-out shrink-0 shadow-lg ${
+          className={`fixed lg:sticky top-0 h-screen z-[100] bg-white text-neutral-900 border-r border-neutral-200/80 flex flex-col transition-all duration-300 ease-in-out shrink-0 shadow-2xl lg:shadow-none ${
             isSidebarOpen
               ? "w-72 translate-x-0"
               : "-translate-x-full lg:translate-x-0 lg:w-20"
@@ -1240,11 +1245,11 @@ export default function AdminDashboard({
                     }
                     setActiveSubTab(tab.id);
                     navigate(tab.route);
-                    if (window.innerWidth < 1024) {
+                    if (typeof window !== "undefined" && window.innerWidth < 1024) {
                       setIsSidebarOpen(false);
                     }
                   }}
-                  className={`w-full px-3.5 py-2.5 rounded-2xl font-bold text-xs transition-all duration-200 flex items-center gap-3 cursor-pointer ${
+                  className={`w-full px-3.5 py-3 rounded-2xl font-bold text-xs transition-all duration-200 flex items-center gap-3 cursor-pointer select-none active:scale-[0.98] ${
                     isSelected
                       ? "bg-brand-orange text-white shadow-md shadow-orange-500/20 font-black"
                       : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
@@ -1274,30 +1279,28 @@ export default function AdminDashboard({
         </aside>
 
         {/* MAIN WORKSPACE VIEWPORT AREA */}
-        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <main className="flex-1 min-w-0 overflow-y-auto p-3 sm:p-6 space-y-6">
           {/* WORKSPACE TOP CONTROL BAR */}
-          <div className="bg-white p-4 rounded-3xl shadow-xs border border-neutral-200 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              {!isSidebarOpen && (
-                <button
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="p-2.5 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 transition cursor-pointer flex items-center justify-center border border-neutral-200"
-                  title="Open Sidebar"
-                >
-                  <Menu className="w-5 h-5 text-neutral-900" />
-                </button>
-              )}
-              <div>
-                <h2 className="font-display font-black text-base text-neutral-900 tracking-tight flex items-center gap-2">
+          <div className="sticky top-2 z-20 bg-white p-3.5 sm:p-4 rounded-3xl shadow-xs border border-neutral-200 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2.5 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 transition cursor-pointer flex items-center justify-center border border-neutral-200 shrink-0"
+                title="Toggle Sidebar Menu"
+              >
+                <Menu className="w-5 h-5 text-neutral-900" />
+              </button>
+              <div className="min-w-0">
+                <h2 className="font-display font-black text-sm sm:text-base text-neutral-900 tracking-tight flex items-center gap-2 truncate">
                   <span>QuickaBite Administration</span>
                 </h2>
-                <p className="text-[11px] text-neutral-500 font-medium">
+                <p className="text-[10px] sm:text-[11px] text-neutral-500 font-medium truncate">
                   Active View: <span className="font-bold text-brand-orange uppercase">{activeSubTab}</span>
                 </p>
               </div>
             </div>
 
-            <div className="hidden sm:flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-3 shrink-0">
               <div className="text-right">
                 <span className="text-xs font-bold text-neutral-900 block">{adminName}</span>
                 <span className="text-[10px] text-neutral-400 font-mono">{adminEmail}</span>

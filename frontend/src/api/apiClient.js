@@ -32,10 +32,6 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error(
-      `[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} (${error.response?.status}):`,
-      error.response?.data || error.message
-    );
     return Promise.reject(error);
   }
 );
