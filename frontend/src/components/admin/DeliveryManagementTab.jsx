@@ -33,16 +33,16 @@ export default function DeliveryManagementTab({ orders, setOrders, triggerToast 
     return { ...o, deliveryStatus: currentDeliveryStatus };
   });
   const filteredDeliveries = deliveriesWithStatus.filter((d) => {
-    const matchesSearch = d.id.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || d.driverName && d.driverName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || d.restaurantName.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+    const matchesSearch = String(d.id || d._id || d.orderNumber).toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || d.driverName && d.driverName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || d.restaurantName.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
     const matchesPartner = partnerFilter === "all" || d.deliveryPartner === partnerFilter;
     const matchesStatus = statusFilter === "all" || d.deliveryStatus === statusFilter;
     return matchesSearch && matchesPartner && matchesStatus;
   });
-  const currentOrderId = selectedOrderId || (filteredDeliveries.length > 0 ? filteredDeliveries[0].id : null);
-  const selectedDelivery = deliveriesWithStatus.find((d) => d.id === currentOrderId);
+  const currentOrderId = selectedOrderId || (filteredDeliveries.length > 0 ? (filteredDeliveries[0].id || filteredDeliveries[0]._id || filteredDeliveries[0].orderNumber) : null);
+  const selectedDelivery = deliveriesWithStatus.find((d) => (d.id || d._id || d.orderNumber) === currentOrderId);
   const handleTransitionStatus = (orderId, nextDeliveryStatus) => {
     setOrders((prev) => prev.map((o) => {
-      if (o.id === orderId) {
+      if (o.id === orderId || o._id === orderId || o.orderNumber === orderId) {
         let nextMainStatus = o.status;
         if (nextDeliveryStatus === "Out For Delivery") {
           nextMainStatus = "out_for_delivery";
@@ -171,16 +171,17 @@ export default function DeliveryManagementTab({ orders, setOrders, triggerToast 
                 <p className="text-xs font-bold">No active deliveries match filters.</p>
                 <p className="text-[10px] uppercase">Ready to dispatch new ones from the Orders tab!</p>
               </div> : filteredDeliveries.map((item) => {
-    const isSelected = item.id === currentOrderId;
+    const itemId = item.id || item._id || item.orderNumber;
+    const isSelected = itemId === currentOrderId;
     let statusBadge = "bg-neutral-100 text-neutral-600";
     if (item.deliveryStatus === "Assigned") statusBadge = "bg-sky-50 text-sky-700 border-sky-100";
     if (item.deliveryStatus === "Picked Up") statusBadge = "bg-amber-50 text-amber-700 border-amber-100";
     if (item.deliveryStatus === "Out For Delivery") statusBadge = "bg-indigo-50 text-indigo-700 border-indigo-100";
     if (item.deliveryStatus === "Delivered") statusBadge = "bg-emerald-50 text-emerald-700 border-emerald-100";
     return <button
-      key={item.id}
+      key={itemId}
       onClick={() => {
-        setSelectedOrderId(item.id);
+        setSelectedOrderId(itemId);
       }}
       className={`w-full text-left p-4 rounded-2xl border-2 transition cursor-pointer flex items-center justify-between gap-3 ${isSelected ? "bg-neutral-950 border-neutral-950 text-white shadow-md" : "bg-neutral-50 hover:bg-neutral-100 border-neutral-100 text-neutral-800"}`}
     >
@@ -193,7 +194,7 @@ export default function DeliveryManagementTab({ orders, setOrders, triggerToast 
                           {item.deliveryPartner || "Third Party"}
                         </span>
                       </div>
-                      <p className="font-black text-xs truncate">Order #{item.id.slice(-6).toUpperCase()}</p>
+                      <p className="font-black text-xs truncate">Order #{String(itemId).slice(-6).toUpperCase()}</p>
                       <p className={`text-[10px] font-bold truncate ${isSelected ? "text-neutral-300" : "text-neutral-500"}`}>
                         {item.restaurantName} • {item.driverName || "No Rider"}
                       </p>
@@ -218,7 +219,7 @@ export default function DeliveryManagementTab({ orders, setOrders, triggerToast 
                     <span className="text-[10px] font-black uppercase bg-neutral-950 text-white px-2.5 py-1 rounded-md">
                       {selectedDelivery.deliveryPartner || "Standard"} Integration
                     </span>
-                    <span className="font-mono text-xs font-black text-neutral-400">#{selectedDelivery.id}</span>
+                    <span className="font-mono text-xs font-black text-neutral-400">#{selectedDelivery.id || selectedDelivery._id || selectedDelivery.orderNumber}</span>
                   </div>
                   <h3 className="text-base font-black uppercase mt-1 text-neutral-900">
                     Route: {selectedDelivery.restaurantName} → Client Destination

@@ -112,9 +112,9 @@ export default function OrderManagementTab({
     setIsLoadingDispatch(true);
     try {
       let apiSortParam = sortBy;
-      if (sortBy === "total_high") apiSortParam = "high";
-      if (sortBy === "total_low") apiSortParam = "low";
-      
+      if (sortBy === "total_high" || sortBy === "highest" || sortBy === "high") apiSortParam = "high";
+      if (sortBy === "total_low" || sortBy === "lowest" || sortBy === "low") apiSortParam = "low";
+
       const queryParams = {
         page: currentPage,
         limit: limit,
@@ -127,34 +127,43 @@ export default function OrderManagementTab({
       if (statusFilter && statusFilter !== "all") {
         queryParams.status = statusFilter;
       }
-      
-      const res = await adminService.getDispatchBoard(queryParams).catch(() => ({ orders: [], stats: null, pagination: null }));
-              
-        if (res && typeof res === "object" && !Array.isArray(res)) {
-          setDispatchOrders(Array.isArray(res.orders) ? res.orders : []);
-          if (res.pagination) setPaginationInfo(res.pagination);
-          if (res.stats) setDispatchStats(res.stats);
-        } else {
-          setDispatchOrders(Array.isArray(res) ? res : []);
-        }
-      } catch (e) {
-        console.error("Failed to load dispatch board via API:", e);
-      } finally {
-        setIsLoadingDispatch(false);
+      if (debouncedSearchTerm && debouncedSearchTerm.trim()) {
+        queryParams.search = debouncedSearchTerm.trim();
       }
-    };
+
+      const res = await adminService.getDispatchBoard(queryParams).catch(() => ({ orders: [], stats: null, pagination: null }));
+
+      if (res && typeof res === "object" && !Array.isArray(res)) {
+        setDispatchOrders(Array.isArray(res.orders) ? res.orders : []);
+        if (res.pagination) setPaginationInfo(res.pagination);
+        if (res.stats) setDispatchStats(res.stats);
+      } else {
+        setDispatchOrders(Array.isArray(res) ? res : []);
+      }
+    } catch (e) {
+      console.error("Failed to load dispatch board via API:", e);
+    } finally {
+      setIsLoadingDispatch(false);
+    }
+  };
 
   useEffect(() => {
     loadDispatchBoard();
-  }, [currentPage, limit, sortBy, restaurantFilter, statusFilter]);
+  }, [currentPage, limit, sortBy, restaurantFilter, statusFilter, debouncedSearchTerm]);
 
   const activeOrdersList = dispatchOrders.length > 0 ? dispatchOrders : orders;
   const activeRestaurants = adminRestaurants.length > 0 ? adminRestaurants : (restaurantsList || []);
   const normalizeStatus = (status) => {
-    if (status === "confirmed") return "received";
-    if (status === "ready-for-pickup" || status === "ready_for_pickup" || status === "ready_for_dispatch") return "ready";
-    if (status === "out_for_delivery") return "dispatched";
-    return status;
+    if (!status) return "received";
+    const s = String(status).toLowerCase().trim();
+    if (s === "confirmed" || s === "placed" || s === "pending" || s === "received" || s === "paid") return "received";
+    if (s === "accepted") return "accepted";
+    if (s === "preparing" || s === "in_kitchen" || s === "cooking") return "preparing";
+    if (s === "ready" || s === "ready-for-pickup" || s === "ready_for_pickup" || s === "ready_for_dispatch" || s === "packed") return "ready";
+    if (s === "dispatched" || s === "out_for_delivery" || s === "out-for-delivery" || s === "out for delivery" || s === "delivering" || s === "in_transit") return "dispatched";
+    if (s === "completed" || s === "delivered") return "delivered";
+    if (s === "cancelled" || s === "rejected" || s === "failed") return "rejected";
+    return s;
   };
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -242,7 +251,7 @@ export default function OrderManagementTab({
 
     if (typeof setOrders === "function") setOrders(updater);
     setDispatchOrders(updater);
-    if (selectedOrder && (selectedOrder.id === orderId || selectedOrder._id === orderId || selectedOrder.orderId === orderId)) {
+    if (selectedOrder && (selectedOrder.id === orderId || selectedOrder._id === orderId || selectedOrder.orderId === orderId || selectedOrder.orderNumber === orderId)) {
       setSelectedOrder((prev) => prev ? { ...prev, status: newStatus, orderStatus: newStatus } : null);
     }
     triggerToast(`Order #${String(targetId).slice(-6).toUpperCase()} status updated to "${newStatus.toUpperCase()}"`);
@@ -289,7 +298,7 @@ export default function OrderManagementTab({
 
     triggerToast(`Assigned courier ${name} to Order #${String(targetId).slice(-6).toUpperCase()}`);
     setAssigningOrder(null);
-    if (selectedOrder && (selectedOrder.id === orderId || selectedOrder._id === orderId)) {
+    if (selectedOrder && (selectedOrder.id === orderId || selectedOrder._id === orderId || selectedOrder.orderNumber === orderId)) {
       setSelectedOrder((prev) => prev ? {
         ...prev,
         status: "dispatched",
@@ -332,7 +341,7 @@ export default function OrderManagementTab({
     }
 
     triggerToast(`Assigned courier ${riderName} to Order #${String(targetId).slice(-6).toUpperCase()}`);
-    if (selectedOrder && (selectedOrder.id === orderId || selectedOrder._id === orderId)) {
+    if (selectedOrder && (selectedOrder.id === orderId || selectedOrder._id === orderId || selectedOrder.orderNumber === orderId)) {
       setSelectedOrder((prev) => prev ? {
         ...prev,
         status: "dispatched",
@@ -379,13 +388,14 @@ export default function OrderManagementTab({
   };
 
   const filteredOrders = activeOrdersList.filter((o) => {
-    const normalized = normalizeStatus(o.status);
+    const normalized = normalizeStatus(o.status || o.orderStatus);
     const matchesStatus = statusFilter === "all" || normalized === statusFilter;
     const matchesRestaurant =
       restaurantFilter === "all" ||
       String(o.restaurantId) === String(restaurantFilter) ||
       String(o.restaurant) === String(restaurantFilter) ||
       String(o.restaurant?._id || o.restaurant?.id) === String(restaurantFilter) ||
+      (o.restaurantName && String(o.restaurantName).toLowerCase() === String(restaurantFilter).toLowerCase()) ||
       (o.restaurantName && activeRestaurants.some((r) => (String(r.id) === String(restaurantFilter) || String(r._id) === String(restaurantFilter)) && r.name?.toLowerCase() === o.restaurantName?.toLowerCase())) ||
       (o.restaurantName && String(o.restaurantName).toLowerCase().includes(String(restaurantFilter).toLowerCase()));
 
@@ -393,9 +403,14 @@ export default function OrderManagementTab({
     const matchesSearch =
       !searchLower ||
       (o.id && String(o.id).toLowerCase().includes(searchLower)) ||
+      (o._id && String(o._id).toLowerCase().includes(searchLower)) ||
+      (o.orderId && String(o.orderId).toLowerCase().includes(searchLower)) ||
       (o.orderNumber && String(o.orderNumber).toLowerCase().includes(searchLower)) ||
       (o.restaurantName && o.restaurantName.toLowerCase().includes(searchLower)) ||
       (o.customerName && o.customerName.toLowerCase().includes(searchLower)) ||
+      (o.contactName && o.contactName.toLowerCase().includes(searchLower)) ||
+      (o.paymentMethod && o.paymentMethod.toLowerCase().includes(searchLower)) ||
+      (o.paymentStatus && o.paymentStatus.toLowerCase().includes(searchLower)) ||
       o.items?.some((item) => getItemName(item).toLowerCase().includes(searchLower)) ||
       (o.driverName && o.driverName.toLowerCase().includes(searchLower));
 
@@ -407,11 +422,11 @@ export default function OrderManagementTab({
     if (sortBy === "oldest") {
       return (a.timestamp || a.createdAt || "").localeCompare(b.timestamp || b.createdAt || "");
     }
-    if (sortBy === "total_high") {
-      return (b.total || 0) - (a.total || 0);
+    if (sortBy === "total_high" || sortBy === "highest" || sortBy === "high") {
+      return (b.total || b.totalAmount || 0) - (a.total || a.totalAmount || 0);
     }
-    if (sortBy === "total_low") {
-      return (a.total || 0) - (b.total || 0);
+    if (sortBy === "total_low" || sortBy === "lowest" || sortBy === "low") {
+      return (a.total || a.totalAmount || 0) - (b.total || b.totalAmount || 0);
     }
     return 0;
   });
@@ -604,19 +619,24 @@ export default function OrderManagementTab({
       {["all", "received", "accepted", "preparing", "ready", "dispatched", "delivered", "rejected"].map((status) => {
         const count = getCountByStatus(status);
         const meta = getStatusRibbonMeta(status);
+        const isSelected = status === "all";
         return (
           <div
             key={status}
-            className="p-3.5 bg-white border border-neutral-200 rounded-2xl flex flex-col justify-between h-20 shadow-xs select-none"
+            className={`p-3.5 border rounded-2xl flex flex-col justify-between h-20 shadow-xs transition text-left ${
+              isSelected
+                ? "bg-black text-white border-black shadow-md scale-[1.02]"
+                : "bg-white text-black border-neutral-200"
+            }`}
           >
-            <span className="text-[10px] font-black uppercase text-neutral-400 tracking-wider block">
+            <span className={`text-[10px] font-black uppercase tracking-wider block ${isSelected ? "text-neutral-300" : "text-neutral-400"}`}>
               {status}
             </span>
             <div>
-              <span className="block text-xl font-black text-black font-mono leading-none">
+              <span className={`block text-xl font-black font-mono leading-none ${isSelected ? "text-white" : "text-black"}`}>
                 {count}
               </span>
-              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider block mt-1 truncate">
+              <span className={`text-[9px] font-bold uppercase tracking-wider block mt-1 truncate ${isSelected ? "text-neutral-200" : "text-neutral-500"}`}>
                 {meta.label}
               </span>
             </div>
@@ -631,7 +651,7 @@ export default function OrderManagementTab({
         <div className="relative w-full md:w-80">
           <input
             type="text"
-            placeholder="Search Order ID, customer, dish..."
+            placeholder="Search Order Number, customer, restro"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-bold text-neutral-800 placeholder-neutral-400 outline-none focus:border-black focus:bg-white transition"
@@ -721,7 +741,7 @@ export default function OrderManagementTab({
         const nextStatus = currentIdx >= 0 && currentIdx < statusSequence.length - 1 ? statusSequence[currentIdx + 1] : null;
         return <motion.div
           layout
-          key={o._id || o.id}
+          key={o._id || o.id || o.orderNumber}
           className="bg-white border border-neutral-150 rounded-3xl p-5 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-neutral-300 transition-all duration-300"
         >
           <div className="space-y-4">
@@ -730,9 +750,9 @@ export default function OrderManagementTab({
             <div className="flex justify-between items-start gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <h4 className="font-black text-neutral-900 text-xs font-mono truncate" title={o._id || o.id}>Order #{o._id || o.id}</h4>
+                  <h4 className="font-black text-neutral-900 text-xs font-mono truncate" title={o.orderNumber || o.id || o.orderNumber}>Order {o.orderNumber || o.id || o.orderNumber}</h4>
                   <button
-                    onClick={() => copyToClipboard(o._id || o.id)}
+                    onClick={() => copyToClipboard(o.orderNumber || o.id || o.orderNumber)}
                     className="px-1.5 py-0.5 hover:bg-neutral-100 rounded text-[9px] font-bold text-neutral-500 transition shrink-0 border border-neutral-200"
                     title="Copy Full Order ID"
                   >
@@ -812,7 +832,7 @@ export default function OrderManagementTab({
             </div> : currentStatusNorm === "dispatched" ? <div className="space-y-1.5">
               <label className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block">Assign Courier Agent</label>
               <select
-                onChange={(e) => handleAssignCourierToOrder(o._id || o.id, e.target.value)}
+                onChange={(e) => handleAssignCourierToOrder(o._id || o.id || o.orderNumber, e.target.value)}
                 defaultValue=""
                 className="w-full bg-neutral-50 border border-neutral-300 text-neutral-800 rounded-xl p-2 text-[10px] font-bold outline-none focus:border-black cursor-pointer"
               >
@@ -830,7 +850,7 @@ export default function OrderManagementTab({
             <div className="flex items-center gap-2">
               {nextStatus ? (
                 <button
-                  onClick={() => handleUpdateStatus(o._id || o.id, nextStatus)}
+                  onClick={() => handleUpdateStatus(o._id || o.id || o.orderNumber, nextStatus)}
                   className="flex-1 py-2.5 bg-white hover:bg-neutral-50 text-black border border-neutral-300 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center transition cursor-pointer shadow-xs"
                 >
                   <span>Mark: {nextStatus.toUpperCase()}</span>
@@ -843,7 +863,7 @@ export default function OrderManagementTab({
 
               {currentStatusNorm !== "rejected" && currentStatusNorm !== "delivered" && (
                 <button
-                  onClick={() => handleUpdateStatus(o._id || o.id, "rejected")}
+                  onClick={() => handleUpdateStatus(o._id || o.id || o.orderNumber, "rejected")}
                   className="py-2.5 px-3 bg-white hover:bg-neutral-100 border-2 border-black text-black rounded-xl text-[10px] font-black uppercase tracking-wider transition cursor-pointer"
                   title="Reject / Cancel Order"
                 >
@@ -856,7 +876,7 @@ export default function OrderManagementTab({
               <span className="text-[9px] font-black uppercase text-neutral-400 shrink-0">State:</span>
               <select
                 value={currentStatusNorm}
-                onChange={(e) => handleUpdateStatus(o._id || o.id, e.target.value)}
+                onChange={(e) => handleUpdateStatus(o._id || o.id || o.orderNumber, e.target.value)}
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1 text-[10px] font-bold text-neutral-700 outline-none focus:border-brand-orange cursor-pointer"
               >
                 <option value="received">Received (Pending)</option>
@@ -898,8 +918,8 @@ export default function OrderManagementTab({
                 key={pg}
                 onClick={() => setCurrentPage(pg)}
                 className={`w-8 h-8 rounded-xl text-xs font-black transition cursor-pointer ${pg === currentPage
-                    ? "bg-black text-white shadow-xs"
-                    : "bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border border-neutral-200"
+                  ? "bg-black text-white shadow-xs"
+                  : "bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border border-neutral-200"
                   }`}
               >
                 {pg}
@@ -1102,7 +1122,7 @@ export default function OrderManagementTab({
                             Select Available Rider Agent
                           </label>
                           <select
-                            onChange={(e) => handleAssignCourierToOrder(selectedOrder._id || selectedOrder.id, e.target.value)}
+                            onChange={(e) => handleAssignCourierToOrder(selectedOrder._id || selectedOrder.id || selectedOrder.orderNumber, e.target.value)}
                             defaultValue=""
                             className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs font-bold text-neutral-800 outline-none focus:border-brand-orange"
                           >
@@ -1133,7 +1153,7 @@ export default function OrderManagementTab({
                     {nextStatus && (
                       <button
                         onClick={() => {
-                          handleUpdateStatus(selectedOrder._id || selectedOrder.id, nextStatus);
+                          handleUpdateStatus(selectedOrder._id || selectedOrder.id || selectedOrder.orderNumber, nextStatus);
                           setSelectedOrder((prev) => prev ? { ...prev, status: nextStatus } : null);
                         }}
                         className="flex-1 py-3 bg-white hover:bg-neutral-50 text-black border border-neutral-300 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center transition cursor-pointer shadow-xs"
@@ -1144,7 +1164,7 @@ export default function OrderManagementTab({
                     {currentNorm !== "rejected" && currentNorm !== "delivered" && (
                       <button
                         onClick={() => {
-                          handleUpdateStatus(selectedOrder._id || selectedOrder.id, "rejected");
+                          handleUpdateStatus(selectedOrder._id || selectedOrder.id || selectedOrder.orderNumber, "rejected");
                           setSelectedOrder((prev) => prev ? { ...prev, status: "rejected" } : null);
                         }}
                         className="py-3 px-4 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer"
@@ -1199,7 +1219,7 @@ export default function OrderManagementTab({
 
             {/* Modal Content Body */}
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              
+
               {/* Fleet Rider / Partner Selector */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-neutral-400 block">
@@ -1334,7 +1354,7 @@ export default function OrderManagementTab({
                 type="button"
                 onClick={() => {
                   commitDeliveryAssignment(
-                    assigningOrder._id || assigningOrder.id,
+                    assigningOrder._id || assigningOrder.id || assigningOrder.orderNumber,
                     assignmentPartner,
                     driverName,
                     driverPhone,
