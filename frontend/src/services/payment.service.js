@@ -1,4 +1,5 @@
 import apiClient from "../api/apiClient";
+import { dinerService } from "../api/dinerService";
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 
@@ -79,31 +80,7 @@ export const paymentService = {
    * Calls POST /api/v1/payments/razorpay/verify
    */
   async verifyPayment(verificationData) {
-    if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      return {
-        success: true,
-        data: {
-          success: true,
-          order: {
-            _id: verificationData.orderId,
-            id: verificationData.orderId,
-            paymentStatus: "paid",
-            orderStatus: "received",
-            razorpayOrderId: verificationData.razorpayOrderId,
-            razorpayPaymentId: verificationData.razorpayPaymentId,
-          },
-        },
-      };
-    } else {
-      const response = await apiClient.post("/v1/payments/razorpay/verify", {
-        orderId: verificationData.orderId,
-        razorpayOrderId: verificationData.razorpayOrderId,
-        razorpayPaymentId: verificationData.razorpayPaymentId,
-        razorpaySignature: verificationData.razorpaySignature,
-      });
-      return response.data;
-    }
+    return dinerService.verifyRazorpayPayment(verificationData);
   },
 
   /**

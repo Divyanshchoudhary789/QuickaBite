@@ -1505,7 +1505,7 @@ export default function KitchenOperationsBoard({
                             type="text"
                             value={driverPhone}
                             onChange={(e) => setDriverPhone(e.target.value)}
-                            placeholder="e.g. +91 98765 43210"
+                            placeholder="e.g. 9876543210"
                             className="w-full bg-neutral-50 border border-neutral-200 hover:border-neutral-300 rounded-xl pl-9 pr-3 py-2.5 text-xs font-bold text-neutral-800 outline-none focus:border-neutral-900 focus:bg-white transition"
                           />
                         </div>

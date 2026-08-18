@@ -114,24 +114,54 @@ export default function ReportingDashboard({ orders = [], triggerToast }) {
   const safeLiveOrdersList = Array.isArray(orders) ? orders : [];
 
   const computedTotalRevenue = safeLiveOrdersList.reduce((sum, o) => sum + Number(o.total || 0), 0);
-  const totalRevenue = kpis?.calculatedRevenue ?? computedTotalRevenue;
+  const totalRevenue = kpis?.calculatedRevenue ?? biData?.totalRevenue ?? computedTotalRevenue;
 
   const computedUnitsDispatched = safeLiveOrdersList.reduce(
     (sum, o) => sum + (Array.isArray(o.items) ? o.items.reduce((s, i) => s + Number(i.quantity || 1), 0) : 1),
     0
   );
-  const totalItemsSold = kpis?.totalUnitsDispatched ?? computedUnitsDispatched;
+  const totalItemsSold = kpis?.totalUnitsDispatched ?? biData?.totalUnitsDispatched ?? computedUnitsDispatched;
 
-  const uniqueCustomersCount = kpis?.uniqueActiveCustomers ?? 0;
-  const averageOrderValue = kpis?.averageBasketSize ?? (safeLiveOrdersList.length > 0 ? totalRevenue / safeLiveOrdersList.length : 0);
+  const uniqueCustomersCount = kpis?.uniqueActiveCustomers ?? biData?.uniqueActiveCustomers ?? 0;
+  const averageOrderValue = kpis?.averageBasketSize ?? biData?.averageBasketSize ?? (safeLiveOrdersList.length > 0 ? totalRevenue / safeLiveOrdersList.length : 0);
 
-  // Strictly real data from API (no hardcoded/dummy fallbacks)
-  const dailySalesData = biData?.dailySales || [];
-  const weeklySalesData = biData?.weeklyRevenue || [];
-  const brandPerformanceData = biData?.restaurantRevenueContribution || [];
-  const customerGrowthData = biData?.customerGrowth || [];
-  const topProducts = biData?.topPerformingMenuItems || [];
-  const topCustomers = biData?.highestSpendingCustomers || [];
+  // Strictly real data from API (mapped to support all backend schemas)
+  const dailySalesData = (biData?.dailySales || []).map((d) => ({
+    date: d.date || d.day || "Date",
+    sales: Number(d.sales ?? d.revenue ?? 0),
+  }));
+
+  const weeklySalesData = (biData?.weeklyRevenue || []).map((w) => ({
+    week: w.week || w.date || "Week",
+    sales: Number(w.revenue ?? w.sales ?? 0),
+    revenue: Number(w.revenue ?? w.sales ?? 0),
+  }));
+
+  const brandPerformanceData = (biData?.restaurantRevenueContribution || biData?.categoryBreakdown || []).map((b) => ({
+    name: b.restaurantName || b.category || b.name || "Restaurant",
+    value: Number(b.revenue ?? b.value ?? 0),
+    salesCount: Number(b.unitsSold ?? b.salesCount ?? b.sales ?? 0),
+  }));
+
+  const customerGrowthData = (biData?.customerGrowth || []).map((c) => ({
+    date: c.date || "Date",
+    activeCustomers: Number(c.activeCustomers ?? 0),
+    newCustomers: Number(c.newCustomers ?? 0),
+  }));
+
+  const topProducts = (biData?.topPerformingMenuItems || biData?.topSellingItems || []).map((p) => ({
+    name: p.menuName || p.name || p.itemName || "Item",
+    brand: p.category || p.brand || p.restaurantName || "Category",
+    qty: Number(p.quantitySold ?? p.qty ?? p.salesCount ?? 0),
+    revenue: Number(p.revenue ?? p.total ?? 0),
+  }));
+
+  const topCustomers = (biData?.highestSpendingCustomers || []).map((c) => ({
+    customer: c.customerName || c.customer || c.name || "Customer",
+    email: c.email || "N/A",
+    ordersCount: Number(c.orders ?? c.ordersCount ?? 0),
+    totalSpent: Number(c.totalSpent ?? c.revenue ?? 0),
+  }));
 
   const COLORS = ["#0B8A3E", "#F43F5E", "#10B981", "#3B82F6", "#8B5CF6"];
 

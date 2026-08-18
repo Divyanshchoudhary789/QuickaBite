@@ -20,12 +20,57 @@ export default function OrderSuccessPage({ triggerToast, setActiveOrder }) {
     async function verifyAndLoadOrder() {
       setLoading(true);
 
+      // Parse payment parameters from URL query string (e.g. after UPI app redirect)
+      const searchParams = new URLSearchParams(window.location.search);
+      const rzpPaymentId =
+        searchParams.get("razorpay_payment_id") ||
+        searchParams.get("payment_id") ||
+        localStorage.getItem("temp_rzp_payment_id") ||
+        "";
+      const rzpOrderId =
+        searchParams.get("razorpay_order_id") ||
+        searchParams.get("order_id") ||
+        localStorage.getItem("temp_rzp_order_id") ||
+        "";
+      const rzpSignature =
+        searchParams.get("razorpay_signature") ||
+        searchParams.get("signature") ||
+        localStorage.getItem("temp_rzp_signature") ||
+        "";
+
+      // Call POST /v1/payments/razorpay/verify endpoint for server-side verification
+      if (orderId) {
+        try {
+          console.log("--> [OrderSuccessPage] Calling dinerService.verifyRazorpayPayment for order:", orderId, "rzpPaymentId:", rzpPaymentId);
+          const verifyRes = await dinerService.verifyRazorpayPayment({
+            orderId: orderId,
+            razorpayOrderId: rzpOrderId,
+            razorpayPaymentId: rzpPaymentId,
+            razorpaySignature: rzpSignature,
+          });
+          console.log("--> [OrderSuccessPage] verifyRes result received:", verifyRes);
+
+          if (verifyRes?.success || verifyRes?.data?.success || verifyRes?.order) {
+            setPaymentVerified(true);
+            if (typeof triggerToast === "function") {
+              triggerToast("✓ Payment verified successfully!");
+            }
+          }
+        } catch (vErr) {
+          console.warn("[OrderSuccessPage] Notice: /v1/payments/razorpay/verify notice:", vErr?.message || vErr);
+        } finally {
+          localStorage.removeItem("temp_rzp_payment_id");
+          localStorage.removeItem("temp_rzp_order_id");
+          localStorage.removeItem("temp_rzp_signature");
+        }
+      }
+
       // Clear cart & pending order ID
       clearCart?.();
       localStorage.removeItem("pending_razorpay_order_id");
 
       try {
-        // Poll status if needed
+        // Poll payment status check
         const statusRes = await paymentService.checkPaymentStatus(orderId);
         const isPaid =
           statusRes?.paymentStatus === "paid" ||

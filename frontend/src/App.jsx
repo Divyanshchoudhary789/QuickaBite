@@ -244,7 +244,7 @@ function AppContent() {
   const [filterOffers, setFilterOffers] = useState(false);
   const [filterPrice, setFilterPrice] = useState("all");
   const [adminSubTab, setAdminSubTab] = useState("dashboard");
-  const [marketingSubTab, setMarketingSubTab] = useState("overview");
+  const [marketingSubTab, setMarketingSubTab] = useState("coupons");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentLocation, setCurrentLocation] = useState("");
@@ -820,7 +820,7 @@ function AppContent() {
         )}
       </AnimatePresence>
       <div
-        className="min-h-screen bg-cream-base flex flex-col font-sans relative pb-32 sm:pb-20 overflow-x-hidden"
+        className={`min-h-screen flex flex-col font-sans relative overflow-x-hidden ${(userRole === "admin" || userRole === "manager" || activeTab === "admin" || activeTab === "manager") ? "pb-0 bg-neutral-100" : "bg-cream-base pb-32 sm:pb-20"}`}
         id="main-globaleats-app"
       >
         {/* Decorative floating spices/ingredients and herb illustrations in background */}
@@ -858,7 +858,7 @@ function AppContent() {
 
         {/* Main Core View Area */}
         <main
-          className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 relative"
+          className={`flex-1 w-full relative ${(userRole === "admin" || userRole === "manager" || activeTab === "admin" || activeTab === "manager") ? "max-w-none px-0 py-0" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6"}`}
           id="viewports-stage"
         >
           <Suspense fallback={

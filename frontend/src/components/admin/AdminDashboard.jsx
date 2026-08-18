@@ -1125,7 +1125,7 @@ export default function AdminDashboard({
   return (
     <>
       <div
-        className="min-h-screen bg-neutral-100 flex font-sans relative overflow-x-hidden"
+        className="min-h-[calc(100vh-4rem)] w-full bg-neutral-100 flex font-sans relative overflow-x-hidden"
         id="admin-workspace-pane"
       >
         {/* MOBILE BACKDROP OVERLAY */}
@@ -1138,7 +1138,7 @@ export default function AdminDashboard({
 
         {/* ADMIN SIDEBAR SLIDER DRAWER */}
         <aside
-          className={`fixed lg:sticky top-0 left-0 h-screen z-50 bg-white text-neutral-900 border-r border-neutral-200/80 flex flex-col transition-all duration-300 ease-in-out shrink-0 shadow-lg ${
+          className={`fixed lg:relative top-0 bottom-0 left-0 h-full z-30 bg-white text-neutral-900 border-r border-neutral-200/80 flex flex-col transition-all duration-300 ease-in-out shrink-0 shadow-lg ${
             isSidebarOpen
               ? "w-72 translate-x-0"
               : "-translate-x-full lg:translate-x-0 lg:w-20"
@@ -1235,6 +1235,9 @@ export default function AdminDashboard({
                 <button
                   key={tab.id}
                   onClick={() => {
+                    if (tab.id === "marketing" && setMarketingSubTab) {
+                      setMarketingSubTab("coupons");
+                    }
                     setActiveSubTab(tab.id);
                     navigate(tab.route);
                     if (window.innerWidth < 1024) {
@@ -1271,7 +1274,7 @@ export default function AdminDashboard({
         </aside>
 
         {/* MAIN WORKSPACE VIEWPORT AREA */}
-        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 space-y-6">
           {/* WORKSPACE TOP CONTROL BAR */}
           <div className="bg-white p-4 rounded-3xl shadow-xs border border-neutral-200 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">

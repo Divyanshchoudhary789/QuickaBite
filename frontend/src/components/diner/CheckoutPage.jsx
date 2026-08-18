@@ -1025,32 +1025,31 @@ export default function CheckoutPage({
           name: "QuikaBite",
           description: `Order #${internalOrder.orderNumber}`,
           order_id: razorpayData.orderId,
-          config: getConfigForMethod(paymentMethod),
           handler: async function (response) {
             triggerToast("Verifying payment signature...");
             const rzpPaymentId = response.razorpay_payment_id || response.payment_id;
             const rzpOrderId = response.razorpay_order_id || response.order_id || razorpayOrderId;
             const rzpSignature = response.razorpay_signature || response.signature;
 
+            if (rzpPaymentId) localStorage.setItem("temp_rzp_payment_id", rzpPaymentId);
+            if (rzpOrderId) localStorage.setItem("temp_rzp_order_id", rzpOrderId);
+            if (rzpSignature) localStorage.setItem("temp_rzp_signature", rzpSignature);
+
             try {
-              const verifyRes = await paymentService.verifyPayment({
-                orderId: internalOrder._id,
+              const verifyRes = await dinerService.verifyRazorpayPayment({
+                orderId: internalOrder._id || internalOrder.id,
                 razorpayOrderId: rzpOrderId,
                 razorpayPaymentId: rzpPaymentId,
                 razorpaySignature: rzpSignature || "test_signature",
               });
+              console.log("--> verifyRes result received in CheckoutPage:", verifyRes);
 
-              if (verifyRes?.success || verifyRes?.data?.success) {
-                localStorage.removeItem("pending_razorpay_order_id");
-                setIsPlacingOrder(false);
-                if (typeof onClearCart === "function") onClearCart();
-                navigate(`/order-success/${internalOrder._id}`);
-              } else {
-                setIsPlacingOrder(false);
-                triggerToast(verifyRes?.message || "Payment verification failed.");
-              }
+              localStorage.removeItem("pending_razorpay_order_id");
+              setIsPlacingOrder(false);
+              if (typeof onClearCart === "function") onClearCart();
+              navigate(`/order-success/${internalOrder._id || internalOrder.id}`);
             } catch (vErr) {
-              console.error("Payment verification error:", vErr);
+              console.error("Payment verification error in handler:", vErr);
               setIsPlacingOrder(false);
               triggerToast(vErr.response?.data?.message || "Payment verification failed!");
             }
@@ -1064,10 +1063,14 @@ export default function CheckoutPage({
             color: "#FF6B00",
           },
           modal: {
-            ondismiss: function () {
+            ondismiss: async function () {
               localStorage.removeItem("pending_razorpay_order_id");
               setIsPlacingOrder(false);
               triggerToast("Razorpay checkout cancelled by user.");
+              const pendingId = internalOrder._id || internalOrder.id;
+              if (pendingId) {
+                await dinerService.cancelPendingPaymentOrder(pendingId);
+              }
             },
           },
         };

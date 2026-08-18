@@ -595,6 +595,11 @@ export const dinerService = {
       await new Promise((resolve) => setTimeout(resolve, 300));
       return {
         success: true,
+        data: {
+          success: true,
+          paymentStatus: "paid",
+          orderStatus: "received",
+        },
         order: {
           id: verificationPayload.orderId,
           status: "received",
@@ -609,7 +614,24 @@ export const dinerService = {
         razorpayPaymentId: verificationPayload.razorpayPaymentId,
         razorpaySignature: verificationPayload.razorpaySignature,
       });
-      return response.data?.data || response.data;
+      console.log("verified payment response", response);
+      console.trace("verified payment response trace", verificationPayload);
+      return response.data;
+    }
+  },
+
+  async cancelPendingPaymentOrder(orderId) {
+    if (!orderId) return;
+    if (USE_MOCK) {
+      return { success: true };
+    } else {
+      try {
+        const response = await apiClient.delete(`/v1/payments/razorpay/cancel/${orderId}`);
+        return response.data?.data || response.data;
+      } catch (err) {
+        console.warn("cancelPendingPaymentOrder API error:", err?.message || err);
+        return null;
+      }
     }
   },
 
@@ -1578,7 +1600,7 @@ export const normalizeOrder = (raw) => {
     contactPhone: orderObj.contactPhone || orderObj.user?.phone || "",
     contactEmail: orderObj.contactEmail || orderObj.user?.email || "",
     driverName: deliveryObj.driverName || orderObj.driverName || "Ahmed Ali",
-    driverPhone: deliveryObj.driverPhone || orderObj.driverPhone || "+91 9876543210",
+    driverPhone: deliveryObj.driverPhone || orderObj.driverPhone || "9876543210",
     deliveryPartner: deliveryObj.partner || orderObj.deliveryPartner || "Gold Partner",
     vehicleDetails: deliveryObj.vehicleDetails || orderObj.vehicleDetails || "Red Honda Activa (DX-09-RT-4412)",
     deliveryInstructions: orderObj.deliveryInstructions || { presets: [], customNote: "" },

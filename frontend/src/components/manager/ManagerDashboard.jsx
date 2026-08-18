@@ -42,7 +42,7 @@ export default function ManagerDashboard({
   return (
     <>
       <div
-        className="min-h-screen bg-neutral-50/70 py-6 px-4 sm:px-6 lg:px-8 font-sans"
+        className="bg-neutral-50/70 font-sans"
         id="manager-workspace-root"
       >
         <div className="max-w-7xl mx-auto space-y-6">
@@ -105,7 +105,7 @@ export default function ManagerDashboard({
           )}
 
           {managerSubTab === "reports" && (
-            <div className="bg-neutral-950 rounded-3xl p-6 border border-neutral-800 shadow-2xl">
+            <div className="bg-neutral-950 text-white rounded-3xl p-5 border border-neutral-800 shadow-2xl">
               <ManagerReportingDashboard triggerToast={triggerToast} />
             </div>
           )}

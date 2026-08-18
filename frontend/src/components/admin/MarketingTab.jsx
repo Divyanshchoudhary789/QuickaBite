@@ -48,7 +48,7 @@ export default function MarketingTab({
   saveOffersToStorage,
 }) {
   const [localActiveSubTab, setLocalActiveSubTab] = useState("coupons");
-  const activeSubTab = (propActiveSubTab && propActiveSubTab !== "marketing") ? propActiveSubTab : "coupons";
+  const activeSubTab = (propActiveSubTab && propActiveSubTab !== "marketing" && propActiveSubTab !== "overview") ? propActiveSubTab : "coupons";
   const setActiveSubTab = propSetActiveSubTab || setLocalActiveSubTab;
 
   const [selectedResIdForOffer, setSelectedResIdForOffer] = useState(null);
@@ -2195,7 +2195,7 @@ ${newTemplateBody}`
                           required
                           value={newContactPhone}
                           onChange={(e) => setNewContactPhone(e.target.value)}
-                          placeholder="e.g. +91 9876543210"
+                          placeholder="e.g. 9876543210"
                           className="w-full bg-white border border-neutral-200 rounded-lg p-2.5 text-xs font-semibold outline-none focus:border-brand-orange"
                         />
                       </div>

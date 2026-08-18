@@ -199,8 +199,8 @@ export const authService = {
       if (!localStorage.getItem("globaleats_users")) {
         const defaultUsers = [
           { id: "u-1", name: profile.name, phone: profile.phone, role, status: "Active", joined: "Just Now" },
-          { id: "u-2", name: "Vedanshi Bhabhra", phone: "+91 9876543210", role: "user", status: "Active", joined: "June 2026" },
-          { id: "u-3", name: "Chef Sanjay", phone: "+91 88800 12345", role: "manager", status: "Active", joined: "May 2026" },
+          { id: "u-2", name: "Vedanshi Bhabhra", phone: "9876543210", role: "user", status: "Active", joined: "June 2026" },
+          { id: "u-3", name: "Chef Sanjay", phone: "8880012345", role: "manager", status: "Active", joined: "May 2026" },
         ];
         localStorage.setItem("globaleats_users", JSON.stringify(defaultUsers));
       }

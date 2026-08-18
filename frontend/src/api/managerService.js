@@ -397,7 +397,7 @@ export const managerService = {
       return this.acceptOrder(orderId);
     } else if (s === "preparing") {
       return this.startPreparingOrder(orderId);
-    } else if (s === "ready" || s === "ready-for-pickup") {
+    } else if (s === "ready" || s === "ready-for-pickup" || s === "ready_for_pickup") {
       return this.markOrderReady(orderId);
     } else if (s === "dispatched" || s === "out_for_delivery") {
       return this.dispatchOrder(orderId, options);
@@ -413,8 +413,12 @@ export const managerService = {
   // Internal helper to handle PATCH /v1/orders/:orderId/status
   async _patchOrderStatus(orderId, payload) {
     const cleanId = await this._resolveDbOrderId(orderId);
+    const apiPayload = { ...payload };
+    if (apiPayload.status === "ready") {
+      apiPayload.status = "ready-for-pickup";
+    }
     try {
-      await apiClient.patch(`/v1/orders/${cleanId}/status`, payload);
+      await apiClient.patch(`/v1/orders/${cleanId}/status`, apiPayload);
       return await this.getIncomingOrders();
     } catch (err) {
       console.warn("_patchOrderStatus live API call failed, falling back to local state:", err?.message || err);
