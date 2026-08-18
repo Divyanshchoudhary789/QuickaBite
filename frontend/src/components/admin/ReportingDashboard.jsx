@@ -198,21 +198,7 @@ export default function ReportingDashboard({ orders = [], triggerToast }) {
             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500 pointer-events-none" />
           </div>
 
-          {/* Time range selector */}
-          <div className="flex items-center bg-neutral-100 p-1 rounded-xl border border-neutral-200 text-[10px] font-black uppercase tracking-wider">
-            <button
-              onClick={() => setSelectedRange("7days")}
-              className={`px-3 py-1.5 rounded-lg transition ${selectedRange === "7days" ? "bg-white text-neutral-950 shadow-xs" : "text-neutral-400 hover:text-neutral-800"}`}
-            >
-              Last 7 Days
-            </button>
-            <button
-              onClick={() => setSelectedRange("30days")}
-              className={`px-3 py-1.5 rounded-lg transition ${selectedRange === "30days" ? "bg-white text-neutral-950 shadow-xs" : "text-neutral-400 hover:text-neutral-800"}`}
-            >
-              Month-to-Date
-            </button>
-          </div>
+          
 
           {/* Global Export CSV Button */}
           <button
