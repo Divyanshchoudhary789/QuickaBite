@@ -530,8 +530,7 @@ export default function AnalyticsTab({
                   <th className="py-3 px-3 bg-white">Specialty Items</th>
                   <th className="py-3 px-3 font-mono bg-white">Amount</th>
                   <th className="py-3 px-3 bg-white">Timeline</th>
-                  <th className="py-3 px-3 bg-white">Chef Status</th>
-                  <th className="py-3 px-3 text-right bg-white">Restaurant Dispatch Actions</th>
+                  <th className="py-3 px-3 text-right bg-white">Chef Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 text-xs text-gray-700">
@@ -579,42 +578,17 @@ export default function AnalyticsTab({
                         <td className="py-3.5 px-3 text-gray-400 font-bold text-[10px] font-mono">
                           {formattedTimeline}
                         </td>
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 text-right">
                           <span className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] uppercase tracking-wider ${statusColors[order.orderStatus || order.status] || "bg-gray-100 text-gray-600"}`}>
                             {order.dispatchStatus === "DISPATCHED" ? "dispatched" : (order.orderStatus || order.status || "pending")}
                           </span>
-                        </td>
-                        <td className="py-3.5 px-3 text-right">
-                          <div className="flex gap-1 justify-end opacity-80 group-hover:opacity-100 transition">
-                            <button
-                              onClick={() => modifyStatus(rawId, "preparing")}
-                              className="px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white rounded-lg text-[9px] font-extrabold uppercase tracking-wider border border-amber-200 transition focus:outline-none"
-                              title="Start Cooking"
-                            >
-                              Cook
-                            </button>
-                            <button
-                              onClick={() => modifyStatus(rawId, "out_for_delivery")}
-                              className="px-2 py-1 bg-sky-50 text-sky-600 hover:bg-sky-500 hover:text-white rounded-lg text-[9px] font-extrabold uppercase tracking-wider border border-sky-200 transition focus:outline-none"
-                              title="Dispatch Delivery"
-                            >
-                              Ship
-                            </button>
-                            <button
-                              onClick={() => modifyStatus(rawId, "delivered")}
-                              className="px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-lg text-[9px] font-extrabold uppercase tracking-wider border border-emerald-200 transition focus:outline-none"
-                              title="Mark Delivered"
-                            >
-                              Done
-                            </button>
-                          </div>
                         </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan="7" className="py-8 text-center text-xs text-gray-400 font-semibold">
+                    <td colSpan="6" className="py-8 text-center text-xs text-gray-400 font-semibold">
                       No recent orders recorded yet
                     </td>
                   </tr>
